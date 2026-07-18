@@ -1,6 +1,6 @@
 {
   "name": "stim-app",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Stim App – DG-LAB Coyote 3.0 Control Deck (Electron)",
   "author": "zenoxo-source",
   "main": "src/main.js",
@@ -19,7 +19,10 @@
     "lint:fix": "eslint ../frontend/js src --ext .js -c .eslintrc.js --resolve-plugins-relative-to . --fix",
     "format": "prettier --write \"../frontend/js/**/*.js\" \"src/**/*.js\"",
     "test": "node scripts/run-tests.js",
-    "icons": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-icons.ps1"
+    "icons": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-icons.ps1",
+    "version:patch": "npm version patch --no-git-tag-version && node -e \"console.log('Version:', require('./package.json').version)\"",
+    "version:minor": "npm version minor --no-git-tag-version && node -e \"console.log('Version:', require('./package.json').version)\"",
+    "version:major": "npm version major --no-git-tag-version && node -e \"console.log('Version:', require('./package.json').version)\""
   },
   "engines": {
     "node": ">=24.0.0"
@@ -89,6 +92,46 @@
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.${ext}"
+    },
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}"
+    },
+    "linux": {
+      "category": "Utility",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-linux-${arch}.${ext}",
+      "description": "Stim App – DG-LAB Coyote 3.0 Control Deck",
+      "synopsis": "DG-LAB Coyote 3.0 Controller"
     },
     "publish": [
       {

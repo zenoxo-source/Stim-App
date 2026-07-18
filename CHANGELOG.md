@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.0
+
+### Tests & Plattform
+- **18 neue Bluetooth-Tests** (Sandbox mit `vm`) — sendB0Now, sendStrengthCommand, sendSoftStop, sendV3Init, isDirty, Heartbeat
+- **macOS + Linux Build-Targets** — DMG/ZIP (mac), AppImage/deb (Linux)
+- **Release-Workflow auf 3 Plattformen** — Windows, macOS, Linux (mit `needs:` Abhängigkeit)
+- **Version-Bumping Scripts** — `npm run version:patch/minor/major`
+
 ## 2.0.0
 
 ### Protokoll & BLE-Korrektheit
