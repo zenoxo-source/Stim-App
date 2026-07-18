@@ -68,10 +68,6 @@
         }
       ],
       "artifactName": "${productName}-${version}-win-${arch}.${ext}",
-      "signingHashAlgorithms": [
-        "sha256"
-      ],
-      "signAndEditExecutable": true,
       "publish": [
         {
           "provider": "github",
