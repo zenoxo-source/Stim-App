@@ -19,6 +19,11 @@ const AppState = {
   masterScale: 1.0,
   softLimitA: 150,
   softLimitB: 150,
+  // BF balance params (0–255); defaults match prior fixed 0xA0 / 0x00
+  freqBalanceA: 160,
+  freqBalanceB: 160,
+  waveBalanceA: 0,
+  waveBalanceB: 0,
 
   waveLoopInterval: null,
   loopTimeCounter: 0,
@@ -161,7 +166,10 @@ document.addEventListener("DOMContentLoaded", () => {
     "btn-dec-a",
     "btn-inc-a",
     "select-freq-a",
+    "slider-freq-a",
+    "label-freq-a",
     "slider-width-a",
+    "label-width-a",
     "badge-mode-a",
     // Channel B
     "slider-intensity-b",
@@ -170,7 +178,10 @@ document.addEventListener("DOMContentLoaded", () => {
     "btn-dec-b",
     "btn-inc-b",
     "select-freq-b",
+    "slider-freq-b",
+    "label-freq-b",
     "slider-width-b",
+    "label-width-b",
     "badge-mode-b",
     // Deck visuals
     "deck-visualizer-a",

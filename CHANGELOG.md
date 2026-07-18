@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.9.0
+
+### UX & Hardware-Klarheit
+- Wave-Freq: ehrliche Labels (**kein „Hz“**), Schnellwahl + Fein-Slider 10–240
+- Wave-Amp % mit Anzeige
+- Einstellungen neu: Sicherheit, **Freq/Wave-Balance (0xBF)**, Gerät, App, AI
+- Geräte-Infos korrekt benannt; AI-Provider setzt passende Endpoints
+- STIM: Audio-Bins → offizielle 10–1000→10–240-Frequenz-Kodierung
+- Onboarding erklärt Strength vs. Wave-Freq
+
 ## 1.8.0
 
 ### Hardware-Korrektheit

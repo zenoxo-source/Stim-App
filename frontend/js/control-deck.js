@@ -283,10 +283,15 @@ document.addEventListener("DOMContentLoaded", () => {
             maxBinA = i;
           }
         }
-        const mappedFreqA =
-          maxValA > 20
-            ? Math.round(CONSTANTS.MIN_FREQUENCY + maxBinA * 3)
-            : CONSTANTS.DEFAULT_FREQUENCY;
+        // Map analyser bin → logical then encode to wire 10–240 (V3)
+        let mappedFreqA = CONSTANTS.DEFAULT_FREQUENCY;
+        if (maxValA > 20) {
+          const logical = 10 + maxBinA * 8; // ~10–1000-ish range
+          mappedFreqA =
+            typeof ProtocolUtils !== "undefined" && ProtocolUtils.encodeWaveFreqLogical
+              ? ProtocolUtils.encodeWaveFreqLogical(logical)
+              : Math.max(10, Math.min(240, Math.round(logical)));
+        }
 
         let ampA = Math.round(peakA * 100 * AppState.sensitivityA);
         let ampB = Math.round(peakB * 100 * AppState.sensitivityB);
@@ -395,40 +400,91 @@ document.addEventListener("DOMContentLoaded", () => {
     updateSlidersB(Math.min(AppState.softLimitB, AppState.strengthB + 5))
   );
 
-  DOM["select-freq-a"]?.addEventListener("change", (e) => {
-    AppState.frequencyA = parseInt(e.target.value);
-    log(`Frequenz A ge\u00e4ndert auf: ${AppState.frequencyA} Hz`, "info");
-    sendStrengthCommand(AppState.strengthA, AppState.strengthB);
-  });
+  function freqLabel(wire) {
+    if (typeof ProtocolUtils !== "undefined" && ProtocolUtils.waveFreqLabel) {
+      return `${wire} · ${ProtocolUtils.waveFreqLabel(wire)}`;
+    }
+    return String(wire);
+  }
 
+  function syncFreqUI(channel) {
+    const f = channel === "A" ? AppState.frequencyA : AppState.frequencyB;
+    const sel = DOM[channel === "A" ? "select-freq-a" : "select-freq-b"];
+    const slider = DOM[channel === "A" ? "slider-freq-a" : "slider-freq-b"];
+    const label = DOM[channel === "A" ? "label-freq-a" : "label-freq-b"];
+    if (slider) slider.value = f;
+    if (label) label.textContent = freqLabel(f);
+    if (sel) {
+      const opt = Array.from(sel.options).find((o) => parseInt(o.value, 10) === f);
+      sel.value = opt ? String(f) : sel.value; // keep custom if not in list
+      if (!opt) {
+        // show value via label only
+      }
+    }
+  }
+
+  function setChannelFreq(channel, value, source) {
+    const wire =
+      typeof ProtocolUtils !== "undefined" && ProtocolUtils.clampWireFreq
+        ? ProtocolUtils.clampWireFreq(value)
+        : Math.max(10, Math.min(240, Math.round(Number(value) || 45)));
+    if (channel === "A") AppState.frequencyA = wire;
+    else AppState.frequencyB = wire;
+    syncFreqUI(channel);
+    if (source !== "silent") {
+      log(`Wave-Freq ${channel}: ${freqLabel(wire)}`, "info");
+    }
+    if (AppState.isConnected) {
+      sendStrengthCommand(AppState.strengthA, AppState.strengthB);
+      if (!AppState.activePattern && !AppState.isAudioPlaying) {
+        sendWaveformCommand(AppState.frequencyA, 100, AppState.frequencyB, 100);
+      }
+    }
+  }
+
+  window.syncFreqUI = syncFreqUI;
+  window.setChannelFreq = setChannelFreq;
+
+  DOM["select-freq-a"]?.addEventListener("change", (e) => {
+    setChannelFreq("A", e.target.value);
+  });
   DOM["select-freq-b"]?.addEventListener("change", (e) => {
-    AppState.frequencyB = parseInt(e.target.value);
-    log(`Frequenz B ge\u00e4ndert auf: ${AppState.frequencyB} Hz`, "info");
-    sendStrengthCommand(AppState.strengthA, AppState.strengthB);
+    setChannelFreq("B", e.target.value);
+  });
+  DOM["slider-freq-a"]?.addEventListener("input", (e) => {
+    setChannelFreq("A", e.target.value);
+  });
+  DOM["slider-freq-b"]?.addEventListener("input", (e) => {
+    setChannelFreq("B", e.target.value);
   });
 
   DOM["slider-width-a"]?.addEventListener("input", (e) => {
     AppState.pulseWidthA = parseInt(e.target.value, 10);
-    // Pulse width scales wave amp on next 0xB0; force refresh
+    if (DOM["label-width-a"]) DOM["label-width-a"].textContent = `${AppState.pulseWidthA}%`;
     if (AppState.isConnected) {
       sendStrengthCommand(AppState.strengthA, AppState.strengthB);
       if (!AppState.activePattern && !AppState.isAudioPlaying) {
         sendWaveformCommand(AppState.frequencyA, 100, AppState.frequencyB, 100);
       }
     }
-    log(`Pulsweite A: ${AppState.pulseWidthA}%`, "info");
   });
 
   DOM["slider-width-b"]?.addEventListener("input", (e) => {
     AppState.pulseWidthB = parseInt(e.target.value, 10);
+    if (DOM["label-width-b"]) DOM["label-width-b"].textContent = `${AppState.pulseWidthB}%`;
     if (AppState.isConnected) {
       sendStrengthCommand(AppState.strengthA, AppState.strengthB);
       if (!AppState.activePattern && !AppState.isAudioPlaying) {
         sendWaveformCommand(AppState.frequencyA, 100, AppState.frequencyB, 100);
       }
     }
-    log(`Pulsweite B: ${AppState.pulseWidthB}%`, "info");
   });
+
+  // Initial labels
+  syncFreqUI("A");
+  syncFreqUI("B");
+  if (DOM["label-width-a"]) DOM["label-width-a"].textContent = `${AppState.pulseWidthA}%`;
+  if (DOM["label-width-b"]) DOM["label-width-b"].textContent = `${AppState.pulseWidthB}%`;
 
   // Master scale
   DOM["slider-master"]?.addEventListener("input", (e) => {

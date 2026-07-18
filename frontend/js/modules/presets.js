@@ -57,13 +57,17 @@ function applyIntensityPreset(id) {
   }
   if (typeof updateSlidersA === "function") updateSlidersA(AppState.strengthA);
   if (typeof updateSlidersB === "function") updateSlidersB(AppState.strengthB);
+  if (typeof syncFreqUI === "function") {
+    syncFreqUI("A");
+    syncFreqUI("B");
+  }
   if (AppState.isConnected && typeof sendV3Init === "function") sendV3Init();
   if (typeof saveSettings === "function") saveSettings();
   document.querySelectorAll(".preset-btn").forEach((b) => {
     b.classList.toggle("active", b.getAttribute("data-preset") === id);
   });
   log(
-    `Preset „${p.label}“ aktiviert (Limits ${p.softLimitA}/${p.softLimitB}, Master ${Math.round(p.masterScale * 100)}%).`,
+    `Preset „${p.label}“: Limits ${p.softLimitA}/${p.softLimitB}, Master ${Math.round(p.masterScale * 100)}%, Wave-Freq ${p.frequencyA}.`,
     "info"
   );
 }

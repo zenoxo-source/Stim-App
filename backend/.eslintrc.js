@@ -53,6 +53,8 @@ module.exports = {
     applyIntensityPreset: 'readonly',
     startSafetyTimer: 'readonly',
     stopSafetyTimer: 'readonly',
+    syncFreqUI: 'readonly',
+    setChannelFreq: 'readonly',
     stopEdgeGame: 'readonly',
     stopPotatoGame: 'readonly',
     stopSurvivalGame: 'readonly',

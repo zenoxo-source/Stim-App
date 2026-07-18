@@ -80,6 +80,26 @@ describe("resolveWaveSegment", () => {
   });
 });
 
+describe("encodeWaveFreqLogical", () => {
+  it("passes through 10–100", () => {
+    assert.equal(ProtocolUtils.encodeWaveFreqLogical(45), 45);
+    assert.equal(ProtocolUtils.encodeWaveFreqLogical(100), 100);
+  });
+
+  it("compresses mid and high ranges to wire 10–240", () => {
+    assert.equal(ProtocolUtils.encodeWaveFreqLogical(350), 150); // (350-100)/5+100
+    assert.equal(ProtocolUtils.encodeWaveFreqLogical(800), 220); // (800-600)/10+200
+    assert.equal(ProtocolUtils.encodeWaveFreqLogical(1000), 240);
+  });
+});
+
+describe("waveFreqLabel", () => {
+  it("returns sensation labels not Hz claims", () => {
+    assert.equal(ProtocolUtils.waveFreqLabel(45), "standard");
+    assert.equal(ProtocolUtils.waveFreqLabel(240), "maximum");
+  });
+});
+
 describe("buildSoftStopBytes", () => {
   it("keeps optional strength with inactive wave", () => {
     const p = ProtocolUtils.buildSoftStopBytes({ strengthA: 40, strengthB: 30, modeNibble: 0 });

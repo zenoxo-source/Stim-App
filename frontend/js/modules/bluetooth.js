@@ -80,9 +80,17 @@ function sendV3Init() {
   if (!AppState.writeChar) return;
   const limitA = Math.min(200, Math.max(0, AppState.softLimitA));
   const limitB = Math.min(200, Math.max(0, AppState.softLimitB));
-  const payload = new Uint8Array([0xbf, limitA, limitB, 0xa0, 0xa0, 0x00, 0x00]);
+  // BF: limits + frequency balance + wave/intensity balance (each 0–255)
+  const fbA = Math.min(255, Math.max(0, Math.round(AppState.freqBalanceA ?? 160)));
+  const fbB = Math.min(255, Math.max(0, Math.round(AppState.freqBalanceB ?? 160)));
+  const wbA = Math.min(255, Math.max(0, Math.round(AppState.waveBalanceA ?? 0)));
+  const wbB = Math.min(255, Math.max(0, Math.round(AppState.waveBalanceB ?? 0)));
+  const payload = new Uint8Array([0xbf, limitA, limitB, fbA, fbB, wbA, wbB]);
   sendBluetoothCommand(payload);
-  log(`V3 Limit-Paket gesendet (Limit A: ${limitA}, Limit B: ${limitB})`, "info");
+  log(
+    `V3 BF gesendet (Limits ${limitA}/${limitB}, FreqBal ${fbA}/${fbB}, WaveBal ${wbA}/${wbB})`,
+    "info"
+  );
 }
 
 function getDeviceStrength(val, softLimit) {

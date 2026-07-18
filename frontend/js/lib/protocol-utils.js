@@ -29,16 +29,50 @@
   }
 
   /**
+   * Official V3 optional mapping: logical program range 10–1000 → wire 10–240.
+   * Stim App primarily uses wire values; this helps STIM/audio mapping.
+   */
+  function encodeWaveFreqLogical(input) {
+    const v = Math.round(Number(input) || 10);
+    if (v < 10) return 10;
+    if (v <= 100) return v;
+    if (v <= 600) return Math.min(240, Math.round((v - 100) / 5 + 100));
+    if (v <= 1000) return Math.min(240, Math.round((v - 600) / 10 + 200));
+    return 240;
+  }
+
+  /** Clamp already-wire frequency (10–240). */
+  function clampWireFreq(freq) {
+    const f = Math.round(Number(freq) || 45);
+    if (f <= 0) return 0;
+    return Math.max(10, Math.min(240, f));
+  }
+
+  /**
+   * Human-readable sensation label for wire freq (not literal Hz).
+   */
+  function waveFreqLabel(wire) {
+    const f = clampWireFreq(wire);
+    if (f <= 0) return "aus";
+    if (f <= 15) return "sehr weich";
+    if (f <= 30) return "weich";
+    if (f <= 50) return "standard";
+    if (f <= 80) return "kräftig";
+    if (f <= 120) return "hoch";
+    if (f <= 180) return "sehr hoch";
+    return "maximum";
+  }
+
+  /**
    * Coyote V3: intensity 0–100 active, 101 = inactive channel segment.
-   * Freq 0 when inactive.
+   * Freq 0 when inactive. Wire freq is 10–240 (not labeled Hz in protocol).
    */
   function resolveWaveSegment(freq, amp) {
     const a = Math.round(Number(amp) || 0);
     if (a <= 0) {
       return { freq: 0, intensity: 101 };
     }
-    const f = Math.max(10, Math.min(240, Math.round(Number(freq) || 45)));
-    return { freq: f, intensity: Math.min(100, a) };
+    return { freq: clampWireFreq(freq), intensity: Math.min(100, a) };
   }
 
   function fillChannelWave(data, freqOffset, intOffset, freq, intensity) {
@@ -102,6 +136,10 @@
         frequencyB: Number(s.frequencyB) || 45,
         pulseWidthA: Number(s.pulseWidthA) || 100,
         pulseWidthB: Number(s.pulseWidthB) || 100,
+        freqBalanceA: clampInt(s.freqBalanceA, 0, 255, 160),
+        freqBalanceB: clampInt(s.freqBalanceB, 0, 255, 160),
+        waveBalanceA: clampInt(s.waveBalanceA, 0, 255, 0),
+        waveBalanceB: clampInt(s.waveBalanceB, 0, 255, 0),
         swapChannels: !!s.swapChannels,
         audioHearSound: s.audioHearSound !== false,
         aiProvider: ai.aiProvider || "ollama",
@@ -129,6 +167,10 @@
       frequencyB: clampInt(settings.frequencyB, 10, 240, 45),
       pulseWidthA: clampInt(settings.pulseWidthA, 0, 100, 100),
       pulseWidthB: clampInt(settings.pulseWidthB, 0, 100, 100),
+      freqBalanceA: clampInt(settings.freqBalanceA, 0, 255, 160),
+      freqBalanceB: clampInt(settings.freqBalanceB, 0, 255, 160),
+      waveBalanceA: clampInt(settings.waveBalanceA, 0, 255, 0),
+      waveBalanceB: clampInt(settings.waveBalanceB, 0, 255, 0),
       swapChannels: !!settings.swapChannels,
       audioHearSound: settings.audioHearSound !== false,
       aiProvider: String(settings.aiProvider || "ollama"),
@@ -166,6 +208,9 @@
     getDeviceStrength,
     scaleWaveAmp,
     applyPulseWidthScale,
+    encodeWaveFreqLogical,
+    clampWireFreq,
+    waveFreqLabel,
     resolveWaveSegment,
     buildEmergencyStopBytes,
     buildSoftStopBytes,
