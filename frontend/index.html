@@ -488,6 +488,15 @@
           </div>
         </div>
         
+        <!-- Game Config Bar -->
+        <div class="game-config-bar">
+          <button type="button" id="btn-toggle-game-config" class="btn btn-secondary btn-sm">⚙️ Spiel-Einstellungen</button>
+          <button type="button" id="btn-reset-game-config" class="btn btn-secondary btn-sm" style="display:none;">Zurücksetzen</button>
+        </div>
+
+        <!-- Game Config Panel (collapsible) -->
+        <div id="game-config-panel" class="game-config-panel" style="display:none;"></div>
+
         <!-- Game Selectors -->
         <div id="game-selectors" class="game-selector-grid">
           
@@ -1109,6 +1118,7 @@
   <script src="js/modules/recorder.js"></script>
   <script src="js/modules/stats.js"></script>
   <script src="js/modules/pattern-editor.js"></script>
+  <script src="js/modules/game-config.js"></script>
   <script src="js/llm-service.js"></script>
 </body>
 </html>

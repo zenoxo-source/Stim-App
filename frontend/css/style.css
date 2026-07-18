@@ -1456,3 +1456,60 @@ textarea.text-input { resize: vertical; min-height: 100px; }
   opacity: 0.6;
   text-align: center;
 }
+
+/* Game Config Panel */
+.game-config-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.game-config-panel {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.game-config-section {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.game-config-section:last-child {
+  border-bottom: none;
+}
+.game-config-section h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #a6e22e;
+}
+.game-config-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.game-config-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.game-config-val {
+  font-weight: 600;
+  color: #66d9ef;
+  min-width: 40px;
+  text-align: right;
+}
+.game-config-hint {
+  font-size: 11px;
+  opacity: 0.6;
+  margin: 0;
+}
+.game-config-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}

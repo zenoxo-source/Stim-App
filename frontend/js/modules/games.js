@@ -5,6 +5,11 @@ function gameWaveOff() {
   else sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
 }
 
+// Helper to read reflex config with fallback
+function reflexCfg() {
+  return typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.reflex : null;
+}
+
 // ========== REFLEX TRAINER ==========
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -20,8 +25,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     AppState.reflexLevel = 1;
-    AppState.reflexTargetTime = 450;
-    AppState.reflexShockVal = 30;
+    const cfg = reflexCfg();
+    AppState.reflexTargetTime = cfg ? cfg.startTargetMs : 450;
+    AppState.reflexShockVal = cfg ? cfg.shockStart : 30;
     AppState.reflexScore = 0;
     AppState.reflexState = "IDLE";
 
@@ -106,11 +112,13 @@ function triggerReflexSuccess() {
   }
 
   AppState.reflexLevel += 1;
-  AppState.reflexTargetTime = Math.max(
-    CONSTANTS.MIN_REFLEX_TARGET_MS,
-    AppState.reflexTargetTime - 25
-  );
-  AppState.reflexShockVal = Math.min(CONSTANTS.MAX_REFLEX_SHOCK, AppState.reflexShockVal + 5);
+  const cfg = reflexCfg();
+  const minTarget = cfg ? cfg.minTargetMs : CONSTANTS.MIN_REFLEX_TARGET_MS;
+  const stepMs = cfg ? cfg.stepMs : 25;
+  const shockMax = cfg ? cfg.shockMax : CONSTANTS.MAX_REFLEX_SHOCK;
+  const shockStep = cfg ? cfg.shockStep : 5;
+  AppState.reflexTargetTime = Math.max(minTarget, AppState.reflexTargetTime - stepMs);
+  AppState.reflexShockVal = Math.min(shockMax, AppState.reflexShockVal + shockStep);
 
   if (DOM["reflex-level"]) DOM["reflex-level"].textContent = AppState.reflexLevel;
   if (DOM["reflex-target"]) DOM["reflex-target"].textContent = `${AppState.reflexTargetTime} ms`;
@@ -197,8 +205,9 @@ document.addEventListener("DOMContentLoaded", () => {
     AppState.rhythmScore = 0;
     AppState.rhythmCombo = 0;
     AppState.rhythmMultiplier = 1;
-    AppState.rhythmTempo = 95;
-    AppState.rhythmShockVal = 30;
+    const rCfg = rhythmCfg();
+    AppState.rhythmTempo = rCfg ? rCfg.tempo : 95;
+    AppState.rhythmShockVal = rCfg ? rCfg.shockStart : 30;
 
     if (DOM["rhythm-score"]) DOM["rhythm-score"].textContent = AppState.rhythmScore;
     if (DOM["rhythm-combo"])
@@ -237,8 +246,15 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+// Helper to read rhythm config with fallback
+function rhythmCfg() {
+  return typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.rhythm : null;
+}
+
 function startRhythmPlaying() {
-  if (typeof ensureGameStrength === "function") ensureGameStrength(35);
+  const cfg = rhythmCfg();
+  const baseStr = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.effectiveBaseStrength() : 35;
+  ensureGameStrength(baseStr);
   AppState.rhythmState = "PLAYING";
   if (DOM["rhythm-start-prompt"]) DOM["rhythm-start-prompt"].style.display = "none";
   if (DOM["rhythm-tap-area"]) DOM["rhythm-tap-area"].disabled = false;
@@ -247,12 +263,15 @@ function startRhythmPlaying() {
   AppState.rhythmCombo = 0;
   AppState.rhythmMultiplier = 1;
 
-  const beatInterval = Math.round(60000 / AppState.rhythmTempo);
+  const tempo = cfg ? cfg.tempo : AppState.rhythmTempo;
+  AppState.rhythmTempo = tempo;
+  const beatInterval = Math.round(60000 / tempo);
   AppState.rhythmCurrentBeatIndex = 0;
   AppState.rhythmNextBeatTime = performance.now() + beatInterval;
 
-  log(`Rhythm Game gestartet. Tempo: ${AppState.rhythmTempo} BPM.`, "info");
+  log(`Rhythm Game gestartet. Tempo: ${tempo} BPM.`, "info");
 
+  const beatAmp = cfg ? cfg.beatAmp : 15;
   AppState.rhythmIntervalId = setInterval(() => {
     const now = performance.now();
     AppState.rhythmNextBeatTime = now + beatInterval;
@@ -265,7 +284,8 @@ function startRhythmPlaying() {
     }
 
     if (AppState.rhythmBeatsArray[nodeIndex]) {
-      sendWaveformCommand(40, 15, 40, 15);
+      const tickleFreq = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.tickleFreq : 40;
+      sendWaveformCommand(tickleFreq, beatAmp, tickleFreq, beatAmp);
 
       setTimeout(() => {
         if (AppState.rhythmState === "PLAYING") gameWaveOff();
@@ -287,6 +307,10 @@ function stopRhythmGame() {
 
 function handleRhythmTap() {
   if (AppState.rhythmState !== "PLAYING") return;
+  const cfg = rhythmCfg();
+  const gc = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data : null;
+  const hitWindow = cfg ? cfg.hitWindowMs : CONSTANTS.RHYTHM_HIT_WINDOW_MS;
+  const maxMult = cfg ? cfg.maxMultiplier : CONSTANTS.RHYTHM_MAX_MULTIPLIER;
 
   const now = performance.now();
 
@@ -303,12 +327,9 @@ function handleRhythmTap() {
       DOM["rhythm-tap-area"].style.backgroundColor = "rgba(0, 120, 212, 0.1)";
   }, 80);
 
-  if (diff <= CONSTANTS.RHYTHM_HIT_WINDOW_MS) {
+  if (diff <= hitWindow) {
     AppState.rhythmCombo += 1;
-    AppState.rhythmMultiplier = Math.min(
-      CONSTANTS.RHYTHM_MAX_MULTIPLIER,
-      Math.floor(AppState.rhythmCombo / 5) + 1
-    );
+    AppState.rhythmMultiplier = Math.min(maxMult, Math.floor(AppState.rhythmCombo / 5) + 1);
     AppState.rhythmScore += 10 * AppState.rhythmMultiplier;
     const rhythmHs = recordHighscore("rhythm", AppState.rhythmScore);
     if (typeof refreshHighscoreUI === "function") refreshHighscoreUI();
@@ -323,7 +344,11 @@ function handleRhythmTap() {
       DOM["rhythm-feedback-message"].style.color = "#107c41";
     }
 
-    sendWaveformCommand(150, 15, 150, 15);
+    const rewardFreq = gc ? gc.rewardFreq : 150;
+    const hitAmp = cfg ? cfg.hitAmp : 15;
+    const scaledHitAmp =
+      typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.clampRewardAmp(hitAmp) : hitAmp;
+    sendWaveformCommand(rewardFreq, scaledHitAmp, rewardFreq, scaledHitAmp);
     setTimeout(() => {
       if (AppState.rhythmState === "PLAYING") gameWaveOff();
     }, 120);
@@ -341,12 +366,11 @@ function handleRhythmTap() {
       DOM["rhythm-feedback-message"].style.color = "#a80000";
     }
 
-    sendWaveformCommand(
-      CONSTANTS.DEFAULT_FREQUENCY,
-      AppState.rhythmShockVal,
-      CONSTANTS.DEFAULT_FREQUENCY,
-      AppState.rhythmShockVal
-    );
+    const shockFreq = gc ? gc.shockFreq : CONSTANTS.DEFAULT_FREQUENCY;
+    const missAmp = cfg ? cfg.missAmp : AppState.rhythmShockVal;
+    const scaledMissAmp =
+      typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.clampAmp(missAmp) : missAmp;
+    sendWaveformCommand(shockFreq, scaledMissAmp, shockFreq, scaledMissAmp);
     if (typeof playGameSfx === "function") playGameSfx("fail");
     log("Rhythm: Beat verpasst! Strafe gesendet.", "warning");
 

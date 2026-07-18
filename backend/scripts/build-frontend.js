@@ -31,6 +31,7 @@ const jsOrder = [
   'js/modules/recorder.js',
   'js/modules/stats.js',
   'js/modules/pattern-editor.js',
+  'js/modules/game-config.js',
   'js/llm-service.js',
 ];
 

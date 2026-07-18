@@ -36,6 +36,8 @@ module.exports = {
     trackStat: 'readonly',
     renderStats: 'readonly',
     PATTERN_EDITOR: 'readonly',
+    GAME_CONFIG: 'readonly',
+    renderGameConfig: 'readonly',
     startWaveLoop: 'readonly',
     stopWaveLoop: 'readonly',
     updateAIDashboard: 'readonly',

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.4.0
+
+### Spiele-Hardware-Konfiguration
+- **Zentrales GAME_CONFIG-Objekt** — alle hardcodeden Spielwerte sind jetzt einstellbar
+- **Spiel-Einstellungen Panel** — aufklappbar im Spiele-Tab mit Slidern für alle Parameter
+- **Hardware-Parameter**: Basisstärke, Schock-Multiplikator, Belohnungs-Multiplikator, Schock/Belohnungs/Kitzel-Frequenz, Max. Schock-Amplitude, Soft-Limits-Respektierung
+- **Pro-Spiel-Parameter**: Reflex (Zielzeit, Schock-Verlauf), Rhythm (Tempo, Trefferfenster, Miss-Schock), Edge (Zone, Amplituden-Skalierung, Steigrate), Potato (Timer, Explosion), Survival (Start/Max-Level, Ramp-Speed)
+- **gameShock/gameTickle** nutzen GAME_CONFIG für Frequenz und Amplituden-Skalierung
+- **Persistenz** — Konfiguration wird in localStorage gespeichert
+
 ## 2.3.0
 
 ### Phase 1: Tests & Sicherheit

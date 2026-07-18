@@ -3,9 +3,11 @@
 /**
  * V3 needs channel strength > 0 for wave amps to be felt. Games only set wave amps.
  * Raise strength gently to min if user left sliders at 0.
+ * Uses GAME_CONFIG.baseStrength if available.
  */
-function ensureGameStrength(minLevel = 40) {
-  const min = Math.max(10, Math.min(80, Number(minLevel) || 40));
+function ensureGameStrength(minLevel) {
+  const cfgBase = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.effectiveBaseStrength() : 40;
+  const min = minLevel != null ? Math.max(10, Math.min(80, Number(minLevel) || 40)) : cfgBase;
   const targetA = Math.min(AppState.softLimitA, Math.max(AppState.strengthA || 0, min));
   const targetB = Math.min(AppState.softLimitB, Math.max(AppState.strengthB || 0, min));
   let raised = false;
@@ -71,7 +73,8 @@ function requireConnectedForGame() {
 function beginMiniGame(arenaId) {
   if (!requireConnectedForGame()) return false;
   hideGameSelectors();
-  ensureGameStrength(40);
+  const baseStr = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.effectiveBaseStrength() : 40;
+  ensureGameStrength(baseStr);
   const arena = document.getElementById(arenaId);
   if (arena) arena.style.display = "flex";
   if (typeof trackStat === "function") trackStat("gamesStarted");
@@ -84,15 +87,22 @@ function gameWaveOff() {
 }
 
 function gameShock(amp, ms = 280) {
-  ensureGameStrength(35);
-  const a = Math.min(100, Math.max(10, Math.round(amp)));
-  sendWaveformCommand(60, a, 60, a);
+  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG : null;
+  const baseStr = cfg ? cfg.effectiveBaseStrength() : 35;
+  ensureGameStrength(baseStr);
+  const rawAmp = cfg ? cfg.clampAmp(amp) : Math.min(100, Math.max(10, Math.round(amp)));
+  const freq = cfg ? cfg.data.shockFreq : 60;
+  sendWaveformCommand(freq, rawAmp, freq, rawAmp);
   setTimeout(gameWaveOff, ms);
 }
 
 function gameTickle(amp = 12, ms = 100) {
-  ensureGameStrength(25);
-  sendWaveformCommand(120, amp, 120, amp);
+  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG : null;
+  const baseStr = cfg ? Math.max(25, cfg.effectiveBaseStrength() * 0.6) : 25;
+  ensureGameStrength(baseStr);
+  const rawAmp = cfg ? cfg.clampRewardAmp(amp) : amp;
+  const freq = cfg ? cfg.data.tickleFreq : 120;
+  sendWaveformCommand(freq, rawAmp, freq, rawAmp);
   setTimeout(gameWaveOff, ms);
 }
 
@@ -110,13 +120,19 @@ function stopEdgeGame() {
 }
 
 function startEdgeRound() {
-  ensureGameStrength(35);
+  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.edge : null;
+  const baseStr = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.effectiveBaseStrength() : 35;
+  ensureGameStrength(baseStr);
   AppState.edgeState = "RUNNING";
   AppState.edgeHolding = false;
   AppState.edgeLevel = 0;
   AppState.edgeScore = AppState.edgeScore || 0;
-  AppState.edgeZoneMin = 55 + Math.random() * 15;
-  AppState.edgeZoneMax = AppState.edgeZoneMin + 12 + Math.random() * 8;
+  AppState.edgeZoneMin = cfg
+    ? cfg.zoneBase + Math.random() * cfg.zoneJitter
+    : 55 + Math.random() * 15;
+  AppState.edgeZoneMax = cfg
+    ? AppState.edgeZoneMin + cfg.zoneWidth + Math.random() * cfg.zoneWidthJitter
+    : AppState.edgeZoneMin + 12 + Math.random() * 8;
   AppState.edgeLastTick = performance.now();
   AppState.edgeInZoneMs = 0;
   updateEdgeUI();
@@ -126,23 +142,31 @@ function startEdgeRound() {
 
 function edgeLoop() {
   if (AppState.edgeState !== "RUNNING") return;
+  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.edge : null;
+  const riseSpeed = cfg ? cfg.riseSpeed : 0.035;
+  const fallSpeed = cfg ? cfg.fallSpeed : 0.05;
+  const ampScale = cfg ? cfg.ampScale : 55;
+  const freqA = cfg ? cfg.freqA : 50;
+  const freqB = cfg ? cfg.freqB : 50;
+  const overEdgeMargin = cfg ? cfg.overEdgeMargin : 8;
+
   const now = performance.now();
   const dt = Math.min(50, now - (AppState.edgeLastTick || now));
   AppState.edgeLastTick = now;
 
   if (AppState.edgeHolding) {
-    AppState.edgeLevel = Math.min(100, AppState.edgeLevel + dt * 0.035);
+    AppState.edgeLevel = Math.min(100, AppState.edgeLevel + dt * riseSpeed);
   } else {
-    AppState.edgeLevel = Math.max(0, AppState.edgeLevel - dt * 0.05);
+    AppState.edgeLevel = Math.max(0, AppState.edgeLevel - dt * fallSpeed);
   }
 
   const lvl = AppState.edgeLevel;
   const inZone = lvl >= AppState.edgeZoneMin && lvl <= AppState.edgeZoneMax;
 
   // Output proportional to level (capped by soft limits via wave amp)
-  const amp = Math.round((lvl / 100) * 55);
+  const amp = Math.round((lvl / 100) * ampScale);
   if (amp > 2) {
-    sendWaveformCommand(50, amp, 50, Math.round(amp * 0.85));
+    sendWaveformCommand(freqA, amp, freqB, Math.round(amp * 0.85));
   } else {
     gameWaveOff();
   }
@@ -156,9 +180,13 @@ function edgeLoop() {
   }
 
   // Blow past the edge
-  if (lvl > AppState.edgeZoneMax + 8) {
+  if (lvl > AppState.edgeZoneMax + overEdgeMargin) {
     AppState.edgeState = "FAIL";
-    gameShock(Math.min(70, 25 + AppState.edgeScore / 10), 400);
+    const failCfg = cfg || {};
+    const failShock = failCfg.failShockBase != null ? failCfg.failShockBase : 25;
+    const failPerScore = failCfg.failShockPerScore != null ? failCfg.failShockPerScore : 1;
+    const failMax = failCfg.failShockMax != null ? failCfg.failShockMax : 70;
+    gameShock(Math.min(failMax, failShock + (AppState.edgeScore * failPerScore) / 10), 400);
     if (typeof playGameSfx === "function") playGameSfx("fail");
     const res = recordHighscore("edge", AppState.edgeScore);
     if (DOM["edge-feedback"]) {
@@ -220,11 +248,15 @@ function stopPotatoGame() {
 }
 
 function startPotatoRound() {
+  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.potato : null;
   AppState.potatoState = "LIVE";
   AppState.potatoScore = AppState.potatoScore || 0;
   AppState.potatoRound = (AppState.potatoRound || 0) + 1;
-  const base = Math.max(900, 2800 - AppState.potatoRound * 120);
-  AppState.potatoDeadline = performance.now() + base + Math.random() * 800;
+  const base = cfg
+    ? Math.max(cfg.minTimerMs, cfg.baseTimerMs - AppState.potatoRound * cfg.timerDecPerRound)
+    : Math.max(900, 2800 - AppState.potatoRound * 120);
+  const jitter = cfg ? cfg.jitterMs : 800;
+  AppState.potatoDeadline = performance.now() + base + Math.random() * jitter;
   AppState.potatoChannel = Math.random() < 0.5 ? "A" : "B";
   const hint = document.getElementById("potato-channel");
   if (hint) {
@@ -236,6 +268,9 @@ function startPotatoRound() {
       `Kanal ${AppState.potatoChannel} – drücke ${AppState.potatoChannel === "A" ? "A / ←" : "B / →"}!`;
     DOM["potato-feedback"].style.color = "#5ab3ff";
   }
+  const pulseBase = cfg ? cfg.pulseBaseAmp : 10;
+  const pulseUrgency = cfg ? cfg.pulseUrgencyAmp : 25;
+  const pulseFreq = cfg ? cfg.pulseFreq : 70;
   // Gentle pulse while waiting
   AppState.potatoTick = setInterval(() => {
     if (AppState.potatoState !== "LIVE") return;
@@ -245,9 +280,9 @@ function startPotatoRound() {
       return;
     }
     const urgency = 1 - left / 3000;
-    const amp = Math.round(10 + urgency * 25);
-    if (AppState.potatoChannel === "A") sendWaveformCommand(70, amp, 70, 0);
-    else sendWaveformCommand(70, 0, 70, amp);
+    const amp = Math.round(pulseBase + urgency * pulseUrgency);
+    if (AppState.potatoChannel === "A") sendWaveformCommand(pulseFreq, amp, pulseFreq, 0);
+    else sendWaveformCommand(pulseFreq, 0, pulseFreq, amp);
     const bar = document.getElementById("potato-timer-bar");
     if (bar) bar.style.width = `${Math.max(0, Math.min(100, (left / 3500) * 100))}%`;
   }, 80);
@@ -257,7 +292,9 @@ function startPotatoRound() {
 function potatoPass() {
   if (AppState.potatoState !== "LIVE") return;
   AppState.potatoScore += 1;
-  gameTickle(18, 90);
+  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.potato : null;
+  const tickleAmp = cfg ? cfg.tickleAmp : 18;
+  gameTickle(tickleAmp, 90);
   if (typeof playGameSfx === "function") playGameSfx("hit");
   if (AppState.potatoTick) {
     clearInterval(AppState.potatoTick);
@@ -282,11 +319,15 @@ function potatoPass() {
 function potatoExplode() {
   if (AppState.potatoState !== "LIVE") return;
   AppState.potatoState = "BOOM";
+  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.potato : null;
+  const explodeBase = cfg ? cfg.explodeBase : 30;
+  const explodePerRound = cfg ? cfg.explodePerRound : 3;
+  const explodeMax = cfg ? cfg.explodeMax : 80;
   if (AppState.potatoTick) {
     clearInterval(AppState.potatoTick);
     AppState.potatoTick = null;
   }
-  gameShock(Math.min(80, 30 + AppState.potatoRound * 3), 500);
+  gameShock(Math.min(explodeMax, explodeBase + AppState.potatoRound * explodePerRound), 500);
   if (typeof playGameSfx === "function") playGameSfx("fail");
   const res = recordHighscore("potato", AppState.potatoScore);
   if (DOM["potato-feedback"]) {
@@ -312,7 +353,9 @@ function handlePotatoKey(channel) {
   if (channel === AppState.potatoChannel) potatoPass();
   else {
     // Wrong channel = mild shock, continue
-    gameShock(35, 200);
+    const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.potato : null;
+    const wrongAmp = cfg ? cfg.wrongChannelAmp : 35;
+    gameShock(wrongAmp, 200);
     if (typeof playGameSfx === "function") playGameSfx("fail");
     if (DOM["potato-feedback"]) {
       DOM["potato-feedback"].textContent = "Falscher Kanal!";
@@ -351,35 +394,51 @@ function stopSurvivalGame(record = false) {
 
 function survivalLoop() {
   if (AppState.survivalState !== "RUNNING") return;
+  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.survival : null;
+  const maxLevel = cfg ? cfg.maxLevel : 70;
+  const rampSpeed = cfg ? cfg.rampSpeed : 1.35;
+  const startLevel = cfg ? cfg.startLevel : 8;
+  const wobbleAmp = cfg ? cfg.wobbleAmp : 4;
+  const freqBaseA = cfg ? cfg.freqBaseA : 40;
+  const freqBaseB = cfg ? cfg.freqBaseB : 55;
+  const freqRampA = cfg ? cfg.freqRampA : 1.0;
+  const freqRampB = cfg ? cfg.freqRampB : 0.8;
+
   const now = performance.now();
   AppState.survivalLastTick = now;
 
   const elapsed = (now - AppState.survivalStartedAt) / 1000;
   AppState.survivalScore = Math.floor(elapsed);
-  // Ramp 8 → ~70 over ~45s, soft-capped
-  AppState.survivalLevel = Math.min(70, 8 + elapsed * 1.35 + Math.sin(elapsed * 0.7) * 6);
+  // Ramp startLevel → ~maxLevel over ~45s, soft-capped
+  AppState.survivalLevel = Math.min(
+    maxLevel,
+    startLevel + elapsed * rampSpeed + Math.sin(elapsed * 0.7) * wobbleAmp
+  );
   const amp = Math.round(AppState.survivalLevel);
-  const wobble = Math.round(4 + Math.sin(elapsed * 2.2) * 4);
+  const wobble = Math.round(wobbleAmp * 0.6 + Math.sin(elapsed * 2.2) * wobbleAmp);
   sendWaveformCommand(
-    40 + Math.round(elapsed),
+    freqBaseA + Math.round(elapsed * freqRampA),
     amp,
-    55 + Math.round(elapsed * 0.8),
+    freqBaseB + Math.round(elapsed * freqRampB),
     amp - 5 + wobble
   );
 
   if (DOM["survival-score"]) DOM["survival-score"].textContent = `${AppState.survivalScore}s`;
   if (DOM["survival-level"]) DOM["survival-level"].textContent = `${amp}%`;
   const bar = document.getElementById("survival-bar");
-  if (bar) bar.style.width = `${Math.min(100, (amp / 70) * 100)}%`;
+  if (bar) bar.style.width = `${Math.min(100, (amp / maxLevel) * 100)}%`;
 
   AppState.survivalRaf = requestAnimationFrame(survivalLoop);
 }
 
 function startSurvivalRound() {
-  ensureGameStrength(30);
+  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.survival : null;
+  const startLevel = cfg ? cfg.startLevel : 8;
+  const baseStr = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.effectiveBaseStrength() : 30;
+  ensureGameStrength(baseStr);
   AppState.survivalState = "RUNNING";
   AppState.survivalScore = 0;
-  AppState.survivalLevel = 8;
+  AppState.survivalLevel = startLevel;
   AppState.survivalStartedAt = performance.now();
   AppState.survivalLastTick = performance.now();
   if (DOM["survival-feedback"]) {

@@ -325,7 +325,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (DOM["visualizer-val-a"]) DOM["visualizer-val-a"].textContent = `${ampA}%`;
         if (DOM["visualizer-val-b"]) DOM["visualizer-val-b"].textContent = `${ampB}%`;
       } else if (AppState.reflexState === "SHOCKING") {
-        await sendWaveformCommand(80, AppState.reflexShockVal, 80, AppState.reflexShockVal);
+        const shockFreq = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.shockFreq : 80;
+        await sendWaveformCommand(
+          shockFreq,
+          AppState.reflexShockVal,
+          shockFreq,
+          AppState.reflexShockVal
+        );
       } else if (
         AppState.rhythmState !== "IDLE" ||
         AppState.edgeState === "RUNNING" ||
