@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.0.0
+
+### Protokoll & BLE-Korrektheit
+- **Strength+Waveform in einem B0-Paket** — kein 100ms-Delay mehr bei Slider-Änderungen
+- **V3_MODE_ABSOLUTE_BOTH** Korrektur auf `0x0F` (Kanal A+B beide absolut)
+- **B1-ACK-Handler** vereinfacht, ACK-Timeout auf 300ms
+- **isDirty-Flag** — BLE-Write nur wenn sich Werte tatsächlich geändert haben
+- **Heartbeat/Connection-Monitoring** — B1-Staleness-Detection mit Warnung
+- **BLE Debug-Modus** — Hex-Dump von B0/B1-Paketen im Log (aktivierbar in Einstellungen)
+
+### Code-Qualität
+- **JSDoc-Type-Annotations** für alle Protokoll-Hilfsfunktionen
+- **Module-Registry-Validation** — prüft beim Start ob alle benötigten Globals vorhanden sind
+- **Erweiterte Tests** — `buildB0Packet`, `bytesToHex`, Mode-Bits, Wave-Slots
+- **Fehlerbehandlung** — leere catch-Blöcke durch `console.warn` ersetzt
+
 ## 1.9.1
 
 ### Bugfixes (V3 BLE-Protokoll)

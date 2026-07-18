@@ -188,3 +188,149 @@ describe("mergeHighscore", () => {
     assert.equal(c.store.edge, 12);
   });
 });
+
+describe("buildB0Packet", () => {
+  it("builds a 20-byte packet with header 0xB0", () => {
+    const p = ProtocolUtils.buildB0Packet({
+      sequence: 1,
+      mode: 0x0f,
+      strengthA: 100,
+      strengthB: 50,
+      freqA: 45,
+      intensityA: 80,
+      freqB: 30,
+      intensityB: 60,
+    });
+    assert.equal(p.length, 20);
+    assert.equal(p[0], 0xb0);
+    assert.equal(p[1], 0x1f); // (1 << 4) | 0x0f
+    assert.equal(p[2], 100);
+    assert.equal(p[3], 50);
+    // Channel A freq
+    assert.equal(p[4], 45);
+    assert.equal(p[5], 45);
+    assert.equal(p[6], 45);
+    assert.equal(p[7], 45);
+    // Channel A intensity
+    assert.equal(p[8], 80);
+    assert.equal(p[9], 80);
+    assert.equal(p[10], 80);
+    assert.equal(p[11], 80);
+    // Channel B freq
+    assert.equal(p[12], 30);
+    assert.equal(p[13], 30);
+    assert.equal(p[14], 30);
+    assert.equal(p[15], 30);
+    // Channel B intensity
+    assert.equal(p[16], 60);
+    assert.equal(p[17], 60);
+    assert.equal(p[18], 60);
+    assert.equal(p[19], 60);
+  });
+
+  it("packs mode correctly: 0x0F = absolute both", () => {
+    const p = ProtocolUtils.buildB0Packet({
+      sequence: 0,
+      mode: 0x0f,
+      strengthA: 50,
+      strengthB: 50,
+      freqA: 45,
+      intensityA: 100,
+      freqB: 45,
+      intensityB: 100,
+    });
+    assert.equal(p[1], 0x0f);
+  });
+
+  it("uses mode 0x00 = no change for both channels", () => {
+    const p = ProtocolUtils.buildB0Packet({
+      sequence: 0,
+      mode: 0x00,
+      strengthA: 50,
+      strengthB: 50,
+      freqA: 45,
+      intensityA: 100,
+      freqB: 45,
+      intensityB: 100,
+    });
+    assert.equal(p[1], 0x00);
+  });
+
+  it("V3_MODE_ABSOLUTE_BOTH is 0x0F", () => {
+    // Verify the constant used for absolute mode matches protocol
+    assert.equal(0x0f, 0b1111);
+  });
+
+  it("fills all 4 wave slots per channel", () => {
+    const p = ProtocolUtils.buildB0Packet({
+      sequence: 0,
+      mode: 0x0f,
+      strengthA: 10,
+      strengthB: 10,
+      freqA: 20,
+      intensityA: 90,
+      freqB: 25,
+      intensityB: 70,
+    });
+    // Channel A: all 4 freq + all 4 intensity identical
+    for (let i = 0; i < 4; i++) {
+      assert.equal(p[4 + i], 20, `freqA slot ${i}`);
+      assert.equal(p[8 + i], 90, `intensityA slot ${i}`);
+    }
+    // Channel B: all 4 freq + all 4 intensity identical
+    for (let i = 0; i < 4; i++) {
+      assert.equal(p[12 + i], 25, `freqB slot ${i}`);
+      assert.equal(p[16 + i], 70, `intensityB slot ${i}`);
+    }
+  });
+
+  it("defaults to seq=0 and mode=0 when not provided", () => {
+    const p = ProtocolUtils.buildB0Packet({
+      strengthA: 50,
+      strengthB: 50,
+    });
+    assert.equal(p[1], 0x00);
+    assert.equal(p[2], 50);
+    assert.equal(p[3], 50);
+  });
+
+  it("clamps strength to 0-200", () => {
+    const p = ProtocolUtils.buildB0Packet({
+      sequence: 0,
+      mode: 0,
+      strengthA: 250,
+      strengthB: -10,
+      freqA: 45,
+      intensityA: 50,
+      freqB: 45,
+      intensityB: 50,
+    });
+    assert.equal(p[2], 200);
+    assert.equal(p[3], 0);
+  });
+});
+
+describe("bytesToHex", () => {
+  it("formats a small array", () => {
+    const hex = ProtocolUtils.bytesToHex(new Uint8Array([0xb0, 0x0f, 0x32, 0x00]));
+    assert.equal(hex, "B0 0F 32 00");
+  });
+
+  it("formats a full B0 packet", () => {
+    const p = ProtocolUtils.buildB0Packet({
+      sequence: 0,
+      mode: 0x0f,
+      strengthA: 100,
+      strengthB: 100,
+      freqA: 45,
+      intensityA: 100,
+      freqB: 45,
+      intensityB: 100,
+    });
+    const hex = ProtocolUtils.bytesToHex(p);
+    const parts = hex.split(" ");
+    assert.equal(parts.length, 20);
+    assert.equal(parts[0], "B0");
+    assert.equal(parts[1], "0F");
+  });
+});

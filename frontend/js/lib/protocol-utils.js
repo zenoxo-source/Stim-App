@@ -8,12 +8,23 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  /**
+   * @param {number} val
+   * @param {number} softLimit
+   * @param {number} [masterScale=1]
+   * @returns {number}
+   */
   function getDeviceStrength(val, softLimit, masterScale) {
     const clamped = Math.min(softLimit, Math.max(0, Math.round(Number(val) || 0)));
     const scale = typeof masterScale === "number" && !Number.isNaN(masterScale) ? masterScale : 1;
     return Math.min(200, Math.max(0, Math.round(clamped * scale)));
   }
 
+  /**
+   * @param {number} amp
+   * @param {number} masterScale
+   * @returns {number}
+   */
   function scaleWaveAmp(amp, masterScale) {
     const scale = typeof masterScale === "number" && !Number.isNaN(masterScale) ? masterScale : 1;
     return Math.min(100, Math.max(0, Math.round((Number(amp) || 0) * scale)));
@@ -21,6 +32,9 @@
 
   /**
    * Pulse-width slider (0–100) as wave amplitude scale. Default 100 = full amp.
+   * @param {number} amp
+   * @param {number} pulseWidth
+   * @returns {number}
    */
   function applyPulseWidthScale(amp, pulseWidth) {
     const pw = Number(pulseWidth);
@@ -31,6 +45,8 @@
   /**
    * Official V3 optional mapping: logical program range 10–1000 → wire 10–240.
    * Stim App primarily uses wire values; this helps STIM/audio mapping.
+   * @param {number} input
+   * @returns {number}
    */
   function encodeWaveFreqLogical(input) {
     const v = Math.round(Number(input) || 10);
@@ -41,7 +57,10 @@
     return 240;
   }
 
-  /** Clamp already-wire frequency (10–240). */
+  /** Clamp already-wire frequency (10–240).
+   * @param {number} freq
+   * @returns {number}
+   */
   function clampWireFreq(freq) {
     const f = Math.round(Number(freq) || 45);
     if (f <= 0) return 0;
@@ -50,6 +69,8 @@
 
   /**
    * Human-readable sensation label for wire freq (not literal Hz).
+   * @param {number} wire
+   * @returns {string}
    */
   function waveFreqLabel(wire) {
     const f = clampWireFreq(wire);
@@ -66,6 +87,9 @@
   /**
    * Coyote V3: intensity 0–100 active, 101 = inactive channel segment.
    * Freq 0 when inactive. Wire freq is 10–240 (not labeled Hz in protocol).
+   * @param {number} freq
+   * @param {number} amp
+   * @returns {{ freq: number, intensity: number }}
    */
   function resolveWaveSegment(freq, amp) {
     const a = Math.round(Number(amp) || 0);
@@ -75,11 +99,56 @@
     return { freq: clampWireFreq(freq), intensity: Math.min(100, a) };
   }
 
+  /**
+   * @param {Uint8Array} data
+   * @param {number} freqOffset
+   * @param {number} intOffset
+   * @param {number} freq
+   * @param {number} intensity
+   */
   function fillChannelWave(data, freqOffset, intOffset, freq, intensity) {
     for (let i = 0; i < 4; i++) {
       data[freqOffset + i] = freq;
       data[intOffset + i] = intensity;
     }
+  }
+
+  /**
+   * Build a complete V3 0xB0 packet (20 bytes).
+   * @param {object} opts
+   * @param {number} [opts.sequence=0] sequence number 0–15
+   * @param {number} [opts.mode=0] mode nibble (0bLLLL for A, 0b00LL for B)
+   * @param {number} [opts.strengthA=0] channel A strength 0–200
+   * @param {number} [opts.strengthB=0] channel B strength 0–200
+   * @param {number} [opts.freqA=0] channel A wire frequency 10–240 (0 = inactive)
+   * @param {number} [opts.intensityA=101] channel A wave intensity 0–100 (101 = inactive)
+   * @param {number} [opts.freqB=0] channel B wire frequency 10–240 (0 = inactive)
+   * @param {number} [opts.intensityB=101] channel B wave intensity 0–100 (101 = inactive)
+   * @returns {Uint8Array} 20-byte B0 packet
+   */
+  function buildB0Packet(opts) {
+    const o = opts || {};
+    const data = new Uint8Array(20);
+    data[0] = 0xb0;
+    data[1] = ((o.sequence & 0x0f) << 4) | (o.mode & 0x0f);
+    data[2] = Math.min(200, Math.max(0, Math.round(Number(o.strengthA) || 0)));
+    data[3] = Math.min(200, Math.max(0, Math.round(Number(o.strengthB) || 0)));
+    fillChannelWave(data, 4, 8, o.freqA | 0, o.intensityA | 0);
+    fillChannelWave(data, 12, 16, o.freqB | 0, o.intensityB | 0);
+    return data;
+  }
+
+  /**
+   * Convert a Uint8Array to a hex string for debugging.
+   * @param {Uint8Array} bytes
+   * @returns {string} e.g. "B0 0F 00 00 2D 2D 2D 2D 64 64 64 64 00 00 00 00 65 65 65 65"
+   */
+  function bytesToHex(bytes) {
+    const parts = [];
+    for (let i = 0; i < bytes.length; i++) {
+      parts.push(bytes[i].toString(16).padStart(2, "0").toUpperCase());
+    }
+    return parts.join(" ");
   }
 
   function buildEmergencyStopBytes() {
@@ -212,6 +281,8 @@
     clampWireFreq,
     waveFreqLabel,
     resolveWaveSegment,
+    buildB0Packet,
+    bytesToHex,
     buildEmergencyStopBytes,
     buildSoftStopBytes,
     fillChannelWave,

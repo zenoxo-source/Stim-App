@@ -118,6 +118,16 @@ const AppState = {
   playlistIndex: -1,
   onboardingStep: 0,
 
+  // BLE monitoring (Fix 7: heartbeat, Fix 8: debug mode)
+  debugMode: false,
+  lastB1Time: 0,
+  _lastSentStrA: undefined,
+  _lastSentStrB: undefined,
+  _lastSentFreqA: undefined,
+  _lastSentFreqB: undefined,
+  _lastSentAmpA: undefined,
+  _lastSentAmpB: undefined,
+
   btSeq: 0,
   btAwaitingAck: false,
   btPendingMode: 0,
@@ -138,6 +148,13 @@ const AppState = {
     this.btSeq = 0;
     this.btAwaitingAck = false;
     this.btPendingMode = 0;
+    this.lastB1Time = 0;
+    this._lastSentStrA = undefined;
+    this._lastSentStrB = undefined;
+    this._lastSentFreqA = undefined;
+    this._lastSentFreqB = undefined;
+    this._lastSentAmpA = undefined;
+    this._lastSentAmpB = undefined;
     this.reflexState = "IDLE";
     this.rhythmState = "IDLE";
     this.edgeState = "IDLE";
@@ -273,6 +290,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "info-firmware",
     "info-hardware",
     "check-swap-channels",
+    "check-debug-mode",
     "check-settings-audio",
     "ai-provider",
     "ai-endpoint",

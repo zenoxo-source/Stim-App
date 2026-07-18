@@ -15,11 +15,23 @@
 //     bytes 16-19: intensity[4] for channel B
 //
 //   0xBF packet (7 bytes): set device limits
-//     byte 0: 0xBF, bytes 1-2: limitA/B, bytes 3-4: 0xA0, bytes 5-6: 0x00
+//     byte 0: 0xBF, bytes 1-2: limitA/B, bytes 3-4: freqBalA/B, bytes 5-6: waveBalA/B
 //
 //   0xB1 notification: device ACK + strength feedback
 //     byte 0: 0xB1, byte 1: ackSeq, byte 2: strengthA, byte 3: strengthB
 
+// ---------------------------------------------------------------------------
+// Debug hex-dump (Fix 8: Debug-Mode)
+// ---------------------------------------------------------------------------
+function debugHex(label, data) {
+  if (!AppState.debugMode) return;
+  const hex = typeof ProtocolUtils !== "undefined" ? ProtocolUtils.bytesToHex(data) : "";
+  log(`[BLE-DEBUG] ${label}: ${hex}`, "info");
+}
+
+// ---------------------------------------------------------------------------
+// Core BLE write (Fix 6: error logging)
+// ---------------------------------------------------------------------------
 function sendBluetoothCommand(data) {
   return new Promise((resolve) => {
     if (!AppState.writeChar) {
@@ -27,6 +39,7 @@ function sendBluetoothCommand(data) {
       return;
     }
     try {
+      debugHex("B0-write", data);
       const writeOp = AppState.writeChar.writeValueWithoutResponse
         ? AppState.writeChar.writeValueWithoutResponse(data)
         : AppState.writeChar.writeValue(data);
@@ -35,7 +48,7 @@ function sendBluetoothCommand(data) {
           .then(() => resolve())
           .catch((err) => {
             if (err && err.message && !err.message.includes("GATT operation already in progress")) {
-              console.error("BT Write Error:", err);
+              console.warn("BT Write Error:", err);
             }
             resolve();
           });
@@ -44,7 +57,7 @@ function sendBluetoothCommand(data) {
       }
     } catch (err) {
       if (err && err.message && !err.message.includes("GATT operation already in progress")) {
-        console.error("BT Write Error:", err);
+        console.warn("BT Write Error:", err);
       }
       resolve();
     }
@@ -86,6 +99,7 @@ function sendV3Init() {
   const wbA = Math.min(255, Math.max(0, Math.round(AppState.waveBalanceA ?? 0)));
   const wbB = Math.min(255, Math.max(0, Math.round(AppState.waveBalanceB ?? 0)));
   const payload = new Uint8Array([0xbf, limitA, limitB, fbA, fbB, wbA, wbB]);
+  debugHex("BF-write", payload);
   sendBluetoothCommand(payload);
   log(
     `V3 BF gesendet (Limits ${limitA}/${limitB}, FreqBal ${fbA}/${fbB}, WaveBal ${wbA}/${wbB})`,
@@ -102,17 +116,28 @@ function getDeviceStrength(val, softLimit) {
   return Math.min(200, Math.max(0, Math.round(clamped * AppState.masterScale)));
 }
 
-function sendStrengthCommand(valA, valB) {
-  if (!AppState.writeChar) return;
+// ---------------------------------------------------------------------------
+// Fix 1: Combined Strength+Waveform immediate B0 send
+// ---------------------------------------------------------------------------
+// Instead of just setting btPendingMode and waiting for the next wave loop
+// tick, we immediately build and send a complete B0 packet with both strength
+// and waveform. This eliminates the 100ms delay and prevents the drain queue
+// from losing one of the two pending packets.
+// ---------------------------------------------------------------------------
 
-  // Keep AppState as logical (UI) values; do not bake masterScale into state.
-  AppState.strengthA = Math.min(AppState.softLimitA, Math.max(0, Math.round(valA)));
-  AppState.strengthB = Math.min(AppState.softLimitB, Math.max(0, Math.round(valB)));
-  AppState.btPendingMode = CONSTANTS.V3_MODE_ABSOLUTE_BOTH;
-}
-
-function sendWaveformCommand(freqA, ampA, freqB, ampB) {
+/**
+ * Build and immediately queue a full B0 packet using current state values.
+ * This is the single entry-point for all B0 writes.
+ * @param {number} freqA - Wire frequency for channel A (10-240)
+ * @param {number} ampA - Wave amplitude for channel A (0-100, pre-scaling)
+ * @param {number} freqB - Wire frequency for channel B (10-240)
+ * @param {number} ampB - Wave amplitude for channel B (0-100, pre-scaling)
+ * @param {object} [opts] - Options
+ * @param {boolean} [opts.keepStrength=false] - Don't include pending strength change
+ */
+function sendB0Now(freqA, ampA, freqB, ampB, opts) {
   if (!AppState.writeChar) return;
+  const o = opts || {};
 
   // Pulse-width sliders scale logical wave amplitude (0–100%)
   const logicalA =
@@ -159,35 +184,60 @@ function sendWaveformCommand(freqA, ampA, freqB, ampB) {
     segB = tmpSeg;
   }
 
+  // Track last-sent values for isDirty (Fix 5)
   AppState.lastWaveFreqA = segA.freq;
   AppState.lastWaveAmpA = segA.intensity === 101 ? 0 : segA.intensity;
   AppState.lastWaveFreqB = segB.freq;
   AppState.lastWaveAmpB = segB.intensity === 101 ? 0 : segB.intensity;
 
-  const data = new Uint8Array(20);
-  data[0] = 0xb0;
-
+  // Determine if strength changed (pending mode)
   let mode = 0;
   let seq = 0;
-  if (!AppState.btAwaitingAck && AppState.btPendingMode !== 0) {
+  if (!AppState.btAwaitingAck && AppState.btPendingMode !== 0 && !o.keepStrength) {
     AppState.btSeq = AppState.btSeq >= 15 ? 1 : AppState.btSeq + 1;
     seq = AppState.btSeq;
     mode = AppState.btPendingMode;
     AppState.btAwaitingAck = true;
     AppState.btPendingMode = 0;
-    // Fallback: clear awaitingAck after 300ms if no matching ACK arrives
+    // Fallback: clear awaitingAck after timeout if no matching ACK arrives
     const sentSeq = seq;
+    const timeout = CONSTANTS.B1_ACK_TIMEOUT_MS || 300;
     setTimeout(() => {
       if (AppState.btAwaitingAck && AppState.btSeq === sentSeq) {
         AppState.btAwaitingAck = false;
         AppState.btSeq = 0;
+        console.warn("B1 ACK timeout — seq", sentSeq, "not acknowledged");
       }
-    }, 300);
+    }, timeout);
   }
 
+  // Fix 5: isDirty — skip if nothing changed
+  const strA = getDeviceStrength(AppState.strengthA, AppState.softLimitA);
+  const strB = getDeviceStrength(AppState.strengthB, AppState.softLimitB);
+  if (
+    !o.keepStrength &&
+    mode === 0 &&
+    AppState._lastSentStrA === strA &&
+    AppState._lastSentStrB === strB &&
+    AppState._lastSentFreqA === segA.freq &&
+    AppState._lastSentAmpA === segA.intensity &&
+    AppState._lastSentFreqB === segB.freq &&
+    AppState._lastSentAmpB === segB.intensity
+  ) {
+    return;
+  }
+  AppState._lastSentStrA = strA;
+  AppState._lastSentStrB = strB;
+  AppState._lastSentFreqA = segA.freq;
+  AppState._lastSentAmpA = segA.intensity;
+  AppState._lastSentFreqB = segB.freq;
+  AppState._lastSentAmpB = segB.intensity;
+
+  const data = new Uint8Array(20);
+  data[0] = 0xb0;
   data[1] = ((seq & 0x0f) << 4) | (mode & 0x0f);
-  data[2] = getDeviceStrength(AppState.strengthA, AppState.softLimitA);
-  data[3] = getDeviceStrength(AppState.strengthB, AppState.softLimitB);
+  data[2] = strA;
+  data[3] = strB;
 
   if (typeof ProtocolUtils !== "undefined" && ProtocolUtils.fillChannelWave) {
     ProtocolUtils.fillChannelWave(data, 4, 8, segA.freq, segA.intensity);
@@ -203,6 +253,31 @@ function sendWaveformCommand(freqA, ampA, freqB, ampB) {
 
   AppState.pendingWaveformData = data;
   drainBluetoothQueue();
+}
+
+function sendStrengthCommand(valA, valB) {
+  if (!AppState.writeChar) return;
+
+  // Keep AppState as logical (UI) values; do not bake masterScale into state.
+  AppState.strengthA = Math.min(AppState.softLimitA, Math.max(0, Math.round(valA)));
+  AppState.strengthB = Math.min(AppState.softLimitB, Math.max(0, Math.round(valB)));
+  AppState.btPendingMode = CONSTANTS.V3_MODE_ABSOLUTE_BOTH;
+
+  // Immediately send combined B0 with current waveform values
+  const fA = AppState.activePattern
+    ? AppState.lastWaveFreqA || AppState.frequencyA
+    : AppState.frequencyA;
+  const fB = AppState.activePattern
+    ? AppState.lastWaveFreqB || AppState.frequencyB
+    : AppState.frequencyB;
+  const aA = AppState.activePattern ? AppState.lastWaveAmpA || 0 : 100;
+  const aB = AppState.activePattern ? AppState.lastWaveAmpB || 0 : 100;
+  sendB0Now(fA, aA, fB, aB);
+}
+
+function sendWaveformCommand(freqA, ampA, freqB, ampB) {
+  // Delegate to unified B0 sender
+  sendB0Now(freqA, ampA, freqB, ampB);
 }
 
 /**
@@ -244,10 +319,17 @@ function sendSoftStop(opts = {}) {
           return d;
         })();
 
+  debugHex("B0-soft-stop", data);
+
   AppState.lastWaveAmpA = 0;
   AppState.lastWaveAmpB = 0;
   AppState.lastWaveFreqA = 0;
   AppState.lastWaveFreqB = 0;
+  // Reset dirty tracking so next send isn't skipped
+  AppState._lastSentFreqA = 0;
+  AppState._lastSentAmpA = 0;
+  AppState._lastSentFreqB = 0;
+  AppState._lastSentAmpB = 0;
 
   if (!keepStrength) {
     AppState.btPendingMode = 0;
@@ -270,6 +352,8 @@ function sendV3EmergencyStop() {
   AppState.btAwaitingAck = false;
   AppState.lastWaveAmpA = 0;
   AppState.lastWaveAmpB = 0;
+  AppState._lastSentStrA = 0;
+  AppState._lastSentStrB = 0;
 
   const data =
     typeof ProtocolUtils !== "undefined"
@@ -287,9 +371,31 @@ function sendV3EmergencyStop() {
           return d;
         })();
 
+  debugHex("B0-emergency", data);
+
   AppState.pendingStrengthData = null;
   AppState.pendingWaveformData = data;
   drainBluetoothQueue();
+}
+
+// ---------------------------------------------------------------------------
+// Fix 7: Heartbeat / connection monitoring
+// ---------------------------------------------------------------------------
+function updateHeartbeat() {
+  if (!AppState.isConnected) return;
+  const now = Date.now();
+  // If we haven't received a B1 in B1_STALE_WARNING_MS and we have strength > 0, warn
+  if (
+    AppState.lastB1Time > 0 &&
+    now - AppState.lastB1Time > CONSTANTS.B1_STALE_WARNING_MS &&
+    (AppState.strengthA > 0 || AppState.strengthB > 0 || AppState.activePattern)
+  ) {
+    console.warn(
+      `Heartbeat: keine B1-Antwort seit ${((now - AppState.lastB1Time) / 1000).toFixed(1)}s`
+    );
+    // Reset warning to avoid spamming (will re-warn after another timeout)
+    AppState.lastB1Time = now;
+  }
 }
 
 function handleDeviceNotification(event) {
@@ -297,7 +403,9 @@ function handleDeviceNotification(event) {
   const data = new Uint8Array(value.buffer);
 
   if (data[0] === 0xb1 && data.length >= 4) {
+    AppState.lastB1Time = Date.now();
     const ackSeq = data[1];
+    debugHex("B1-recv", data);
 
     if (AppState.btAwaitingAck && ackSeq === AppState.btSeq) {
       AppState.btAwaitingAck = false;
@@ -417,6 +525,13 @@ function onDisconnected() {
   AppState.btSeq = 0;
   AppState.btAwaitingAck = false;
   AppState.btPendingMode = 0;
+  AppState.lastB1Time = 0;
+  AppState._lastSentStrA = undefined;
+  AppState._lastSentStrB = undefined;
+  AppState._lastSentFreqA = undefined;
+  AppState._lastSentFreqB = undefined;
+  AppState._lastSentAmpA = undefined;
+  AppState._lastSentAmpB = undefined;
   clearBatteryPolling();
   stopWaveLoop();
 
@@ -447,6 +562,7 @@ function resetUIOnDisconnect() {
   AppState.writeChar = null;
   AppState.notifyChar = null;
   AppState.batteryChar = null;
+  AppState.lastB1Time = 0;
   clearBatteryPolling();
   if (DOM["connection-text"]) DOM["connection-text"].textContent = "Getrennt";
   if (DOM["connection-indicator"]) DOM["connection-indicator"].className = "status-indicator";
@@ -457,10 +573,61 @@ function resetUIOnDisconnect() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Fix 3: Module registry validation
+// ---------------------------------------------------------------------------
+function validateModules() {
+  const required = [
+    "AppState",
+    "DOM",
+    "CONSTANTS",
+    "ProtocolUtils",
+    "log",
+    "sendWaveformCommand",
+    "sendStrengthCommand",
+    "sendSoftStop",
+    "sendV3Init",
+    "sendV3EmergencyStop",
+    "startWaveLoop",
+    "stopWaveLoop",
+    "updateSlidersA",
+    "updateSlidersB",
+    "setChannelFreq",
+    "syncFreqUI",
+    "updateOutputStatus",
+    "killAllOutput",
+    "loadSettings",
+    "saveSettings",
+    "applySettings",
+    "updateAIDashboard",
+    "SESSION_STATE",
+    "SESSIONS",
+    "updateSessionUI",
+    "renderAIVisualizer",
+    "unlockAchievement",
+    "ensureGameStrength",
+    "sendB0Now",
+  ];
+  const missing = required.filter((name) => typeof window[name] === "undefined");
+  if (missing.length > 0) {
+    console.warn("Module validation — missing globals:", missing);
+  }
+  return missing.length === 0;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  // Validate all modules loaded (Fix 3)
+  setTimeout(validateModules, 100);
+
   DOM["check-swap-channels"]?.addEventListener("change", (e) => {
     AppState.swapChannels = e.target.checked;
     log(`Kan\u00e4le tauschen: ${AppState.swapChannels ? "Aktiv" : "Inaktiv"}`, "info");
+  });
+
+  // Fix 8: Debug mode toggle
+  DOM["check-debug-mode"]?.addEventListener("change", (e) => {
+    AppState.debugMode = e.target.checked;
+    log(`Debug-Mode (BLE Hex-Dump): ${AppState.debugMode ? "Aktiv" : "Inaktiv"}`, "info");
   });
 
   DOM["btn-connect"]?.addEventListener("click", async () => {
@@ -530,10 +697,7 @@ document.addEventListener("DOMContentLoaded", () => {
               AppState.batteryChar = await stdService.getCharacteristic("battery_level");
               log("Standard Batterie-Service gefunden.", "info");
             } catch (e4) {
-              log(
-                "Batterieanzeige nicht unterst\u00fctzt (Hardware liefert keine Daten).",
-                "warning"
-              );
+              console.warn("Battery service not available on this device:", e4);
             }
           }
         }
@@ -549,7 +713,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const allChars = await deviceInfoService.getCharacteristics();
           allChars.forEach((c) => log(`Gefundene Info-Charakteristik: ${c.uuid}`, "info"));
         } catch (e) {
-          // ignore optional device info characteristics
+          console.warn("Could not enumerate device info characteristics:", e);
         }
 
         const tryReadHex = async (uuid, elementId) => {
@@ -562,7 +726,8 @@ document.addEventListener("DOMContentLoaded", () => {
               .join(":");
             if (DOM[elementId]) DOM[elementId].textContent = hex || "Leer";
           } catch (e) {
-            if (DOM[elementId]) DOM[elementId].textContent = "Nicht verf\u00fcgbar";
+            console.warn(`Could not read device info ${uuid}:`, e);
+            if (DOM[elementId]) DOM[elementId].textContent = "Nicht verfügbar";
           }
         };
 
@@ -603,6 +768,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       AppState.isConnected = true;
       AppState.reconnectAttempts = 0;
+      AppState.lastB1Time = Date.now();
       log("Erfolgreich mit Coyote 3.0 verbunden!", "success");
       if (typeof unlockAchievement === "function") unlockAchievement("first_connect");
       setReconnectStatus("");
@@ -647,9 +813,12 @@ document.addEventListener("DOMContentLoaded", () => {
 window.sendBluetoothCommand = sendBluetoothCommand;
 window.sendStrengthCommand = sendStrengthCommand;
 window.sendWaveformCommand = sendWaveformCommand;
+window.sendB0Now = sendB0Now;
 window.sendSoftStop = sendSoftStop;
 window.sendV3Init = sendV3Init;
 window.sendV3EmergencyStop = sendV3EmergencyStop;
 window.updateBatteryUI = updateBatteryUI;
 window.resetUIOnDisconnect = resetUIOnDisconnect;
 window.clearReconnect = clearReconnect;
+window.updateHeartbeat = updateHeartbeat;
+window.validateModules = validateModules;

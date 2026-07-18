@@ -80,6 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
     AppState.waveLoopInterval = setInterval(async () => {
       if (!AppState.isConnected) return;
       AppState.loopTimeCounter += 1;
+      updateHeartbeat();
 
       if (AppState.activePattern === "session") {
         const tick = SESSION_STATE.computeTick();
