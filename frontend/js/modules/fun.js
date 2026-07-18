@@ -1,6 +1,8 @@
-// fun.js - SFX, achievements, pattern roulette, chance pulse
+// fun.js - SFX, achievements, pattern roulette, chance pulse, daily challenge
 
 const ACHIEVEMENTS_KEY = "stim_app_achievements_v1";
+const DAILY_KEY = "stim_app_daily_v1";
+const STATS_KEY = "stim_app_stats_v1";
 
 const ACHIEVEMENT_DEFS = {
   first_connect: { title: "Verbunden", desc: "Erstmals mit dem Gerät verbunden" },
@@ -10,7 +12,38 @@ const ACHIEVEMENT_DEFS = {
   survive_30: { title: "Durchhalter", desc: "Survival: 30+ Sekunden" },
   roulette: { title: "Glücksrad", desc: "Pattern-Roulette gestartet" },
   chance: { title: "Würfelfreund", desc: "Zufallsimpuls ausgelöst" },
+  daily: { title: "Tagesheld", desc: "Tages-Challenge geschafft" },
+  quick_play: { title: "Überraschungsgast", desc: "Quick Play gestartet" },
+  ten_games: { title: "Spielwütig", desc: "10 Spiele gestartet" },
 };
+
+const DAILY_POOL = [
+  { game: "reflex", label: "Reflex", target: 5, unit: "Level", startBtn: "btn-start-reflex" },
+  { game: "rhythm", label: "Rhythm", target: 80, unit: "Punkte", startBtn: "btn-start-rhythm" },
+  { game: "edge", label: "Hold the Edge", target: 35, unit: "Punkte", startBtn: "btn-start-edge" },
+  {
+    game: "potato",
+    label: "Hot Potato",
+    target: 8,
+    unit: "Weitergaben",
+    startBtn: "btn-start-potato",
+  },
+  {
+    game: "survival",
+    label: "Survival",
+    target: 18,
+    unit: "Sekunden",
+    startBtn: "btn-start-survival",
+  },
+];
+
+const QUICK_PLAY_BTNS = [
+  "btn-start-reflex",
+  "btn-start-rhythm",
+  "btn-start-edge",
+  "btn-start-potato",
+  "btn-start-survival",
+];
 
 let sfxCtx = null;
 
@@ -167,6 +200,8 @@ function fireChancePulse() {
     log("Zufallsimpuls braucht eine Verbindung.", "error");
     return;
   }
+  if (typeof ensureGameStrength === "function")
+    ensureGameStrength(30 + Math.floor(Math.random() * 20));
   const roll = 1 + Math.floor(Math.random() * 6);
   const amp = 12 + roll * 10;
   const ms = 180 + roll * 40;
@@ -187,10 +222,155 @@ function fireChancePulse() {
   log(`Zufallsimpuls: Würfel ${roll}, Amp ${amp}.`, "info");
 }
 
+// ---- Stats ----
+function loadStats() {
+  try {
+    const raw = localStorage.getItem(STATS_KEY);
+    return raw ? JSON.parse(raw) : { gamesStarted: 0, scoreEvents: 0 };
+  } catch (e) {
+    return { gamesStarted: 0, scoreEvents: 0 };
+  }
+}
+
+function saveStats(s) {
+  try {
+    localStorage.setItem(STATS_KEY, JSON.stringify(s));
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+function trackStat(kind) {
+  const s = loadStats();
+  if (kind === "gameStarted") {
+    s.gamesStarted = (s.gamesStarted || 0) + 1;
+    if (s.gamesStarted >= 10) unlockAchievement("ten_games");
+  }
+  if (kind === "scoreEvent") s.scoreEvents = (s.scoreEvents || 0) + 1;
+  saveStats(s);
+  refreshStatsUI();
+}
+
+function refreshStatsUI() {
+  const el = document.getElementById("stats-summary");
+  if (!el) return;
+  const s = loadStats();
+  el.textContent = `${s.gamesStarted || 0} Spiele gestartet · ${s.scoreEvents || 0} Score-Events`;
+}
+
+// ---- Daily challenge ----
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function getDailyChallenge() {
+  const day = todayKey();
+  let h = 0;
+  for (let i = 0; i < day.length; i++) h = (h * 31 + day.charCodeAt(i)) >>> 0;
+  const base = DAILY_POOL[h % DAILY_POOL.length];
+  const bump = h % 5;
+  return {
+    game: base.game,
+    label: base.label,
+    target: base.target + bump,
+    unit: base.unit,
+    startBtn: base.startBtn,
+    day,
+  };
+}
+
+function loadDailyState() {
+  try {
+    const raw = localStorage.getItem(DAILY_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    const challenge = getDailyChallenge();
+    if (!parsed || parsed.day !== challenge.day) {
+      return { day: challenge.day, best: 0, done: false, game: challenge.game };
+    }
+    return parsed;
+  } catch (e) {
+    const c = getDailyChallenge();
+    return { day: c.day, best: 0, done: false, game: c.game };
+  }
+}
+
+function saveDailyState(state) {
+  try {
+    localStorage.setItem(DAILY_KEY, JSON.stringify(state));
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+function noteDailyProgress(gameId, score) {
+  const challenge = getDailyChallenge();
+  if (gameId !== challenge.game) return;
+  const state = loadDailyState();
+  const n = Number(score) || 0;
+  if (n > (state.best || 0)) state.best = n;
+  if (!state.done && n >= challenge.target) {
+    state.done = true;
+    unlockAchievement("daily");
+    playGameSfx("win");
+    showFunToast("📅 Tages-Challenge!", `${challenge.label}: ${n} / ${challenge.target}`);
+    log(`Tages-Challenge geschafft: ${challenge.label} (${n}).`, "success");
+  }
+  saveDailyState(state);
+  refreshDailyUI();
+}
+
+function refreshDailyUI() {
+  const challenge = getDailyChallenge();
+  const state = loadDailyState();
+  const title = document.getElementById("daily-title");
+  const progress = document.getElementById("daily-progress");
+  const card = document.getElementById("daily-challenge-card");
+  if (title) {
+    title.textContent = `${challenge.label}: ${challenge.target} ${challenge.unit}`;
+  }
+  if (progress) {
+    const best = state.best || 0;
+    progress.textContent = state.done
+      ? `Erledigt ✓ (${best})`
+      : `Fortschritt: ${best} / ${challenge.target}`;
+  }
+  if (card) card.classList.toggle("done", !!state.done);
+}
+
+function startDailyChallenge() {
+  const challenge = getDailyChallenge();
+  const btn = document.getElementById(challenge.startBtn);
+  if (btn) {
+    document.querySelector('.nav-item[data-tab="games"]')?.click();
+    setTimeout(() => btn.click(), 50);
+  } else {
+    log("Tages-Challenge: Spiel nicht gefunden.", "error");
+  }
+}
+
+function startQuickPlay() {
+  const pick = QUICK_PLAY_BTNS[Math.floor(Math.random() * QUICK_PLAY_BTNS.length)];
+  const btn = document.getElementById(pick);
+  if (!btn) return;
+  unlockAchievement("quick_play");
+  playGameSfx("click");
+  showFunToast("⚡ Quick Play", pick.replace("btn-start-", ""));
+  document.querySelector('.nav-item[data-tab="games"]')?.click();
+  setTimeout(() => btn.click(), 50);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   refreshAchievementsUI();
-  document.getElementById("btn-pattern-roulette")?.addEventListener("click", startPatternRoulette);
+  refreshDailyUI();
+  refreshStatsUI();
+  document.getElementById("btn-pattern-roulette")?.addEventListener("click", () => {
+    if (typeof ensureGameStrength === "function") ensureGameStrength(45);
+    startPatternRoulette();
+  });
   document.getElementById("btn-chance-pulse")?.addEventListener("click", fireChancePulse);
+  document.getElementById("btn-daily-start")?.addEventListener("click", startDailyChallenge);
+  document.getElementById("btn-quick-play")?.addEventListener("click", startQuickPlay);
 });
 
 window.playGameSfx = playGameSfx;
@@ -198,3 +378,7 @@ window.unlockAchievement = unlockAchievement;
 window.showFunToast = showFunToast;
 window.startPatternRoulette = startPatternRoulette;
 window.fireChancePulse = fireChancePulse;
+window.noteDailyProgress = noteDailyProgress;
+window.trackStat = trackStat;
+window.startDailyChallenge = startDailyChallenge;
+window.startQuickPlay = startQuickPlay;

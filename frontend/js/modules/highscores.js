@@ -26,6 +26,8 @@ function recordHighscore(gameId, score) {
   const all = loadHighscores();
   const prev = Number(all[gameId] || 0);
   const n = Number(score) || 0;
+  if (typeof noteDailyProgress === "function") noteDailyProgress(gameId, n);
+  if (typeof trackStat === "function") trackStat("scoreEvent");
   if (n > prev) {
     all[gameId] = n;
     saveHighscores(all);

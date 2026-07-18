@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.7.0
+
+### Fun
+- **Tages-Challenge** (täglich wechselndes Ziel + Fortschritt)
+- **Quick Play** – zufälliges Minispiel
+- Spiel-Stats (gestartet / Score-Events) + neue Erfolge
+
+### Fixes (wichtig)
+- Spiele setzen bei Strength 0 eine **sanfte Basisstärke** (V3: sonst kein spürbarer Output)
+- Wechsel zwischen Spielen stoppt laufende Loops sauber (`stopAllMiniGames`)
+- Roulette / Zufallsimpuls nutzen Basisstärke
+- Pattern-Hinweis wenn A/B auf 0 stehen
+- Panic nutzt zentrale Game-Stop-Hilfe
+
 ## 1.6.0
 
 ### Fun

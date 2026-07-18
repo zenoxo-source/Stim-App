@@ -1225,6 +1225,29 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .game-hs { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
 .game-selector-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 
+.games-toolbar {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch;
+  margin-bottom: 16px;
+}
+.daily-challenge-card {
+  flex: 1; min-width: 260px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; border-radius: 12px;
+  background: linear-gradient(135deg, rgba(0,120,212,0.12), rgba(134,96,169,0.12));
+  border: 1px solid rgba(0,120,212,0.35);
+}
+.daily-challenge-card.done {
+  border-color: rgba(16,124,65,0.5);
+  background: rgba(16,124,65,0.1);
+}
+.daily-challenge-main { display: flex; flex-direction: column; gap: 4px; }
+.daily-badge { font-size: 11px; color: var(--accent-primary); font-weight: 600; }
+.daily-progress { font-size: 12px; color: var(--text-muted); }
+.games-toolbar-actions {
+  display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px;
+}
+.stats-summary { font-size: 11px; color: var(--text-muted); }
+
 /* Edge game */
 .edge-layout { display: flex; gap: 24px; align-items: center; flex: 1; min-height: 260px; }
 .edge-meter {

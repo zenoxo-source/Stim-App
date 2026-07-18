@@ -4,13 +4,15 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   DOM["btn-start-reflex"]?.addEventListener("click", () => {
-    if (!AppState.isConnected) {
+    if (typeof beginMiniGame === "function") {
+      if (!beginMiniGame("arena-reflex")) return;
+    } else if (!AppState.isConnected) {
       log("Fehler: DG-LAB Controller ist nicht verbunden.", "error");
       return;
+    } else {
+      if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "none";
+      if (DOM["arena-reflex"]) DOM["arena-reflex"].style.display = "flex";
     }
-
-    if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "none";
-    if (DOM["arena-reflex"]) DOM["arena-reflex"].style.display = "flex";
 
     AppState.reflexLevel = 1;
     AppState.reflexTargetTime = 450;
@@ -32,8 +34,11 @@ document.addEventListener("DOMContentLoaded", () => {
     AppState.reflexState = "IDLE";
     sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
 
-    if (DOM["arena-reflex"]) DOM["arena-reflex"].style.display = "none";
-    if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "grid";
+    if (typeof showGameSelectors === "function") showGameSelectors();
+    else {
+      if (DOM["arena-reflex"]) DOM["arena-reflex"].style.display = "none";
+      if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "grid";
+    }
   });
 
   DOM["reflex-tap-box"]?.addEventListener("click", () => {
@@ -173,13 +178,15 @@ function triggerReflexTooSlow() {
 
 document.addEventListener("DOMContentLoaded", () => {
   DOM["btn-start-rhythm"]?.addEventListener("click", () => {
-    if (!AppState.isConnected) {
+    if (typeof beginMiniGame === "function") {
+      if (!beginMiniGame("arena-rhythm")) return;
+    } else if (!AppState.isConnected) {
       log("Fehler: DG-LAB Controller ist nicht verbunden.", "error");
       return;
+    } else {
+      if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "none";
+      if (DOM["arena-rhythm"]) DOM["arena-rhythm"].style.display = "flex";
     }
-
-    if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "none";
-    if (DOM["arena-rhythm"]) DOM["arena-rhythm"].style.display = "flex";
 
     AppState.rhythmState = "IDLE";
     AppState.rhythmScore = 0;
@@ -200,9 +207,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   DOM["btn-exit-rhythm"]?.addEventListener("click", () => {
     stopRhythmGame();
-
-    if (DOM["arena-rhythm"]) DOM["arena-rhythm"].style.display = "none";
-    if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "grid";
+    if (typeof showGameSelectors === "function") showGameSelectors();
+    else {
+      if (DOM["arena-rhythm"]) DOM["arena-rhythm"].style.display = "none";
+      if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "grid";
+    }
   });
 
   DOM["rhythm-tap-area"]?.addEventListener("click", () => {
@@ -224,6 +233,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function startRhythmPlaying() {
+  if (typeof ensureGameStrength === "function") ensureGameStrength(35);
   AppState.rhythmState = "PLAYING";
   if (DOM["rhythm-start-prompt"]) DOM["rhythm-start-prompt"].style.display = "none";
   if (DOM["rhythm-tap-area"]) DOM["rhythm-tap-area"].disabled = false;

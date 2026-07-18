@@ -197,7 +197,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (about) about.textContent = `Version ${v}`;
     });
   } else if (DOM["app-version-text"]) {
-    DOM["app-version-text"].textContent = "v1.6.0";
+    DOM["app-version-text"].textContent = "v1.7.0";
   }
 
   const saveEvents = ["input", "change"];

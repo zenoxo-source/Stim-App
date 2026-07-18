@@ -164,13 +164,17 @@ function killAllOutput() {
     if (AppState.audioTimer) clearInterval(AppState.audioTimer);
 
     // Stop games
-    clearTimeout(AppState.reflexTimeoutId);
-    AppState.reflexState = "IDLE";
-    if (AppState.rhythmIntervalId) clearInterval(AppState.rhythmIntervalId);
-    AppState.rhythmState = "IDLE";
-    if (typeof stopEdgeGame === "function") stopEdgeGame();
-    if (typeof stopPotatoGame === "function") stopPotatoGame();
-    if (typeof stopSurvivalGame === "function") stopSurvivalGame();
+    if (typeof stopAllMiniGames === "function") {
+      stopAllMiniGames();
+    } else {
+      clearTimeout(AppState.reflexTimeoutId);
+      AppState.reflexState = "IDLE";
+      if (AppState.rhythmIntervalId) clearInterval(AppState.rhythmIntervalId);
+      AppState.rhythmState = "IDLE";
+      if (typeof stopEdgeGame === "function") stopEdgeGame();
+      if (typeof stopPotatoGame === "function") stopPotatoGame();
+      if (typeof stopSurvivalGame === "function") stopSurvivalGame();
+    }
     if (typeof stopSafetyTimer === "function") stopSafetyTimer(false);
 
     // Zero sliders

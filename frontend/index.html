@@ -451,6 +451,21 @@
 
       <!-- View: Mini-Games -->
       <section id="view-games" class="tab-view">
+
+        <div class="games-toolbar">
+          <div id="daily-challenge-card" class="daily-challenge-card">
+            <div class="daily-challenge-main">
+              <span class="daily-badge">📅 Heute</span>
+              <strong id="daily-title">—</strong>
+              <span id="daily-progress" class="daily-progress">—</span>
+            </div>
+            <button type="button" id="btn-daily-start" class="btn">Challenge starten</button>
+          </div>
+          <div class="games-toolbar-actions">
+            <button type="button" id="btn-quick-play" class="btn">⚡ Quick Play</button>
+            <span id="stats-summary" class="stats-summary">—</span>
+          </div>
+        </div>
         
         <!-- Game Selectors -->
         <div id="game-selectors" class="game-selector-grid">
@@ -894,7 +909,7 @@
           <div class="card">
             <div class="card-title">
               <span>App-Updates</span>
-              <span id="app-version-text" style="font-size:11px; opacity:0.7;">v1.6.0</span>
+              <span id="app-version-text" style="font-size:11px; opacity:0.7;">v1.7.0</span>
             </div>
             <p id="update-status-text" style="font-size:13px; margin: 0 0 10px;">—</p>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">

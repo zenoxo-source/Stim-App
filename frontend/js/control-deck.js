@@ -463,6 +463,12 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         AppState.activePattern = id;
         card.classList.add("active");
+        if ((AppState.strengthA || 0) === 0 && (AppState.strengthB || 0) === 0) {
+          log(
+            "Hinweis: Intensit\u00e4t A/B steht auf 0 – ohne Basisst\u00e4rke kein sp\u00fcrbarer Output. Slider oder Preset nutzen.",
+            "warning"
+          );
+        }
       }
       updateAIDashboard();
       log(`Muster ge\u00e4ndert: ${AppState.activePattern || "Aus"}`, "info");

@@ -1,11 +1,63 @@
-// games-extra.js - Hold the Edge + Hot Potato
+// games-extra.js - Hold the Edge, Hot Potato, Survival + shared game helpers
+
+/**
+ * V3 needs channel strength > 0 for wave amps to be felt. Games only set wave amps.
+ * Raise strength gently to min if user left sliders at 0.
+ */
+function ensureGameStrength(minLevel = 40) {
+  const min = Math.max(10, Math.min(80, Number(minLevel) || 40));
+  const targetA = Math.min(AppState.softLimitA, Math.max(AppState.strengthA || 0, min));
+  const targetB = Math.min(AppState.softLimitB, Math.max(AppState.strengthB || 0, min));
+  let raised = false;
+  if ((AppState.strengthA || 0) < min) {
+    if (typeof updateSlidersA === "function") updateSlidersA(targetA);
+    else AppState.strengthA = targetA;
+    raised = true;
+  }
+  if ((AppState.strengthB || 0) < min) {
+    if (typeof updateSlidersB === "function") updateSlidersB(targetB);
+    else AppState.strengthB = targetB;
+    raised = true;
+  }
+  if (raised) {
+    if (typeof sendStrengthCommand === "function") {
+      sendStrengthCommand(AppState.strengthA, AppState.strengthB);
+    }
+    log(
+      `Spiel-Basisstärke ${min} gesetzt (Soft-Limits: ${AppState.softLimitA}/${AppState.softLimitB}).`,
+      "info"
+    );
+  }
+}
+
+function stopAllMiniGames() {
+  clearTimeout(AppState.reflexTimeoutId);
+  AppState.reflexState = "IDLE";
+  if (AppState.rhythmIntervalId) {
+    clearInterval(AppState.rhythmIntervalId);
+    AppState.rhythmIntervalId = null;
+  }
+  AppState.rhythmState = "IDLE";
+  if (typeof stopEdgeGame === "function") stopEdgeGame();
+  if (typeof stopPotatoGame === "function") stopPotatoGame();
+  if (typeof stopSurvivalGame === "function") stopSurvivalGame(false);
+}
 
 function hideGameSelectors() {
+  stopAllMiniGames();
   if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "none";
   ["arena-reflex", "arena-rhythm", "arena-edge", "arena-potato", "arena-survival"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
+}
+
+function showGameSelectors() {
+  ["arena-reflex", "arena-rhythm", "arena-edge", "arena-potato", "arena-survival"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
+  if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "grid";
 }
 
 function requireConnectedForGame() {
@@ -16,7 +68,18 @@ function requireConnectedForGame() {
   return true;
 }
 
+function beginMiniGame(arenaId) {
+  if (!requireConnectedForGame()) return false;
+  hideGameSelectors();
+  ensureGameStrength(40);
+  const arena = document.getElementById(arenaId);
+  if (arena) arena.style.display = "flex";
+  if (typeof trackStat === "function") trackStat("gamesStarted");
+  return true;
+}
+
 function gameShock(amp, ms = 280) {
+  ensureGameStrength(35);
   const a = Math.min(100, Math.max(10, Math.round(amp)));
   sendWaveformCommand(60, a, 60, a);
   setTimeout(() => {
@@ -25,6 +88,7 @@ function gameShock(amp, ms = 280) {
 }
 
 function gameTickle(amp = 12, ms = 100) {
+  ensureGameStrength(25);
   sendWaveformCommand(120, amp, 120, amp);
   setTimeout(() => {
     sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
@@ -45,6 +109,7 @@ function stopEdgeGame() {
 }
 
 function startEdgeRound() {
+  ensureGameStrength(35);
   AppState.edgeState = "RUNNING";
   AppState.edgeHolding = false;
   AppState.edgeLevel = 0;
@@ -310,6 +375,7 @@ function survivalLoop() {
 }
 
 function startSurvivalRound() {
+  ensureGameStrength(30);
   AppState.survivalState = "RUNNING";
   AppState.survivalScore = 0;
   AppState.survivalLevel = 8;
@@ -326,10 +392,7 @@ function startSurvivalRound() {
 document.addEventListener("DOMContentLoaded", () => {
   // Hold the Edge
   document.getElementById("btn-start-edge")?.addEventListener("click", () => {
-    if (!requireConnectedForGame()) return;
-    hideGameSelectors();
-    const arena = document.getElementById("arena-edge");
-    if (arena) arena.style.display = "flex";
+    if (!beginMiniGame("arena-edge")) return;
     AppState.edgeScore = 0;
     if (DOM["edge-feedback"]) DOM["edge-feedback"].textContent = "Gedrückt halten zum Steigen…";
     startEdgeRound();
@@ -337,9 +400,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("btn-exit-edge")?.addEventListener("click", () => {
     stopEdgeGame();
-    const arena = document.getElementById("arena-edge");
-    if (arena) arena.style.display = "none";
-    if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "grid";
+    showGameSelectors();
   });
 
   const edgeHold = document.getElementById("edge-hold-btn");
@@ -362,10 +423,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Hot Potato
   document.getElementById("btn-start-potato")?.addEventListener("click", () => {
-    if (!requireConnectedForGame()) return;
-    hideGameSelectors();
-    const arena = document.getElementById("arena-potato");
-    if (arena) arena.style.display = "flex";
+    if (!beginMiniGame("arena-potato")) return;
     AppState.potatoScore = 0;
     AppState.potatoRound = 0;
     if (DOM["potato-score"]) DOM["potato-score"].textContent = "0";
@@ -374,9 +432,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("btn-exit-potato")?.addEventListener("click", () => {
     stopPotatoGame();
-    const arena = document.getElementById("arena-potato");
-    if (arena) arena.style.display = "none";
-    if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "grid";
+    showGameSelectors();
   });
 
   document.getElementById("btn-potato-a")?.addEventListener("click", () => handlePotatoKey("A"));
@@ -384,17 +440,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Survival
   document.getElementById("btn-start-survival")?.addEventListener("click", () => {
-    if (!requireConnectedForGame()) return;
-    hideGameSelectors();
-    const arena = document.getElementById("arena-survival");
-    if (arena) arena.style.display = "flex";
+    if (!beginMiniGame("arena-survival")) return;
     startSurvivalRound();
   });
   document.getElementById("btn-exit-survival")?.addEventListener("click", () => {
     stopSurvivalGame(AppState.survivalState === "RUNNING");
-    const arena = document.getElementById("arena-survival");
-    if (arena) arena.style.display = "none";
-    if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "grid";
+    showGameSelectors();
   });
   document.getElementById("btn-survival-bail")?.addEventListener("click", () => {
     if (AppState.survivalState === "RUNNING") stopSurvivalGame(true);
@@ -444,3 +495,8 @@ document.addEventListener("DOMContentLoaded", () => {
 window.stopEdgeGame = stopEdgeGame;
 window.stopPotatoGame = stopPotatoGame;
 window.stopSurvivalGame = stopSurvivalGame;
+window.stopAllMiniGames = stopAllMiniGames;
+window.ensureGameStrength = ensureGameStrength;
+window.beginMiniGame = beginMiniGame;
+window.showGameSelectors = showGameSelectors;
+window.hideGameSelectors = hideGameSelectors;
