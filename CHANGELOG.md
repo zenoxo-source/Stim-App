@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5.0
+
+### Fun & Games
+- **Hold the Edge** – Intensität halten, grüne Zone, Highscore
+- **Hot Potato** – Kanal A/B rechtzeitig bestätigen, steigendes Tempo
+- Highscores für alle Minispiele (lokal)
+- Intensitäts-Presets: Sanft / Mittel / Intensiv
+- Safety-Timer mit Soft-Stop
+- Tastatur-Hilfe (`?`)
+
+### Cleanup
+- Panic stoppt auch Edge/Potato/Timer
+- Output-Status kennt neue Spiele
+
 ## 1.4.0
 
 ### Product polish

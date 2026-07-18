@@ -121,6 +121,23 @@
             <span id="battery-text">--%</span>
           </div>
           
+          <div class="preset-bar">
+            <button type="button" class="preset-btn" data-preset="gentle">Sanft</button>
+            <button type="button" class="preset-btn" data-preset="medium">Mittel</button>
+            <button type="button" class="preset-btn" data-preset="intense">Intensiv</button>
+          </div>
+          <div class="timer-bar">
+            <select id="timer-minutes" class="select-control" style="width:auto;padding:4px 8px;font-size:12px;">
+              <option value="5">5 Min</option>
+              <option value="10">10 Min</option>
+              <option value="15" selected>15 Min</option>
+              <option value="30">30 Min</option>
+            </select>
+            <button type="button" id="btn-timer-start" class="btn btn-secondary" style="padding:4px 10px;font-size:12px;">Timer</button>
+            <button type="button" id="btn-timer-stop" class="btn btn-secondary" style="padding:4px 10px;font-size:12px;">Stop</button>
+            <span id="safety-timer-display" class="timer-display">Timer aus</span>
+          </div>
+          <button type="button" id="btn-hotkey-help" class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" title="Tastatur (?)">?</button>
           <div class="master-slider-container">
             <span class="master-slider-label">Master:</span>
             <input type="range" id="slider-master" min="0" max="100" value="100">
@@ -128,6 +145,21 @@
           </div>
         </div>
       </header>
+
+      <div id="hotkey-overlay" class="hotkey-overlay" style="display:none;">
+        <div class="hotkey-card">
+          <h2>Tastatur</h2>
+          <ul>
+            <li><kbd>1</kbd>–<kbd>5</kbd> Tabs</li>
+            <li><kbd>P</kbd> STIM Play/Pause</li>
+            <li><kbd>↑</kbd><kbd>↓</kbd> Intensität A · <kbd>←</kbd><kbd>→</kbd> Intensität B</li>
+            <li><kbd>Strg</kbd>+<kbd>Leertaste</kbd> / <kbd>ESC</kbd> lang / STOPP = Panic</li>
+            <li><kbd>Leertaste</kbd> Rhythm-Tap · <kbd>A</kbd>/<kbd>B</kbd> Hot Potato</li>
+            <li><kbd>?</kbd> Diese Hilfe</li>
+          </ul>
+          <button type="button" id="hotkey-close" class="btn">Schließen</button>
+        </div>
+      </div>
 
       <!-- View: Control Deck -->
       <section id="view-deck" class="tab-view active">
@@ -426,6 +458,7 @@
                 Ein Reaktionstest für Körper und Geist. Warte auf das grüne Signal und klicke so schnell wie möglich. 
                 Reagierst du zu langsam oder machst einen Fehlstart, wirst du geschockt! Mit jedem Level wird das Zielzeitfenster kürzer.
               </p>
+              <p class="game-hs">Highscore Level: <span id="hs-reflex">0</span></p>
             </div>
             <button id="btn-start-reflex" class="btn" style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));">Spiel starten</button>
           </div>
@@ -437,8 +470,33 @@
                 Tappe im Takt des gezeigten Rhythmus. Der Controller sendet Impulse und visuelle Beats vor, und du musst die Leertaste oder das Feld synchron dazu treffen.
                 Verpasste Beats geben Schocks, Treffer bauen eine Combo für angenehme Vibrationen auf!
               </p>
+              <p class="game-hs">Highscore: <span id="hs-rhythm">0</span></p>
             </div>
             <button id="btn-start-rhythm" class="btn" style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));">Spiel starten</button>
+          </div>
+
+          <div class="game-card">
+            <div>
+              <div class="game-title">🔥 Hold the Edge</div>
+              <p class="game-desc">
+                Halte die Taste – die Intensität steigt. Bleib in der grünen Zone für Punkte.
+                Über der Kante = Schock. Loslassen senkt die Intensität wieder.
+              </p>
+              <p class="game-hs">Highscore: <span id="hs-edge">0</span></p>
+            </div>
+            <button id="btn-start-edge" class="btn" style="background: linear-gradient(135deg, #d83b01, #a80000);">Spiel starten</button>
+          </div>
+
+          <div class="game-card">
+            <div>
+              <div class="game-title">🥔 Hot Potato</div>
+              <p class="game-desc">
+                Ein Kanal „brennt“ – drücke rechtzeitig A oder B (Tasten/Buttons), bevor die Zeit abläuft.
+                Tempo steigt mit jeder Runde. Falscher Kanal = kleiner Impuls, zu spät = Knall.
+              </p>
+              <p class="game-hs">Highscore: <span id="hs-potato">0</span></p>
+            </div>
+            <button id="btn-start-potato" class="btn" style="background: linear-gradient(135deg, #8660a9, #0078d4);">Spiel starten</button>
           </div>
         </div>
 
@@ -493,6 +551,48 @@
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span id="rhythm-feedback-message" style="font-weight: 500; font-size: 14px;"></span>
             <button id="btn-exit-rhythm" class="btn btn-secondary">Beenden</button>
+          </div>
+        </div>
+
+        <!-- Game 3: Hold the Edge -->
+        <div id="arena-edge" class="game-arena">
+          <div class="game-arena-header">
+            <span class="game-arena-title">🔥 Hold the Edge</span>
+            <div class="game-stats">
+              <div class="game-stat-box">Score: <span id="edge-score" class="game-stat-val">0</span></div>
+              <div class="game-stat-box">Level: <span id="edge-level-text" class="game-stat-val">0%</span></div>
+            </div>
+          </div>
+          <div class="edge-layout">
+            <div id="edge-meter" class="edge-meter">
+              <div id="edge-zone" class="edge-zone"></div>
+              <div id="edge-fill" class="edge-fill"></div>
+            </div>
+            <button type="button" id="edge-hold-btn" class="btn edge-hold-btn">GEDRÜCKT HALTEN</button>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="edge-feedback" style="font-weight: 500; font-size: 14px;"></span>
+            <button id="btn-exit-edge" class="btn btn-secondary">Beenden</button>
+          </div>
+        </div>
+
+        <!-- Game 4: Hot Potato -->
+        <div id="arena-potato" class="game-arena">
+          <div class="game-arena-header">
+            <span class="game-arena-title">🥔 Hot Potato</span>
+            <div class="game-stats">
+              <div class="game-stat-box">Score: <span id="potato-score" class="game-stat-val">0</span></div>
+              <div class="game-stat-box">Kanal: <span id="potato-channel" class="game-stat-val potato-channel">—</span></div>
+            </div>
+          </div>
+          <div class="potato-timer-track"><div id="potato-timer-bar" class="potato-timer-bar"></div></div>
+          <div class="potato-buttons">
+            <button type="button" id="btn-potato-a" class="btn potato-btn">A / ←</button>
+            <button type="button" id="btn-potato-b" class="btn potato-btn">B / →</button>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="potato-feedback" style="font-weight: 500; font-size: 14px;"></span>
+            <button id="btn-exit-potato" class="btn btn-secondary">Beenden</button>
           </div>
         </div>
       </section>
@@ -808,7 +908,10 @@
   <script src="js/control-deck.js"></script>
   <script src="js/modules/bluetooth.js"></script>
   <script src="js/modules/audio.js"></script>
+  <script src="js/modules/highscores.js"></script>
   <script src="js/modules/games.js"></script>
+  <script src="js/modules/games-extra.js"></script>
+  <script src="js/modules/presets.js"></script>
   <script src="js/modules/ai-bridge.js"></script>
   <script src="js/modules/settings.js"></script>
   <script src="js/modules/safety.js"></script>

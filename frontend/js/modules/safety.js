@@ -152,6 +152,9 @@ function killAllOutput() {
     AppState.reflexState = "IDLE";
     if (AppState.rhythmIntervalId) clearInterval(AppState.rhythmIntervalId);
     AppState.rhythmState = "IDLE";
+    if (typeof stopEdgeGame === "function") stopEdgeGame();
+    if (typeof stopPotatoGame === "function") stopPotatoGame();
+    if (typeof stopSafetyTimer === "function") stopSafetyTimer(false);
 
     // Zero sliders
     AppState.strengthA = 0;

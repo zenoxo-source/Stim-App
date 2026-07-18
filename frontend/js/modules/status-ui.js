@@ -6,6 +6,8 @@ function isOutputActive() {
   if (AppState.isAudioPlaying) return true;
   if (AppState.reflexState === "SHOCKING") return true;
   if (AppState.rhythmState && AppState.rhythmState !== "IDLE") return true;
+  if (AppState.edgeState === "RUNNING") return true;
+  if (AppState.potatoState === "LIVE" || AppState.potatoState === "BOOM") return true;
   if ((AppState.strengthA || 0) > 0 || (AppState.strengthB || 0) > 0) return true;
   if ((AppState.lastWaveAmpA || 0) > 0 || (AppState.lastWaveAmpB || 0) > 0) {
     if (AppState.activePattern || AppState.isAudioPlaying) return true;

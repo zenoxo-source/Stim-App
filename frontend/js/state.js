@@ -77,6 +77,28 @@ const AppState = {
   rhythmLastTapTime: 0,
   rhythmWindow: 150,
 
+  edgeState: "IDLE",
+  edgeHolding: false,
+  edgeLevel: 0,
+  edgeScore: 0,
+  edgeZoneMin: 60,
+  edgeZoneMax: 75,
+  edgeRaf: null,
+  edgeLastTick: 0,
+  edgeInZoneMs: 0,
+
+  potatoState: "IDLE",
+  potatoScore: 0,
+  potatoRound: 0,
+  potatoChannel: "A",
+  potatoDeadline: 0,
+  potatoTimeout: null,
+  potatoTick: null,
+
+  safetyTimerEndsAt: null,
+  safetyTimerInterval: null,
+  safetyTimerMinutes: 15,
+
   reconnectAttempts: 0,
   reconnectTimer: null,
   batteryIntervalId: null,
@@ -107,6 +129,8 @@ const AppState = {
     this.btPendingMode = 0;
     this.reflexState = "IDLE";
     this.rhythmState = "IDLE";
+    this.edgeState = "IDLE";
+    this.potatoState = "IDLE";
   },
 };
 

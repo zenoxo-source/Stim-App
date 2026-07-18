@@ -119,3 +119,17 @@ describe("settings export/import", () => {
     assert.throws(() => ProtocolUtils.parseSettingsImport("not-json"), /JSON|Ungültig/i);
   });
 });
+
+describe("mergeHighscore", () => {
+  it("updates only when score is higher", () => {
+    const a = ProtocolUtils.mergeHighscore({}, "edge", 10);
+    assert.equal(a.isNew, true);
+    assert.equal(a.best, 10);
+    const b = ProtocolUtils.mergeHighscore(a.store, "edge", 5);
+    assert.equal(b.isNew, false);
+    assert.equal(b.best, 10);
+    const c = ProtocolUtils.mergeHighscore(b.store, "edge", 12);
+    assert.equal(c.isNew, true);
+    assert.equal(c.store.edge, 12);
+  });
+});

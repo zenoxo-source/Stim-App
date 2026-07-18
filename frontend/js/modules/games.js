@@ -112,6 +112,11 @@ function triggerReflexSuccess() {
     DOM["reflex-subtext"].textContent = "Klicke das Feld f\u00fcr das n\u00e4chste Level";
 
   log(`Reflex Level ${AppState.reflexLevel - 1} bestanden: ${reactionTime} ms`, "success");
+  const hs = recordHighscore("reflex", AppState.reflexLevel - 1);
+  if (hs.isNew && DOM["reflex-feedback-message"]) {
+    DOM["reflex-feedback-message"].textContent += " · Highscore!";
+  }
+  if (typeof refreshHighscoreUI === "function") refreshHighscoreUI();
 }
 
 function triggerReflexFalseStart() {
@@ -287,6 +292,8 @@ function handleRhythmTap() {
       Math.floor(AppState.rhythmCombo / 5) + 1
     );
     AppState.rhythmScore += 10 * AppState.rhythmMultiplier;
+    recordHighscore("rhythm", AppState.rhythmScore);
+    if (typeof refreshHighscoreUI === "function") refreshHighscoreUI();
 
     if (DOM["rhythm-score"]) DOM["rhythm-score"].textContent = AppState.rhythmScore;
     if (DOM["rhythm-combo"])

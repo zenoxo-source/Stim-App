@@ -1171,3 +1171,94 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .onboarding-dot.active {
   background: var(--accent-primary);
 }
+
+/* Presets & timer */
+.preset-bar, .timer-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.preset-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.preset-btn:hover, .preset-btn.active {
+  border-color: var(--accent-primary);
+  color: white;
+  background: rgba(0,120,212,0.2);
+}
+.timer-display {
+  font-family: monospace;
+  font-size: 12px;
+  min-width: 64px;
+  color: var(--text-secondary);
+}
+.timer-display.urgent { color: #fd971f; font-weight: 700; }
+
+/* Hotkey overlay */
+.hotkey-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center;
+}
+.hotkey-card {
+  background: var(--bg-surface-solid, #1e1e24);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px 24px;
+  max-width: 420px;
+}
+.hotkey-card ul { margin: 12px 0 16px; padding-left: 0; list-style: none; }
+.hotkey-card li { margin: 8px 0; font-size: 13px; color: var(--text-secondary); }
+.hotkey-card kbd {
+  display: inline-block; padding: 2px 6px; border-radius: 4px;
+  background: rgba(255,255,255,0.08); border: 1px solid var(--border-color);
+  font-size: 11px; color: white;
+}
+
+.game-hs { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+.game-selector-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+
+/* Edge game */
+.edge-layout { display: flex; gap: 24px; align-items: center; flex: 1; min-height: 260px; }
+.edge-meter {
+  position: relative; width: 56px; height: 220px;
+  background: rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+.edge-fill {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(180deg, #5ab3ff, #0078d4);
+  transition: height 0.05s linear;
+}
+.edge-zone {
+  position: absolute; left: 0; right: 0;
+  background: rgba(16,124,65,0.35);
+  border-top: 1px solid #107c41;
+  border-bottom: 1px solid #107c41;
+}
+.edge-meter.in-zone .edge-fill { background: linear-gradient(180deg, #3dd68c, #107c41); }
+.edge-meter.danger .edge-fill { background: linear-gradient(180deg, #ff6b6b, #a80000); }
+.edge-hold-btn {
+  flex: 1; min-height: 120px; font-size: 18px; font-weight: 700;
+  user-select: none; touch-action: none;
+}
+
+/* Potato */
+.potato-buttons { display: flex; gap: 16px; flex: 1; align-items: center; justify-content: center; }
+.potato-btn { min-width: 140px; min-height: 100px; font-size: 22px; font-weight: 700; }
+.potato-timer-track {
+  height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; margin: 8px 0 16px;
+}
+.potato-timer-bar {
+  height: 100%; width: 100%; background: linear-gradient(90deg, #d83b01, #a80000);
+  transition: width 0.08s linear;
+}
+.potato-channel.ch-a { color: #5ab3ff; }
+.potato-channel.ch-b { color: #d7b4f3; }

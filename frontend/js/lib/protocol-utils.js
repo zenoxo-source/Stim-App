@@ -115,6 +115,18 @@
     return Math.min(max, Math.max(min, n));
   }
 
+  /** Pure highscore merge (for tests / shared logic). */
+  function mergeHighscore(store, gameId, score) {
+    const all = { ...(store || {}) };
+    const prev = Number(all[gameId] || 0);
+    const n = Number(score) || 0;
+    if (n > prev) {
+      all[gameId] = n;
+      return { store: all, isNew: true, best: n };
+    }
+    return { store: all, isNew: false, best: prev };
+  }
+
   return {
     getDeviceStrength,
     scaleWaveAmp,
@@ -123,5 +135,6 @@
     isCoyoteDeviceName,
     buildSettingsExport,
     parseSettingsImport,
+    mergeHighscore,
   };
 });
