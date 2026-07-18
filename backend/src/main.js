@@ -293,49 +293,48 @@ function sendUpdateStatus(payload) {
 
 function formatUpdaterError(err) {
   const raw = err?.message || String(err || "unbekannt");
-  if (/404/i.test(raw) && /releases\.atom|github\.com/i.test(raw)) {
-    const hasToken = Boolean(getGithubUpdateToken());
-    if (!hasToken) {
-      return (
-        "GitHub Releases 404 – privates Repo braucht einen Update-Token. " +
-        "Unter Einstellungen → App-Updates einen Fine-grained PAT (Contents: Read) eintragen. " +
-        raw
-      );
-    }
+  if (/Cannot find latest\.yml/i.test(raw)) {
     return (
-      "GitHub Releases 404 trotz Token – Token-Rechte prüfen (Contents: Read auf " +
-      `${UPDATE_OWNER}/${UPDATE_REPO}) oder Release/latest.yml fehlt. ` +
+      "Update-Metadaten (latest.yml) fehlen oder sind nicht öffentlich ladbar. " +
+      "Bitte prüfen, ob das Release-Asset auf GitHub erreichbar ist. " +
+      raw
+    );
+  }
+  if (/404/i.test(raw) && /github\.com|releases/i.test(raw)) {
+    return (
+      "GitHub-Release nicht erreichbar (404). " +
+      "Repo öffentlich? latest.yml im neuesten Release vorhanden? " +
       raw
     );
   }
   if (/401|403/i.test(raw)) {
-    return "GitHub-Zugriff verweigert – Update-Token ungültig oder ohne Leserecht. " + raw;
+    return "GitHub-Zugriff verweigert (401/403). " + raw;
   }
   return raw;
 }
 
 /**
- * Private GitHub Releases: electron-updater needs provider.private + token.
- * Token never ships in the installer – only env (dev) or safeStorage (user).
+ * Public GitHub Releases feed for zenoxo-source/Stim-App.
+ * Optional token only if the repo is later made private again.
  */
 function configureUpdaterFeed() {
   const token = getGithubUpdateToken();
-  // private:true only when a token is available (works for private repos).
-  // Public Stim-App releases work without token (private:false).
   const feed = {
     provider: "github",
     owner: UPDATE_OWNER,
     repo: UPDATE_REPO,
     releaseType: "release",
+    // Always public feed for open releases; token upgrades to private access if set
     private: Boolean(token),
   };
   if (token) {
     feed.token = token;
-    // Some electron-updater paths still read GH_TOKEN for asset downloads
     process.env.GH_TOKEN = token;
+  } else {
+    // Ensure no stale private-token mode from a previous session
+    delete process.env.GH_TOKEN;
   }
   autoUpdater.setFeedURL(feed);
-  // Token optional for public repos; required only if the repo is private
   return true;
 }
 

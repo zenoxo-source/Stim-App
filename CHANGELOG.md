@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.1
+
+### Fixes
+- Release-Publish ohne Race (ein Release statt doppelter v1.3.0)
+- `latest.yml` wieder öffentlich ladbar für electron-updater
+- Klarere Update-Fehlertexte (kein irreführender „Token“-Hinweis)
+
 ## 1.3.0
 
 ### Branding & UX

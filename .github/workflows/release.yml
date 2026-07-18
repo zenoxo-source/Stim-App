@@ -35,9 +35,40 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Build and publish Windows artifacts
+      # Build ONLY — never publish from electron-builder (avoids dual-release race
+      # when nsis + portable both call the GitHub API simultaneously).
+      - name: Build Windows packages
+        run: npm run build:app
+
+      # Remove any broken/duplicate releases for this tag (GITHUB_TOKEN has write)
+      - name: Remove previous release for tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Required by electron-builder for GitHub releases on private repos
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -e
+          TAG="${GITHUB_REF_NAME}"
+          # Delete all releases that claim this tag (handles duplicates)
+          gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+            --jq ".[] | select(.tag_name==\"${TAG}\") | .id" \
+            | while read -r id; do
+                echo "Deleting release id=${id} for tag ${TAG}"
+                gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/${id}" || true
+              done
+
+      - name: Publish single GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: |
+            backend/dist-app/StimApp-*-win-x64.exe
+            backend/dist-app/StimApp-*-portable.exe
+            backend/dist-app/StimApp-*.blockmap
+            backend/dist-app/latest.yml
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run build:app:publish
