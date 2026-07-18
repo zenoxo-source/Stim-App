@@ -1,4 +1,4 @@
-// updater-ui.js - electron-updater status surface in settings / sidebar
+// updater-ui.js - electron-updater status (public GitHub releases)
 
 function setUpdateBanner(text, kind = "info") {
   const el = document.getElementById("update-banner");
@@ -56,10 +56,7 @@ function handleUpdateStatus(payload) {
       break;
     case "error": {
       let msg = payload.message || "unbekannt";
-      // Keep UI readable: collapse huge header dumps from electron-updater
-      if (msg.length > 280) {
-        msg = msg.slice(0, 280) + "…";
-      }
+      if (msg.length > 220) msg = msg.slice(0, 220) + "…";
       setUpdateDetail(`Fehler: ${msg}`);
       setUpdateBanner(`Update-Fehler: ${msg}`, "error");
       setInstallButtonVisible(false);
@@ -100,15 +97,14 @@ document.addEventListener("DOMContentLoaded", () => {
     await window.electronAPI.installUpdate();
   });
 
-  Promise.all([window.electronAPI.isPackaged?.(), window.electronAPI.hasUpdateToken?.()]).then(
-    ([packaged, hasToken]) => {
-      if (!packaged) {
-        setUpdateDetail("Dev-Modus (kein Auto-Update)");
-      } else if (!hasToken) {
-        setUpdateDetail("Token fehlt – bitte GitHub Update-Token eintragen");
-      } else {
-        setUpdateDetail("Token vorhanden – prüft automatisch nach Start");
-      }
-    }
-  );
+  window.electronAPI.isPackaged?.().then((packaged) => {
+    if (!packaged) setUpdateDetail("Dev-Modus (kein Auto-Update)");
+    else setUpdateDetail("Bereit – prüft automatisch nach Start");
+  });
+
+  window.electronAPI.getVersion?.().then((v) => {
+    if (DOM["app-version-text"]) DOM["app-version-text"].textContent = `v${v}`;
+    const about = document.getElementById("about-version-line");
+    if (about) about.textContent = `Version ${v}`;
+  });
 });

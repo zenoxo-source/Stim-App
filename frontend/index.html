@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DG-LAB Coyote 3.0 Control Deck</title>
+  <title>Stim App</title>
+  <link rel="icon" type="image/png" href="assets/app-icon.png">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -14,8 +15,8 @@
     <aside class="sidebar">
       <div class="sidebar-top">
         <div class="brand">
-          <div class="brand-logo">C3</div>
-          <div class="brand-name">Coyote 3.0 Deck</div>
+          <div class="brand-logo">S</div>
+          <div class="brand-name">Stim App</div>
         </div>
         
         <nav>
@@ -51,13 +52,20 @@
       
       <div class="sidebar-footer">
         <div id="update-banner" class="update-banner" style="display:none;" data-kind="info"></div>
+        <div id="output-status" class="output-status idle" title="Geräte-Ausgabe">
+          <span class="output-dot"></span>
+          <span id="output-status-text">Ausgabe: aus</span>
+        </div>
         <div class="device-status">
           <span>Verbindung:</span>
           <span id="connection-text">Getrennt</span>
           <span id="connection-indicator" class="status-indicator"></span>
         </div>
+        <div id="reconnect-status" class="reconnect-status" style="display:none;"></div>
+        <div id="bt-device-list" class="bt-device-list" style="display:none;"></div>
         <button id="btn-connect" class="btn">🔌 Bluetooth Verbinden</button>
         <button id="btn-disconnect" class="btn btn-danger" style="display: none;">🔌 Trennen</button>
+        <button id="btn-panic" class="btn btn-danger btn-panic" title="Notstopp (Strg+Leertaste)">🛑 STOPP</button>
       </div>
     </aside>
 
@@ -68,10 +76,13 @@
       <header class="app-header">
         <div class="header-title">
           <h1 id="view-title">Control Deck</h1>
-          <p id="view-subtitle">DG-LAB Coyote 3.0 Bluetooth Steuerung</p>
+          <p id="view-subtitle">Stim App · DG-LAB Coyote 3.0</p>
         </div>
         
         <div class="header-controls">
+          <div id="safety-chip" class="safety-chip idle">
+            <span id="safety-chip-text">Bereit</span>
+          </div>
           <div class="battery-badge">
             <span class="battery-icon">
               <span id="battery-level-bar" class="battery-level"></span>
@@ -311,15 +322,18 @@
             
             <div class="import-box" id="drop-zone">
               <span class="pattern-icon" style="font-size: 48px; display: block; margin-bottom: 12px;">📁</span>
-              <span class="import-text">Klicke zum Auswählen oder ziehe eine MP3-Datei hierher</span>
-              <span class="import-subtitle">Extrahiert Amplitudenkurven in Echtzeit für die Kanäle A und B</span>
-              <input type="file" id="input-stim-file" accept="audio/mp3, audio/*">
+              <span class="import-text">Klicke zum Auswählen oder ziehe Audio-Dateien hierher</span>
+              <span class="import-subtitle">Mehrfachauswahl möglich · Amplituden → Kanal A/B in Echtzeit</span>
+              <input type="file" id="input-stim-file" accept="audio/mp3, audio/*" multiple>
             </div>
+            <div id="stim-playlist" class="stim-playlist" style="margin-top:12px;"></div>
           </div>
 
           <div class="audio-controls" id="audio-panel" style="opacity: 0.5; pointer-events: none;">
             <div class="audio-buttons">
+              <button id="btn-prev-track" class="btn btn-secondary" title="Vorheriger Track">⏮</button>
               <button id="btn-play-audio" class="btn">▶️ Play</button>
+              <button id="btn-next-track" class="btn btn-secondary" title="Nächster Track">⏭</button>
             </div>
             
             <div class="track-info">
@@ -331,9 +345,11 @@
               </div>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span class="control-label" style="font-size: 12px;">Audio ausgeben:</span>
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <span class="control-label" style="font-size: 12px;">Audio hören:</span>
               <input type="checkbox" id="check-hear-audio" checked style="width: 18px; height: 18px; cursor: pointer;">
+              <span class="control-label" style="font-size: 12px; margin-left: 8px;">Lautstärke×Master:</span>
+              <input type="checkbox" id="check-audio-master-link" checked style="width: 18px; height: 18px; cursor: pointer;" title="Hörlautstärke folgt dem Master-Slider">
             </div>
           </div>
 
@@ -696,29 +712,33 @@
             </div>
           </div>
 
-          <!-- App Updates -->
+          <!-- App Updates + About -->
           <div class="card">
             <div class="card-title">
               <span>App-Updates</span>
-              <span id="app-version-text" style="font-size:11px; opacity:0.7;">v1.2.1</span>
+              <span id="app-version-text" style="font-size:11px; opacity:0.7;">v1.3.0</span>
             </div>
             <p id="update-status-text" style="font-size:13px; margin: 0 0 10px;">—</p>
-            <div class="control-row" style="flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 12px;">
-              <span class="control-label">GitHub Update-Token (privates Repo)</span>
-              <input type="password" id="gh-update-token" placeholder="github_pat_… oder ghp_…" autocomplete="off" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-primary); color: white;">
-              <span style="font-size:12px; opacity:0.65;">
-                Fine-grained PAT nur für <code>zenoxo-source/Stim-App</code>, Permission <strong>Contents: Read</strong>.
-                Wird verschlüsselt lokal gespeichert (safeStorage), nicht im Repo.
-              </span>
-            </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
               <button id="btn-check-update" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Nach Updates suchen</button>
               <button id="btn-install-update" class="btn" style="padding: 6px 12px; font-size: 12px; display:none;">Jetzt installieren</button>
             </div>
             <p style="font-size:12px; opacity:0.65; margin-top:10px;">
-              Releases liegen im privaten Repo. Ohne Token schlagen Update-Checks mit 404 fehl.
-              Dev-Modus: Auto-Update deaktiviert.
+              Updates kommen automatisch von den öffentlichen GitHub Releases.
+              In der Entwicklungsversion ist Auto-Update deaktiviert.
             </p>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Über Stim App</div>
+            <div class="about-block">
+              <p><strong>Stim App</strong> · Control Deck für DG-LAB Coyote 3.0</p>
+              <p id="about-version-line" style="opacity:0.8;">Version —</p>
+              <p style="font-size:12px; opacity:0.65; margin-top:8px;">
+                Soft-Limits, Panic-Stopp und Master-Scale schützen vor Überstimulation.
+                Nutzung auf eigene Verantwortung.
+              </p>
+            </div>
           </div>
 
           <!-- Diagnostic Logs -->
@@ -752,6 +772,7 @@
   <script src="js/modules/ai-bridge.js"></script>
   <script src="js/modules/settings.js"></script>
   <script src="js/modules/safety.js"></script>
+  <script src="js/modules/status-ui.js"></script>
   <script src="js/modules/sessions.js"></script>
   <script src="js/modules/updater-ui.js"></script>
   <script src="js/llm-service.js"></script>

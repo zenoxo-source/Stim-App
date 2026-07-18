@@ -664,10 +664,30 @@ async function triggerLLM() {
 
       for (const toolCall of toolCalls) {
         if (toolCall.type === "function") {
-          const fnName = toolCall.function.name;
-          const args = JSON.parse(toolCall.function.arguments);
-
+          const fnName = toolCall.function?.name || toolCall.function?.Name;
+          let args = {};
           let toolResult = "";
+          try {
+            const rawArgs = toolCall.function?.arguments;
+            args =
+              typeof rawArgs === "string"
+                ? rawArgs.trim()
+                  ? JSON.parse(rawArgs)
+                  : {}
+                : rawArgs && typeof rawArgs === "object"
+                  ? rawArgs
+                  : {};
+          } catch (parseErr) {
+            toolResult = `Ungültige Tool-Argumente für ${fnName}: ${parseErr.message}`;
+            chatHistory.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: toolResult,
+            });
+            appendMessage("system", `⚠️ ${toolResult}`);
+            continue;
+          }
+
           try {
             if (fnName === "set_intensity") {
               const lvlA =
@@ -715,6 +735,18 @@ async function triggerLLM() {
               fnName === "stop_all" ||
               fnName === "start_session"
             ) {
+              // Visible tool chip in last assistant bubble
+              const lastAsst = document.querySelector(
+                "#ai-chat-history .chat-msg.assistant:last-child"
+              );
+              if (lastAsst) {
+                const chip = document.createElement("span");
+                chip.className = "chat-tool-chip";
+                chip.textContent = `⚙ ${fnName}`;
+                lastAsst.appendChild(chip);
+              }
+              if (typeof updateOutputStatus === "function") updateOutputStatus();
+
               const displayArgs = [];
               if (args.levelA !== undefined) displayArgs.push(`A: ${args.levelA}`);
               if (args.levelB !== undefined) displayArgs.push(`B: ${args.levelB}`);

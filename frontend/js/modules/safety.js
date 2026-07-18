@@ -80,7 +80,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if ((e.ctrlKey || e.metaKey) && e.code === "Space") {
       e.preventDefault();
       killAllOutput();
+      if (typeof updateOutputStatus === "function") updateOutputStatus({ panic: true });
       log("PANIC STOP aktiviert (Strg+Leertaste).", "error");
+      setTimeout(() => {
+        if (typeof updateOutputStatus === "function") updateOutputStatus();
+      }, 2500);
     }
   });
 
@@ -92,7 +96,11 @@ document.addEventListener("DOMContentLoaded", () => {
         escTimer = setTimeout(() => {
           escTimer = null;
           killAllOutput();
+          if (typeof updateOutputStatus === "function") updateOutputStatus({ panic: true });
           log("PANIC STOP aktiviert (ESC lang gedr\u00fcckt).", "error");
+          setTimeout(() => {
+            if (typeof updateOutputStatus === "function") updateOutputStatus();
+          }, 2500);
         }, 500);
       }
     }
@@ -160,6 +168,7 @@ function killAllOutput() {
 
     updateAIDashboard();
     sendV3EmergencyStop();
+    if (typeof updateOutputStatus === "function") updateOutputStatus({ panic: true });
     // Do not call setConnected(false): panic stops output but keeps BLE link.
   } catch (err) {
     console.error("killAllOutput error:", err);

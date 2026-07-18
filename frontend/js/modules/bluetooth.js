@@ -235,19 +235,73 @@ async function readBatteryStatus() {
   }
 }
 
+function setReconnectStatus(message) {
+  const el = document.getElementById("reconnect-status");
+  if (!el) return;
+  if (!message) {
+    el.style.display = "none";
+    el.textContent = "";
+    return;
+  }
+  el.style.display = "block";
+  el.textContent = message;
+}
+
+function setDeviceListHint(names) {
+  const el = document.getElementById("bt-device-list");
+  if (!el) return;
+  if (!names || names.length === 0) {
+    el.style.display = "none";
+    el.innerHTML = "";
+    return;
+  }
+  el.style.display = "block";
+  el.innerHTML = names.map((n) => `<div class="bt-device-item">${escapeBtHtml(n)}</div>`).join("");
+}
+
+function escapeBtHtml(value) {
+  if (typeof ProtocolUtils !== "undefined" && ProtocolUtils.escapeHtml) {
+    return ProtocolUtils.escapeHtml(value);
+  }
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function friendlyBtError(err) {
+  const msg = err?.message || String(err || "Unbekannter Fehler");
+  if (/User cancelled|NotFoundError|canceled/i.test(msg)) {
+    return "Verbindung abgebrochen – kein Gerät ausgewählt.";
+  }
+  if (/NetworkError|GATT Server is disconnected/i.test(msg)) {
+    return "Bluetooth-Verbindung unterbrochen (GATT). Bitte erneut verbinden.";
+  }
+  if (/SecurityError|NotAllowedError/i.test(msg)) {
+    return "Bluetooth-Zugriff verweigert. Berechtigung prüfen und erneut versuchen.";
+  }
+  if (/Unsupported|NotSupportedError/i.test(msg)) {
+    return "Web Bluetooth wird hier nicht unterstützt.";
+  }
+  return `Verbindungsfehler: ${msg}`;
+}
+
 function scheduleReconnect() {
   if (AppState.reconnectTimer) return;
   if (AppState.reconnectAttempts >= CONSTANTS.MAX_RECONNECT_ATTEMPTS) {
     log("Maximale Reconnect-Versuche erreicht.", "error");
+    setReconnectStatus("Reconnect fehlgeschlagen – manuell verbinden.");
     return;
   }
   AppState.reconnectAttempts += 1;
-  log(
-    `Versuche Reconnect in ${CONSTANTS.RECONNECT_DELAY_MS / 1000}s (Versuch ${AppState.reconnectAttempts}/${CONSTANTS.MAX_RECONNECT_ATTEMPTS})...`,
-    "warning"
-  );
+  const attempt = AppState.reconnectAttempts;
+  const max = CONSTANTS.MAX_RECONNECT_ATTEMPTS;
+  const secs = CONSTANTS.RECONNECT_DELAY_MS / 1000;
+  log(`Versuche Reconnect in ${secs}s (Versuch ${attempt}/${max})...`, "warning");
+  setReconnectStatus(`Reconnect ${attempt}/${max} in ${secs}s…`);
   AppState.reconnectTimer = setTimeout(() => {
     AppState.reconnectTimer = null;
+    setReconnectStatus(`Reconnect ${attempt}/${max} läuft…`);
     DOM["btn-connect"]?.click();
   }, CONSTANTS.RECONNECT_DELAY_MS);
 }
@@ -257,6 +311,7 @@ function clearReconnect() {
     clearTimeout(AppState.reconnectTimer);
     AppState.reconnectTimer = null;
   }
+  setReconnectStatus("");
 }
 
 function clearBatteryPolling() {
@@ -284,6 +339,8 @@ function onDisconnected() {
   if (DOM["btn-disconnect"]) DOM["btn-disconnect"].style.display = "none";
   if (DOM["battery-text"]) DOM["battery-text"].textContent = "--%";
   if (DOM["battery-level-bar"]) DOM["battery-level-bar"].style.height = "0%";
+  setDeviceListHint([]);
+  if (typeof updateOutputStatus === "function") updateOutputStatus();
 
   if (DOM["info-device-name"]) DOM["info-device-name"].textContent = "Nicht verbunden";
   if (DOM["info-manufacturer"]) DOM["info-manufacturer"].textContent = "--";
@@ -330,6 +387,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (DOM["connection-text"]) DOM["connection-text"].textContent = "Suche...";
     if (DOM["connection-indicator"])
       DOM["connection-indicator"].className = "status-indicator connecting";
+    setReconnectStatus("Bluetooth-Suche läuft…");
+    setDeviceListHint([`Filter: Prefix ${CONSTANTS.COYOTE_NAME_PREFIX} / „coyote“`]);
 
     try {
       AppState.device = await navigator.bluetooth.requestDevice({
@@ -343,6 +402,8 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       log(`Ger\u00e4t gefunden: ${AppState.device.name}. Verbinde...`, "info");
+      setDeviceListHint([AppState.device.name || "Coyote"]);
+      setReconnectStatus("GATT-Verbindung wird aufgebaut…");
 
       AppState.device.addEventListener("gattserverdisconnected", onDisconnected);
 
@@ -455,6 +516,8 @@ document.addEventListener("DOMContentLoaded", () => {
       AppState.isConnected = true;
       AppState.reconnectAttempts = 0;
       log("Erfolgreich mit Coyote 3.0 verbunden!", "success");
+      setReconnectStatus("");
+      setDeviceListHint([AppState.device?.name || "Coyote 3.0 · verbunden"]);
 
       if (DOM["connection-text"]) DOM["connection-text"].textContent = "Verbunden";
       if (DOM["connection-indicator"])
@@ -473,8 +536,12 @@ document.addEventListener("DOMContentLoaded", () => {
       AppState.btPendingMode = CONSTANTS.V3_MODE_ABSOLUTE_BOTH;
 
       startWaveLoop();
+      if (typeof updateOutputStatus === "function") updateOutputStatus();
     } catch (err) {
-      log(`Verbindungsfehler: ${err.message}`, "error");
+      const friendly = friendlyBtError(err);
+      log(friendly, "error");
+      setReconnectStatus(friendly);
+      setDeviceListHint([]);
       resetUIOnDisconnect();
     }
   });

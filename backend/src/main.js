@@ -8,15 +8,15 @@ const {
   nativeImage,
   safeStorage,
   dialog,
-} = require('electron');
-const path = require('path');
-const fs = require('fs');
-const { autoUpdater } = require('electron-updater');
+} = require("electron");
+const path = require("path");
+const fs = require("fs");
+const { autoUpdater } = require("electron-updater");
 
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
-  console.log('Another instance is already running. Exiting...');
+  console.log("Another instance is already running. Exiting...");
   app.quit();
   return;
 }
@@ -30,34 +30,34 @@ let bluetoothSelectTimer = null;
 let bluetoothPickerActive = false;
 
 const BLUETOOTH_SELECT_TIMEOUT_MS = 15000;
-const API_KEY_FILENAME = 'ai-api-key.enc';
-const GH_UPDATE_TOKEN_FILENAME = 'gh-update-token.enc';
-const UPDATE_OWNER = 'zenoxo-source';
-const UPDATE_REPO = 'Stim-App';
+const API_KEY_FILENAME = "ai-api-key.enc";
+const GH_UPDATE_TOKEN_FILENAME = "gh-update-token.enc";
+const UPDATE_OWNER = "zenoxo-source";
+const UPDATE_REPO = "Stim-App";
 
 function secretPath(filename) {
-  return path.join(app.getPath('userData'), filename);
+  return path.join(app.getPath("userData"), filename);
 }
 
 function readSecretFile(filename) {
   try {
     const keyPath = secretPath(filename);
-    if (!fs.existsSync(keyPath)) return '';
+    if (!fs.existsSync(keyPath)) return "";
     const buf = fs.readFileSync(keyPath);
     if (safeStorage.isEncryptionAvailable()) {
       return safeStorage.decryptString(buf);
     }
-    return buf.toString('utf8');
+    return buf.toString("utf8");
   } catch (err) {
     console.warn(`Failed to read secret ${filename}:`, err.message);
-    return '';
+    return "";
   }
 }
 
 function writeSecretFile(filename, value) {
   try {
     const keyPath = secretPath(filename);
-    const text = typeof value === 'string' ? value.trim() : '';
+    const text = typeof value === "string" ? value.trim() : "";
     if (!text) {
       if (fs.existsSync(keyPath)) fs.unlinkSync(keyPath);
       return true;
@@ -65,7 +65,7 @@ function writeSecretFile(filename, value) {
     if (safeStorage.isEncryptionAvailable()) {
       fs.writeFileSync(keyPath, safeStorage.encryptString(text));
     } else {
-      fs.writeFileSync(keyPath, text, 'utf8');
+      fs.writeFileSync(keyPath, text, "utf8");
     }
     return true;
   } catch (err) {
@@ -76,7 +76,7 @@ function writeSecretFile(filename, value) {
 
 /** Token for private GitHub releases: env first, then safeStorage. */
 function getGithubUpdateToken() {
-  const fromEnv = (process.env.GH_TOKEN || process.env.GITHUB_TOKEN || '').trim();
+  const fromEnv = (process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "").trim();
   if (fromEnv) return fromEnv;
   return readSecretFile(GH_UPDATE_TOKEN_FILENAME);
 }
@@ -91,35 +91,35 @@ function clearBluetoothSelect() {
 }
 
 function isCoyoteDevice(device) {
-  const name = device.deviceName || '';
-  return name.includes('47L121') || name.toLowerCase().includes('coyote');
+  const name = device.deviceName || "";
+  return name.includes("47L121") || name.toLowerCase().includes("coyote");
 }
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
-    title: 'DG-LAB Coyote 3.0 Control Deck',
+    title: "Stim App",
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 
   mainWindow.setMenu(null);
 
   session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
-    return permission === 'bluetooth';
+    return permission === "bluetooth";
   });
 
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    callback(permission === 'bluetooth');
+    callback(permission === "bluetooth");
   });
 
   // Auto-select Coyote; if several match, show a picker dialog once.
-  mainWindow.webContents.on('select-bluetooth-device', (event, deviceList, callback) => {
+  mainWindow.webContents.on("select-bluetooth-device", (event, deviceList, callback) => {
     event.preventDefault();
     console.log(`Electron Bluetooth scan found ${deviceList.length} devices.`);
 
@@ -128,7 +128,9 @@ function createWindow() {
     const matches = deviceList.filter(isCoyoteDevice);
 
     if (matches.length === 1) {
-      console.log(`Auto-selecting matched device: ${matches[0].deviceName} (${matches[0].deviceId})`);
+      console.log(
+        `Auto-selecting matched device: ${matches[0].deviceName} (${matches[0].deviceId})`
+      );
       clearBluetoothSelect();
       callback(matches[0].deviceId);
       return;
@@ -142,16 +144,16 @@ function createWindow() {
       }
 
       const buttons = matches.slice(0, 6).map((d) => d.deviceName || d.deviceId);
-      buttons.push('Abbrechen');
+      buttons.push("Abbrechen");
 
       const choice = dialog.showMessageBoxSync(mainWindow, {
-        type: 'question',
+        type: "question",
         buttons,
         defaultId: 0,
         cancelId: buttons.length - 1,
-        title: 'Coyote Gerät wählen',
-        message: 'Mehrere passende Geräte gefunden.',
-        detail: 'Bitte das gewünschte DG-LAB Coyote Gerät auswählen.',
+        title: "Coyote Gerät wählen",
+        message: "Mehrere passende Geräte gefunden.",
+        detail: "Bitte das gewünschte DG-LAB Coyote Gerät auswählen.",
       });
 
       const selected = matches[choice];
@@ -160,21 +162,21 @@ function createWindow() {
         console.log(`User selected device: ${selected.deviceName} (${selected.deviceId})`);
         callback(selected.deviceId);
       } else {
-        console.log('User cancelled device selection.');
-        callback('');
+        console.log("User cancelled device selection.");
+        callback("");
       }
       return;
     }
 
-    console.log('No matched device in list yet. Scanning...');
+    console.log("No matched device in list yet. Scanning...");
     if (!bluetoothSelectTimer) {
       bluetoothSelectTimer = setTimeout(() => {
         bluetoothSelectTimer = null;
         if (bluetoothSelectCallback) {
-          console.warn('Bluetooth scan timed out without matching device.');
+          console.warn("Bluetooth scan timed out without matching device.");
           const cb = bluetoothSelectCallback;
           bluetoothSelectCallback = null;
-          cb('');
+          cb("");
         }
       }, BLUETOOTH_SELECT_TIMEOUT_MS);
     }
@@ -192,32 +194,32 @@ function createWindow() {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
-        'Content-Security-Policy': [csp],
+        "Content-Security-Policy": [csp],
       },
     });
   });
 
-  let frontendPath = path.join(__dirname, '..', 'frontend', 'index.html');
+  let frontendPath = path.join(__dirname, "..", "frontend", "index.html");
   if (!fs.existsSync(frontendPath)) {
-    frontendPath = path.join(__dirname, '..', '..', 'frontend', 'index.html');
+    frontendPath = path.join(__dirname, "..", "..", "frontend", "index.html");
   }
 
   console.log(`Loading frontend from: ${frontendPath}`);
   mainWindow.loadFile(frontendPath);
 
-  mainWindow.on('close', (event) => {
+  mainWindow.on("close", (event) => {
     if (isQuitting) return;
     event.preventDefault();
-    mainWindow.webContents.send('app-before-close');
+    mainWindow.webContents.send("app-before-close");
 
     closeFallbackTimer = setTimeout(() => {
-      console.warn('Renderer did not confirm close. Forcing exit.');
+      console.warn("Renderer did not confirm close. Forcing exit.");
       isQuitting = true;
       if (mainWindow) mainWindow.close();
     }, 3000);
   });
 
-  mainWindow.on('closed', () => {
+  mainWindow.on("closed", () => {
     mainWindow = null;
     clearBluetoothSelect();
     if (closeFallbackTimer) {
@@ -226,27 +228,30 @@ function createWindow() {
     }
   });
 
-  mainWindow.on('minimize', () => {
+  mainWindow.on("minimize", () => {
     if (tray) {
       mainWindow.hide();
       tray.displayBalloon({
-        iconType: 'info',
-        title: 'Coyote 3.0 Control Deck',
-        content: 'Im Hintergrund aktiv (Tray).',
+        iconType: "info",
+        title: "Stim App",
+        content: "Im Hintergrund aktiv (Tray).",
       });
     }
   });
 }
 
 function createTray() {
-  const trayIconPath = path.join(__dirname, '..', 'assets', 'tray.png');
+  const trayIconPath = path.join(__dirname, "..", "assets", "icon.png");
+  const trayFallback = path.join(__dirname, "..", "assets", "tray.png");
   let trayIcon;
   if (fs.existsSync(trayIconPath)) {
     trayIcon = nativeImage.createFromPath(trayIconPath);
+  } else if (fs.existsSync(trayFallback)) {
+    trayIcon = nativeImage.createFromPath(trayFallback);
   } else {
     const placeholder = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH5QYbBzIIGon8dwAAAB1pVFh0Q29tbWVudAAAAAAAKz1rZTMyLTAwMDAwMDAwMDAAM78E7gAAAFhJREFUOMu9jrENgDAMBE+cTjA6o2R11gh7YI+MkkGywH8R+ZKtyOdT7rOklGdmZnZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmb2Yw/3GwkGU5VoewAAAABJRU5ErkJggg==',
-      'base64'
+      "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH5QYbBzIIGon8dwAAAB1pVFh0Q29tbWVudAAAAAAAKz1rZTMyLTAwMDAwMDAwMDAAM78E7gAAAFhJREFUOMu9jrENgDAMBE+cTjA6o2R11gh7YI+MkkGywH8R+ZKtyOdT7rOklGdmZnZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmb2Yw/3GwkGU5VoewAAAABJRU5ErkJggg==",
+      "base64"
     );
     trayIcon = nativeImage.createFromBuffer(placeholder);
   }
@@ -254,7 +259,7 @@ function createTray() {
   tray = new Tray(trayIcon);
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Anzeigen',
+      label: "Anzeigen",
       click: () => {
         if (mainWindow) {
           mainWindow.show();
@@ -263,16 +268,16 @@ function createTray() {
       },
     },
     {
-      label: 'Beenden',
+      label: "Beenden",
       click: () => {
         isQuitting = true;
         app.quit();
       },
     },
   ]);
-  tray.setToolTip('Stim App');
+  tray.setToolTip("Stim App");
   tray.setContextMenu(contextMenu);
-  tray.on('click', () => {
+  tray.on("click", () => {
     if (mainWindow) {
       mainWindow.show();
       mainWindow.focus();
@@ -282,31 +287,29 @@ function createTray() {
 
 function sendUpdateStatus(payload) {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('update-status', payload);
+    mainWindow.webContents.send("update-status", payload);
   }
 }
 
 function formatUpdaterError(err) {
-  const raw = err?.message || String(err || 'unbekannt');
+  const raw = err?.message || String(err || "unbekannt");
   if (/404/i.test(raw) && /releases\.atom|github\.com/i.test(raw)) {
     const hasToken = Boolean(getGithubUpdateToken());
     if (!hasToken) {
       return (
-        'GitHub Releases 404 – privates Repo braucht einen Update-Token. ' +
-        'Unter Einstellungen → App-Updates einen Fine-grained PAT (Contents: Read) eintragen. ' +
+        "GitHub Releases 404 – privates Repo braucht einen Update-Token. " +
+        "Unter Einstellungen → App-Updates einen Fine-grained PAT (Contents: Read) eintragen. " +
         raw
       );
     }
     return (
-      'GitHub Releases 404 trotz Token – Token-Rechte prüfen (Contents: Read auf ' +
+      "GitHub Releases 404 trotz Token – Token-Rechte prüfen (Contents: Read auf " +
       `${UPDATE_OWNER}/${UPDATE_REPO}) oder Release/latest.yml fehlt. ` +
       raw
     );
   }
   if (/401|403/i.test(raw)) {
-    return (
-      'GitHub-Zugriff verweigert – Update-Token ungültig oder ohne Leserecht. ' + raw
-    );
+    return "GitHub-Zugriff verweigert – Update-Token ungültig oder ohne Leserecht. " + raw;
   }
   return raw;
 }
@@ -320,10 +323,10 @@ function configureUpdaterFeed() {
   // private:true only when a token is available (works for private repos).
   // Public Stim-App releases work without token (private:false).
   const feed = {
-    provider: 'github',
+    provider: "github",
     owner: UPDATE_OWNER,
     repo: UPDATE_REPO,
-    releaseType: 'release',
+    releaseType: "release",
     private: Boolean(token),
   };
   if (token) {
@@ -339,7 +342,7 @@ function configureUpdaterFeed() {
 function setupAutoUpdater() {
   // Only check GitHub releases when packaged (NSIS / portable)
   if (!app.isPackaged) {
-    console.log('Auto-updater skipped (development mode).');
+    console.log("Auto-updater skipped (development mode).");
     return;
   }
 
@@ -347,43 +350,41 @@ function setupAutoUpdater() {
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
   autoUpdater.logger = {
-    info: (...args) => console.log('[updater]', ...args),
-    warn: (...args) => console.warn('[updater]', ...args),
-    error: (...args) => console.error('[updater]', ...args),
-    debug: (...args) => console.log('[updater:debug]', ...args),
+    info: (...args) => console.log("[updater]", ...args),
+    warn: (...args) => console.warn("[updater]", ...args),
+    error: (...args) => console.error("[updater]", ...args),
+    debug: (...args) => console.log("[updater:debug]", ...args),
   };
 
   try {
     configureUpdaterFeed();
   } catch (err) {
-    console.warn('configureUpdaterFeed failed:', err.message);
+    console.warn("configureUpdaterFeed failed:", err.message);
   }
 
   if (!getGithubUpdateToken()) {
-    console.log(
-      '[updater] No GitHub token – using public release feed (ok if repo is public).'
-    );
+    console.log("[updater] No GitHub token – using public release feed (ok if repo is public).");
   }
 
-  autoUpdater.on('checking-for-update', () => {
-    sendUpdateStatus({ status: 'checking' });
+  autoUpdater.on("checking-for-update", () => {
+    sendUpdateStatus({ status: "checking" });
   });
 
-  autoUpdater.on('update-available', (info) => {
+  autoUpdater.on("update-available", (info) => {
     sendUpdateStatus({
-      status: 'available',
+      status: "available",
       version: info.version,
       releaseDate: info.releaseDate,
     });
   });
 
-  autoUpdater.on('update-not-available', (info) => {
-    sendUpdateStatus({ status: 'none', version: info?.version || app.getVersion() });
+  autoUpdater.on("update-not-available", (info) => {
+    sendUpdateStatus({ status: "none", version: info?.version || app.getVersion() });
   });
 
-  autoUpdater.on('download-progress', (progress) => {
+  autoUpdater.on("download-progress", (progress) => {
     sendUpdateStatus({
-      status: 'downloading',
+      status: "downloading",
       percent: progress.percent,
       transferred: progress.transferred,
       total: progress.total,
@@ -391,35 +392,31 @@ function setupAutoUpdater() {
     });
   });
 
-  autoUpdater.on('update-downloaded', (info) => {
-    sendUpdateStatus({ status: 'ready', version: info.version });
+  autoUpdater.on("update-downloaded", (info) => {
+    sendUpdateStatus({ status: "ready", version: info.version });
   });
 
-  autoUpdater.on('error', (err) => {
-    sendUpdateStatus({ status: 'error', message: formatUpdaterError(err) });
+  autoUpdater.on("error", (err) => {
+    sendUpdateStatus({ status: "error", message: formatUpdaterError(err) });
   });
 
   // Delay so the window can subscribe first
   setTimeout(() => {
     autoUpdater.checkForUpdates().catch((err) => {
-      console.warn('checkForUpdates failed:', err.message);
-      sendUpdateStatus({ status: 'error', message: formatUpdaterError(err) });
+      console.warn("checkForUpdates failed:", err.message);
+      sendUpdateStatus({ status: "error", message: formatUpdaterError(err) });
     });
   }, 4000);
 }
 
 function registerIpc() {
-  ipcMain.on('device-connected', (event, connected) => {
+  ipcMain.on("device-connected", (event, connected) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.setTitle(
-        connected
-          ? 'DG-LAB Coyote 3.0 Control Deck (Verbunden)'
-          : 'DG-LAB Coyote 3.0 Control Deck'
-      );
+      mainWindow.setTitle(connected ? "Stim App (Verbunden)" : "Stim App");
     }
   });
 
-  ipcMain.on('close-confirmed', () => {
+  ipcMain.on("close-confirmed", () => {
     isQuitting = true;
     if (closeFallbackTimer) {
       clearTimeout(closeFallbackTimer);
@@ -428,47 +425,45 @@ function registerIpc() {
     if (mainWindow) mainWindow.close();
   });
 
-  ipcMain.on('close-prevented', () => {
+  ipcMain.on("close-prevented", () => {
     if (closeFallbackTimer) {
       clearTimeout(closeFallbackTimer);
       closeFallbackTimer = null;
     }
   });
 
-  ipcMain.handle('app:getVersion', () => app.getVersion());
-  ipcMain.handle('app:isPackaged', () => app.isPackaged);
+  ipcMain.handle("app:getVersion", () => app.getVersion());
+  ipcMain.handle("app:isPackaged", () => app.isPackaged);
 
-  ipcMain.handle('updater:check', async () => {
+  ipcMain.handle("updater:check", async () => {
     if (!app.isPackaged) {
-      return { ok: false, reason: 'dev-mode' };
+      return { ok: false, reason: "dev-mode" };
     }
     try {
       configureUpdaterFeed();
       const result = await autoUpdater.checkForUpdates();
       return {
         ok: true,
-        updateInfo: result?.updateInfo
-          ? { version: result.updateInfo.version }
-          : null,
+        updateInfo: result?.updateInfo ? { version: result.updateInfo.version } : null,
       };
     } catch (err) {
       return { ok: false, error: formatUpdaterError(err) };
     }
   });
 
-  ipcMain.handle('updater:install', () => {
-    if (!app.isPackaged) return { ok: false, reason: 'dev-mode' };
+  ipcMain.handle("updater:install", () => {
+    if (!app.isPackaged) return { ok: false, reason: "dev-mode" };
     setImmediate(() => autoUpdater.quitAndInstall(false, true));
     return { ok: true };
   });
 
-  ipcMain.handle('updater:hasToken', () => Boolean(getGithubUpdateToken()));
+  ipcMain.handle("updater:hasToken", () => Boolean(getGithubUpdateToken()));
 
-  ipcMain.handle('secrets:getApiKey', () => readSecretFile(API_KEY_FILENAME));
-  ipcMain.handle('secrets:setApiKey', (event, apiKey) => writeSecretFile(API_KEY_FILENAME, apiKey));
+  ipcMain.handle("secrets:getApiKey", () => readSecretFile(API_KEY_FILENAME));
+  ipcMain.handle("secrets:setApiKey", (event, apiKey) => writeSecretFile(API_KEY_FILENAME, apiKey));
 
-  ipcMain.handle('secrets:getGithubToken', () => readSecretFile(GH_UPDATE_TOKEN_FILENAME));
-  ipcMain.handle('secrets:setGithubToken', (event, token) => {
+  ipcMain.handle("secrets:getGithubToken", () => readSecretFile(GH_UPDATE_TOKEN_FILENAME));
+  ipcMain.handle("secrets:setGithubToken", (event, token) => {
     const ok = writeSecretFile(GH_UPDATE_TOKEN_FILENAME, token);
     // Re-apply feed so the next check uses the new token
     try {
@@ -479,27 +474,27 @@ function registerIpc() {
     return ok;
   });
 
-  ipcMain.handle('diagnostics:exportLog', async (event, content) => {
+  ipcMain.handle("diagnostics:exportLog", async (event, content) => {
     try {
       const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-        title: 'Diagnose-Log speichern',
-        defaultPath: `coyote-diagnose-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.log`,
+        title: "Diagnose-Log speichern",
+        defaultPath: `coyote-diagnose-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.log`,
         filters: [
-          { name: 'Log', extensions: ['log', 'txt'] },
-          { name: 'Alle Dateien', extensions: ['*'] },
+          { name: "Log", extensions: ["log", "txt"] },
+          { name: "Alle Dateien", extensions: ["*"] },
         ],
       });
       if (canceled || !filePath) return { ok: false, canceled: true };
-      fs.writeFileSync(filePath, content || '', 'utf8');
+      fs.writeFileSync(filePath, content || "", "utf8");
       return { ok: true, filePath };
     } catch (err) {
-      console.warn('Failed to export log:', err.message);
+      console.warn("Failed to export log:", err.message);
       return { ok: false, error: err.message };
     }
   });
 }
 
-app.on('second-instance', () => {
+app.on("second-instance", () => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
@@ -513,14 +508,14 @@ app.whenReady().then(() => {
   createTray();
   setupAutoUpdater();
 
-  app.on('activate', () => {
+  app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
 });
 
-app.on('window-all-closed', () => {
-  console.log('All windows closed. Exiting...');
+app.on("window-all-closed", () => {
+  console.log("All windows closed. Exiting...");
   app.quit();
 });

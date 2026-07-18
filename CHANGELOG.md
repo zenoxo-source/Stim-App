@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.3.0
+
+### Branding & UX
+- Stim App Branding, Icon, Tray, Fenstertitel
+- Ausgabe-Indikator, Safety-Chip, sichtbarer STOPP-Button
+- Soft-Limit-Warnungen an den Intensitätslabels
+
+### Bluetooth
+- Freundliche Fehlermeldungen, Reconnect-Status, Geräteliste in der Sidebar
+
+### STIM Player
+- Playlist (Mehrfachimport, prev/next, Auto-Advance)
+- Hörlautstärke optional an Master gekoppelt
+
+### AI
+- Robustere Tool-Argument-Parsing, Tool-Chips in der Chat-UI
+
+### Updates
+- Öffentliche Releases ohne Token-Feld in den Einstellungen
+- About-Karte mit Versionsanzeige
+
 ## 1.2.1
 
 ### Updates (privates Repo)

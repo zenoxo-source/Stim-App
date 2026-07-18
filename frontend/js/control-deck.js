@@ -50,11 +50,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const headerSub = DOM["view-subtitle"];
 
       const titles = {
-        deck: ["Control Deck", "DG-LAB Coyote 3.0 Bluetooth Steuerung"],
-        stim: ["STIM Player", "Audio-Amplitudenextraktion & Synchronisation"],
+        deck: ["Control Deck", "Stim App · DG-LAB Coyote 3.0"],
+        stim: ["STIM Player", "Audio · Playlist · Amplituden → A/B"],
         games: ["Mini-Spiele", "Interaktives Feedback-Training"],
-        ai: ["AI Steuerungs-Assistent", "Lass dich von einer KI verw\u00f6hnen"],
-        settings: ["Einstellungen", "Sicherheits-Limits & Diagnose-Logs"],
+        ai: ["AI Steuerungs-Assistent", "Tool-Calls & Streaming"],
+        settings: ["Einstellungen", "Sicherheit, Updates & Diagnose"],
       };
 
       if (titles[tabName]) {
@@ -343,8 +343,16 @@ document.addEventListener("DOMContentLoaded", () => {
     if (DOM["slider-intensity-a"]) DOM["slider-intensity-a"].value = AppState.strengthA;
     if (DOM["intensity-circle-a"]) DOM["intensity-circle-a"].textContent = AppState.strengthA;
     if (DOM["label-intensity-a"]) DOM["label-intensity-a"].textContent = AppState.strengthA;
+    if (
+      AppState.softLimitA > 0 &&
+      AppState.strengthA >= AppState.softLimitA &&
+      AppState.strengthA > 0
+    ) {
+      log(`Kanal A am Soft-Limit (${AppState.softLimitA}).`, "warning");
+    }
     updateAIDashboard();
     sendStrengthCommand(AppState.strengthA, AppState.strengthB);
+    if (typeof updateOutputStatus === "function") updateOutputStatus();
   };
 
   window.updateSlidersB = function (val) {
@@ -352,8 +360,16 @@ document.addEventListener("DOMContentLoaded", () => {
     if (DOM["slider-intensity-b"]) DOM["slider-intensity-b"].value = AppState.strengthB;
     if (DOM["intensity-circle-b"]) DOM["intensity-circle-b"].textContent = AppState.strengthB;
     if (DOM["label-intensity-b"]) DOM["label-intensity-b"].textContent = AppState.strengthB;
+    if (
+      AppState.softLimitB > 0 &&
+      AppState.strengthB >= AppState.softLimitB &&
+      AppState.strengthB > 0
+    ) {
+      log(`Kanal B am Soft-Limit (${AppState.softLimitB}).`, "warning");
+    }
     updateAIDashboard();
     sendStrengthCommand(AppState.strengthA, AppState.strengthB);
+    if (typeof updateOutputStatus === "function") updateOutputStatus();
   };
 
   DOM["slider-intensity-a"]?.addEventListener("input", (e) => updateSlidersA(e.target.value));
@@ -399,6 +415,8 @@ document.addEventListener("DOMContentLoaded", () => {
     AppState.masterScale = parseFloat(e.target.value) / 100;
     if (DOM["master-val-text"]) DOM["master-val-text"].textContent = `${e.target.value}%`;
     sendStrengthCommand(AppState.strengthA, AppState.strengthB);
+    if (typeof applyAudioMasterLink === "function") applyAudioMasterLink();
+    if (typeof updateOutputStatus === "function") updateOutputStatus();
   });
 
   // Settings: Soft Limits

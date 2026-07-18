@@ -1002,3 +1002,122 @@ input[type="range"]::-webkit-slider-thumb:hover {
   border-color: rgba(249, 38, 114, 0.45);
   color: #ffc9d9;
 }
+
+/* --- Stim App 1.3 UX --- */
+.brand-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.output-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+}
+.output-status .output-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6e6e7a;
+}
+.output-status.active .output-dot { background: #d83b01; box-shadow: 0 0 8px #d83b01; }
+.output-status.panic .output-dot { background: #a80000; animation: blink 0.6s infinite; }
+.output-status.idle .output-dot { background: #107c41; }
+.btn-panic {
+  width: 100%;
+  margin-top: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.safety-chip {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(16, 124, 65, 0.2);
+  color: #9fefc0;
+  border: 1px solid rgba(16, 124, 65, 0.35);
+  white-space: nowrap;
+}
+.safety-chip.active {
+  background: rgba(216, 59, 1, 0.2);
+  color: #ffc9a8;
+  border-color: rgba(216, 59, 1, 0.45);
+}
+.safety-chip.panic {
+  background: rgba(168, 0, 0, 0.35);
+  color: #ffb3b3;
+  border-color: rgba(249, 38, 114, 0.5);
+}
+.reconnect-status {
+  font-size: 11px;
+  color: #fd971f;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+.bt-device-list {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  max-height: 72px;
+  overflow-y: auto;
+}
+.bt-device-list .bt-device-item {
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.04);
+  margin-bottom: 4px;
+}
+.stim-playlist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.stim-playlist-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.stim-playlist-item:hover { border-color: rgba(0,120,212,0.35); }
+.stim-playlist-item.active {
+  border-color: var(--accent-primary);
+  background: rgba(0,120,212,0.12);
+}
+.stim-playlist-item .pl-remove {
+  opacity: 0.6;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+}
+.limit-warn {
+  color: #fd971f !important;
+  font-weight: 600;
+}
+.about-block p { margin: 0 0 6px; font-size: 13px; color: var(--text-secondary); }
+.chat-msg.assistant.streaming { opacity: 0.95; }
+.chat-tool-chip {
+  display: inline-block;
+  font-size: 11px;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0,120,212,0.18);
+  color: #9ecbff;
+}

@@ -9,6 +9,13 @@ module.exports = {
     ecmaVersion: 'latest',
     sourceType: 'script'
   },
+  ignorePatterns: ['node_modules/', 'dist-app/', 'dist/'],
+  overrides: [
+    {
+      files: ['src/**/*.js', 'scripts/**/*.js', 'tests/**/*.js'],
+      env: { node: true, browser: false },
+    },
+  ],
   globals: {
     AppState: 'readonly',
     DOM: 'readonly',
@@ -35,8 +42,19 @@ module.exports = {
     SESSIONS: 'readonly',
     ProtocolUtils: 'readonly',
     updateSessionUI: 'readonly',
+    updateOutputStatus: 'readonly',
+    isOutputActive: 'readonly',
+    applyAudioMasterLink: 'readonly',
     Blob: 'readonly',
     URL: 'readonly',
+    URLSearchParams: 'readonly',
+    fetch: 'readonly',
+    TextDecoder: 'readonly',
+    AbortController: 'readonly',
+    setInterval: 'readonly',
+    clearInterval: 'readonly',
+    setTimeout: 'readonly',
+    clearTimeout: 'readonly',
     isProcessing: 'writable',
     currentLLMController: 'writable',
     streamingBubbleEl: 'writable',

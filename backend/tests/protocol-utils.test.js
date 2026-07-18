@@ -72,3 +72,14 @@ describe("isCoyoteDeviceName", () => {
     assert.equal(ProtocolUtils.isCoyoteDeviceName("Random BLE"), false);
   });
 });
+
+describe("master scale edge cases", () => {
+  it("treats missing masterScale as 1", () => {
+    assert.equal(ProtocolUtils.getDeviceStrength(80, 150, undefined), 80);
+    assert.equal(ProtocolUtils.scaleWaveAmp(50, null), 50);
+  });
+
+  it("applies near-limit soft clamp before scale", () => {
+    assert.equal(ProtocolUtils.getDeviceStrength(200, 100, 0.8), 80);
+  });
+});

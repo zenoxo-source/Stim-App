@@ -57,14 +57,6 @@ function saveSettings() {
         console.warn("Failed to store API key securely:", err);
       });
     }
-
-    const ghToken =
-      document.getElementById("gh-update-token")?.value ?? DOM["gh-update-token"]?.value ?? "";
-    if (window.electronAPI && typeof window.electronAPI.setGithubToken === "function") {
-      window.electronAPI.setGithubToken(ghToken).catch((err) => {
-        console.warn("Failed to store GitHub update token securely:", err);
-      });
-    }
   } catch (e) {
     console.warn("Failed to save settings:", e);
   }
@@ -142,28 +134,19 @@ async function loadApiKeySecurely(settings) {
   if (DOM["ai-api-key"]) DOM["ai-api-key"].value = key;
 }
 
-async function loadGithubTokenSecurely() {
-  const el = document.getElementById("gh-update-token") || DOM["gh-update-token"];
-  if (!el || !window.electronAPI?.getGithubToken) return;
-  try {
-    el.value = (await window.electronAPI.getGithubToken()) || "";
-  } catch (e) {
-    console.warn("Failed to load GitHub update token:", e);
-  }
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   const settings = loadSettings();
   applySettings(settings);
   loadApiKeySecurely(settings);
-  loadGithubTokenSecurely();
 
   if (window.electronAPI && typeof window.electronAPI.getVersion === "function") {
     window.electronAPI.getVersion().then((v) => {
       if (DOM["app-version-text"]) DOM["app-version-text"].textContent = `v${v}`;
+      const about = document.getElementById("about-version-line");
+      if (about) about.textContent = `Version ${v}`;
     });
   } else if (DOM["app-version-text"]) {
-    DOM["app-version-text"].textContent = "v1.2.1";
+    DOM["app-version-text"].textContent = "v1.3.0";
   }
 
   const saveEvents = ["input", "change"];
@@ -190,11 +173,6 @@ document.addEventListener("DOMContentLoaded", () => {
       saveEvents.forEach((evt) => el.addEventListener(evt, saveSettings));
     }
   });
-
-  const ghInput = document.getElementById("gh-update-token");
-  if (ghInput) {
-    saveEvents.forEach((evt) => ghInput.addEventListener(evt, saveSettings));
-  }
 });
 
 window.loadSettings = loadSettings;
