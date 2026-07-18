@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.5.0
+
+### Pattern Editor ausgebaut
+- **Variable Schrittanzahl** (8/16/32) per Dropdown umschaltbar
+- **Phase Shift** — Pattern nach links/rechts schieben
+- **Fade In/Out** — Ein-/Ausblenden-Envelope über alle Schritte
+- **Scale** — Alle Werte mit Faktor multiplizieren
+- **Import** — JSON-Patterns aus Datei importieren (komplementär zu Export)
+- **Duplizieren** — Gespeicherte Patterns kopieren
+- **Visuelle Balken** — farbige Höhenbalken hinter Slidern (blau A / lila B)
+- Oszilloskop für Kanal A und B mit Echtzeit-Wellenform
+
+### Remote-Server ausgebaut
+- **5 neue API-Kommandos**: `set_frequency`, `set_master`, `set_preset`, `set_custom_pattern`, `get_logs`
+- **Client-Codebeispiele** — Python, JavaScript (Node), curl/bash mit aktuellem Token
+- **Befehlsstatistik** — Zähler für OK/ERR/WARN + Client-Anzahl
+- **Log-Filter** — Nach OK/ERR/WARN/Allen filtern
+- **Sprachumschalter** für Codebeispiele
+
+### Navigation
+- **Keyboard-Shortcuts 1–7** für alle Tabs (Editor=4, Remote=5, AI=6, Settings=7)
+- Hotkey-Overlay aktualisiert
+
 ## 2.4.0
 
 ### Spiele-Hardware-Konfiguration

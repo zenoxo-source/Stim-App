@@ -53,9 +53,26 @@ document.addEventListener("DOMContentLoaded", () => {
         deck: ["Control Deck", "Stim App · DG-LAB Coyote 3.0"],
         stim: ["STIM Player", "Audio · Playlist · Amplituden → A/B"],
         games: ["Mini-Spiele", "Interaktives Feedback-Training"],
+        editor: ["Pattern Editor", "Eigene Wellenformen zeichnen & testen"],
+        remote: ["Remote", "WebSocket-Steuerung & API"],
         ai: ["AI Steuerungs-Assistent", "Tool-Calls & Streaming"],
         settings: ["Einstellungen", "Sicherheit, Updates & Diagnose"],
       };
+
+      if (tabName === "editor") {
+        if (typeof startEditorVisualizers === "function") startEditorVisualizers();
+        if (typeof PATTERN_EDITOR2 !== "undefined" && PATTERN_EDITOR2.updateUI) {
+          setTimeout(() => {
+            PATTERN_EDITOR2.updateUI();
+            PATTERN_EDITOR2.renderSavedList();
+          }, 100);
+        }
+      }
+      if (tabName === "remote") {
+        if (typeof updateEditorRemoteUI === "function") {
+          updateEditorRemoteUI();
+        }
+      }
 
       if (titles[tabName]) {
         if (headerTitle) headerTitle.textContent = titles[tabName][0];

@@ -67,6 +67,16 @@
                 <span class="nav-icon">🎮</span> Mini-Spiele
               </button>
             </li>
+            <li class="nav-item" data-tab="editor">
+              <button id="nav-btn-editor">
+                <span class="nav-icon">✏️</span> Pattern Editor
+              </button>
+            </li>
+            <li class="nav-item" data-tab="remote">
+              <button id="nav-btn-remote">
+                <span class="nav-icon">🌐</span> Remote
+              </button>
+            </li>
             <li class="nav-item" data-tab="ai">
               <button id="nav-btn-ai">
                 <span class="nav-icon">🤖</span> AI Chat
@@ -153,7 +163,7 @@
         <div class="hotkey-card">
           <h2>Tastatur</h2>
           <ul>
-            <li><kbd>1</kbd>–<kbd>5</kbd> Tabs</li>
+            <li><kbd>1</kbd>–<kbd>7</kbd> Tabs</li>
             <li><kbd>P</kbd> STIM Play/Pause</li>
             <li><kbd>↑</kbd><kbd>↓</kbd> Intensität A · <kbd>←</kbd><kbd>→</kbd> Intensität B</li>
             <li><kbd>Strg</kbd>+<kbd>Leertaste</kbd> / <kbd>ESC</kbd> lang / STOPP = Panic</li>
@@ -678,6 +688,237 @@
             </div>
           </div>
         </div>
+        <!-- Achievements Card -->
+        <div class="card" style="margin-top: 20px;">
+          <div class="card-title">Erfolge</div>
+          <div id="achievements-list" class="achievements-list"></div>
+        </div>
+
+      </section>
+
+      <!-- View: Pattern Editor -->
+      <section id="view-editor" class="tab-view">
+        <div class="editor-layout" style="display: flex; flex-direction: column; gap: 20px;">
+
+          <!-- Oscilloscope Row -->
+          <div class="grid-2">
+            <div class="visualizer-container" style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 12px; border: 1px solid rgba(90, 179, 255, 0.2);">
+              <div class="channel-label" style="font-size: 13px; margin-bottom: 8px; color: #5ab3ff;">Oszilloskop Kanal A</div>
+              <canvas id="editor-visualizer-a" width="500" height="100" style="width: 100%; height: 100px;"></canvas>
+            </div>
+            <div class="visualizer-container" style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 12px; border: 1px solid rgba(215, 180, 243, 0.2);">
+              <div class="channel-label" style="font-size: 13px; margin-bottom: 8px; color: #d7b4f3;">Oszilloskop Kanal B</div>
+              <canvas id="editor-visualizer-b" width="500" height="100" style="width: 100%; height: 100px;"></canvas>
+            </div>
+          </div>
+
+          <!-- Editor Controls Card -->
+          <div class="card">
+            <div class="card-title">
+              <span>Pattern Editor</span>
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <div class="editor-preset-btns" style="display:flex; gap:6px; flex-wrap:wrap;">
+                  <span style="font-size:11px;opacity:0.6;align-self:center;">Presets:</span>
+                  <button type="button" id="btn-editor-preset-sine" class="btn btn-secondary btn-sm" title="Sinus">∿ Sinus</button>
+                  <button type="button" id="btn-editor-preset-saw" class="btn btn-secondary btn-sm" title="Sägezahn">⋰ Säge</button>
+                  <button type="button" id="btn-editor-preset-square" class="btn btn-secondary btn-sm" title="Rechteck">⊏ Rechteck</button>
+                  <button type="button" id="btn-editor-preset-ramp" class="btn btn-secondary btn-sm" title="Rampe">╱ Rampe</button>
+                  <button type="button" id="btn-editor-preset-triangle" class="btn btn-secondary btn-sm" title="Dreieck">△ Dreieck</button>
+                  <span style="font-size:11px;opacity:0.6;align-self:center;margin-left:8px;">Ops:</span>
+                  <button type="button" id="btn-editor-copy-ab" class="btn btn-secondary btn-sm" title="Kopiere A → B">A→B</button>
+                  <button type="button" id="btn-editor-copy-ba" class="btn btn-secondary btn-sm" title="Kopiere B → A">B→A</button>
+                  <button type="button" id="btn-editor-mirror" class="btn btn-secondary btn-sm" title="Spiegeln (reverse)">↔ Spiegeln</button>
+                  <button type="button" id="btn-editor-invert" class="btn btn-secondary btn-sm" title="Invertieren (100−val)">⇅ Invert.</button>
+                  <button type="button" id="btn-editor-shift-left" class="btn btn-secondary btn-sm" title="Nach links schieben">◁ Shift</button>
+                  <button type="button" id="btn-editor-shift-right" class="btn btn-secondary btn-sm" title="Nach rechts schieben">Shift ▷</button>
+                  <button type="button" id="btn-editor-fade-in" class="btn btn-secondary btn-sm" title="Einblenden (0→100)">◧ Fade In</button>
+                  <button type="button" id="btn-editor-fade-out" class="btn btn-secondary btn-sm" title="Ausblenden (100→0)">Fade Out ◨</button>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center; font-size:12px;">
+                  <span style="opacity:0.6;">Schritte:</span>
+                  <select id="editor-step-count" style="padding:2px 6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;font-size:11px;">
+                    <option value="8">8</option>
+                    <option value="16" selected>16</option>
+                    <option value="32">32</option>
+                  </select>
+                  <span style="opacity:0.4;">|</span>
+                  <button type="button" id="btn-editor-import" class="btn btn-secondary btn-sm" style="font-size:10px;">Import</button>
+                  <input type="file" id="input-editor-import" accept="application/json,.json" style="display:none;">
+                </div>
+              </div>
+            </div>
+            <div class="channel-box" style="gap: 10px;">
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <input type="text" id="editor-name" placeholder="Pattern-Name" style="flex:1;min-width:120px;padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;">
+                <button type="button" id="btn-editor-clear" class="btn btn-secondary btn-sm">Leeren</button>
+                <button type="button" id="btn-editor-random" class="btn btn-secondary btn-sm">Zufall</button>
+                <button type="button" id="btn-editor-smooth" class="btn btn-secondary btn-sm">Glätten</button>
+                <button type="button" id="btn-editor-save" class="btn btn-secondary btn-sm">Speichern</button>
+                <button type="button" id="btn-editor-play" class="btn btn-sm">▶ Abspielen</button>
+                <button type="button" id="btn-editor-stop" class="btn btn-danger btn-sm">⏹ Stop</button>
+              </div>
+              <div id="editor-grid" class="pattern-editor-grid"></div>
+              <div style="margin-top:10px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                  <h4 style="font-size:13px;margin:0;">Gespeicherte Patterns</h4>
+                  <button type="button" id="btn-editor-export-all" class="btn btn-secondary btn-sm" style="font-size:10px;padding:2px 6px;">Export</button>
+                </div>
+                <div id="editor-saved"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Preview Info -->
+          <div id="editor-live-info" style="display:none; text-align:center; font-size:13px; padding:8px; background:rgba(0,120,212,0.1); border:1px solid rgba(0,120,212,0.2); border-radius:8px;">
+            <span style="color:#5ab3ff;">▶ Live: Pattern wird abgespielt</span>
+            <span id="editor-live-step" style="margin-left:12px;opacity:0.75;">Schritt 0/16</span>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- View: Remote -->
+      <section id="view-remote" class="tab-view">
+        <div class="settings-layout">
+
+          <!-- Server Status & Control -->
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-title">WebSocket-Server</div>
+              <div class="channel-box" style="gap: 12px; font-size: 14px;">
+                <p style="font-size: 13px; opacity: 0.75; margin: 0;">
+                  WebSocket-Server für externe Steuerung (z.B. Python, Node, andere Geräte).
+                  Nur localhost (127.0.0.1). Token-Auth erforderlich.
+                </p>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span>Status:</span>
+                  <span id="editor-remote-status" class="remote-status">gestoppt</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:12px;">
+                  <span style="font-size:12px; opacity:0.75; min-width:40px;">Port:</span>
+                  <input type="number" id="editor-remote-port" value="8080" min="1024" max="65535" style="width:80px;padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;">
+                </div>
+                <div class="btn-row">
+                  <button type="button" id="btn-editor-toggle-remote" class="btn btn-secondary btn-sm">Server starten</button>
+                  <button type="button" id="btn-editor-copy-token" class="btn btn-secondary btn-sm" style="display:none;">Token kopieren</button>
+                </div>
+                <div id="editor-remote-token-wrap" style="display: none;">
+                  <p style="font-size: 12px; opacity: 0.75; margin: 4px 0;">Auth-Token (für externe Clients):</p>
+                  <code id="editor-remote-token" style="font-size: 11px; word-break: break-all; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; display: block;"></code>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Test Panel -->
+            <div class="card">
+              <div class="card-title">Befehls-Tester</div>
+              <div class="channel-box" style="gap:10px;font-size:13px;">
+                <p style="font-size:12px;opacity:0.65;margin:0;">Teste Remote-Befehle direkt aus der App heraus.</p>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                  <select id="editor-test-cmd" style="padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;">
+                    <option value="set_intensity">set_intensity</option>
+                    <option value="set_pattern">set_pattern</option>
+                    <option value="set_frequency">set_frequency</option>
+                    <option value="set_master">set_master</option>
+                    <option value="set_preset">set_preset</option>
+                    <option value="set_custom_pattern">set_custom_pattern</option>
+                    <option value="stop_pattern">stop_pattern</option>
+                    <option value="stop_all">stop_all</option>
+                    <option value="get_state">get_state</option>
+                    <option value="get_patterns">get_patterns</option>
+                    <option value="get_logs">get_logs</option>
+                  </select>
+                  <input type="text" id="editor-test-args" placeholder='{"channel":"A","value":50}' style="flex:1;min-width:140px;padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;font-size:12px;">
+                  <button type="button" id="btn-editor-test-cmd" class="btn btn-sm" style="font-size:11px;padding:4px 10px;">Senden</button>
+                </div>
+                <div id="editor-test-result" style="font-size:12px;opacity:0.75;min-height:18px;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Client Code Examples -->
+          <div class="card" style="grid-column: 1 / -1;">
+            <div class="card-title">
+              <span>Client-Codebeispiele</span>
+              <select id="remote-code-lang" style="padding:2px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;font-size:11px;">
+                <option value="python">Python</option>
+                <option value="js">JavaScript (Node)</option>
+                <option value="curl">curl / bash</option>
+              </select>
+            </div>
+            <pre id="remote-code-snippet" class="terminal-box" style="max-height:200px;overflow-y:auto;font-size:11px;padding:12px;"></pre>
+          </div>
+
+          <!-- Command Reference -->
+          <div class="card" style="grid-column: 1 / -1;">
+            <div class="card-title">API-Referenz</div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:10px; font-size:12px;">
+              <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
+                <code style="color:#5ab3ff;">set_intensity</code>
+                <p style="margin:4px 0 0;opacity:0.7;">Setzt Intensität: <code>{"channel":"A"|"B"|"both","value":0-200}</code></p>
+              </div>
+              <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
+                <code style="color:#5ab3ff;">set_frequency</code>
+                <p style="margin:4px 0 0;opacity:0.7;">Setzt Frequenz: <code>{"channel":"A"|"B"|"both","value":10-240}</code></p>
+              </div>
+              <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
+                <code style="color:#5ab3ff;">set_master</code>
+                <p style="margin:4px 0 0;opacity:0.7;">Master-Skala: <code>{"value":0-100}</code> (Prozent)</p>
+              </div>
+              <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
+                <code style="color:#5ab3ff;">set_preset</code>
+                <p style="margin:4px 0 0;opacity:0.7;">Preset laden: <code>{"name":"gentle"|"medium"|"intense"}</code></p>
+              </div>
+              <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
+                <code style="color:#5ab3ff;">set_custom_pattern</code>
+                <p style="margin:4px 0 0;opacity:0.7;">Custom Waveform: <code>{"channelA":[...],"channelB":[...],"interval":100}</code></p>
+              </div>
+              <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
+                <code style="color:#5ab3ff;">set_pattern</code>
+                <p style="margin:4px 0 0;opacity:0.7;">Startet Pattern: <code>{"name":"gentle"|"wave"|...}</code></p>
+              </div>
+              <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
+                <code style="color:#5ab3ff;">stop_pattern</code>
+                <p style="margin:4px 0 0;opacity:0.7;">Stoppt aktuelles Pattern.</p>
+              </div>
+              <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
+                <code style="color:#5ab3ff;">stop_all</code>
+                <p style="margin:4px 0 0;opacity:0.7;">Panic: Setzt alle Ausgaben auf 0.</p>
+              </div>
+              <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
+                <code style="color:#5ab3ff;">get_state</code>
+                <p style="margin:4px 0 0;opacity:0.7;">Gibt aktuellen Gerätestatus zurück.</p>
+              </div>
+              <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
+                <code style="color:#5ab3ff;">get_patterns</code>
+                <p style="margin:4px 0 0;opacity:0.7;">Listet alle verfügbaren Pattern-Namen.</p>
+              </div>
+              <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
+                <code style="color:#5ab3ff;">get_logs</code>
+                <p style="margin:4px 0 0;opacity:0.7;">Letzte N Log-Einträge: <code>{"count":50}</code></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Command Log -->
+          <div class="card" style="grid-column: 1 / -1;">
+            <div class="card-title">
+              <span>Befehls-Log</span>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <select id="remote-log-filter" style="padding:2px 6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;font-size:11px;">
+                  <option value="all">Alle</option>
+                  <option value="OK">Nur OK</option>
+                  <option value="ERR">Nur Fehler</option>
+                  <option value="WARN">Nur Warnungen</option>
+                </select>
+                <span id="remote-conn-stats" style="font-size:11px;opacity:0.6;"></span>
+                <button type="button" id="btn-editor-clear-cmd-log" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;">Löschen</button>
+              </div>
+            </div>
+            <div id="editor-cmd-log" class="terminal-box" style="max-height:200px;overflow-y:auto;">[Remote] Warte auf Befehle...</div>
+          </div>
+
+        </div>
       </section>
 
       <!-- View: AI Chat -->
@@ -928,31 +1169,6 @@
               </div>
             </div>
 
-            <!-- Remote Server -->
-            <div class="card">
-              <div class="card-title">Remote-Server</div>
-              <div class="channel-box" style="gap: 12px; font-size: 14px;">
-                <p style="font-size: 13px; opacity: 0.75; margin: 0;">
-                  WebSocket-Server für externe Steuerung (z.B. Python, Node, andere Geräte).
-                </p>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <span>Status:</span>
-                  <span id="remote-status" class="remote-status">gestoppt</span>
-                </div>
-                <div class="btn-row">
-                  <button type="button" id="btn-toggle-remote" class="btn btn-secondary btn-sm">Server starten</button>
-                </div>
-                <div id="remote-token-wrap" style="display: none;">
-                  <p style="font-size: 12px; opacity: 0.75; margin: 4px 0;">Auth-Token (für externe Clients):</p>
-                  <code id="remote-token" style="font-size: 11px; word-break: break-all; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; display: block;"></code>
-                </div>
-                <p class="settings-hint">
-                  Befehle: set_intensity, set_pattern, stop_pattern, stop_all, get_state, get_patterns.<br>
-                  Nur localhost (127.0.0.1:8080). Token-Auth erforderlich.
-                </p>
-              </div>
-            </div>
-
             <!-- Session Recorder -->
             <div class="card">
               <div class="card-title">Session Recorder</div>
@@ -1026,27 +1242,6 @@
             </p>
           </div>
 
-            <!-- Pattern Editor -->
-            <div class="card" style="grid-column: 1 / -1;">
-              <div class="card-title">Pattern Editor</div>
-              <div class="channel-box" style="gap: 10px;">
-                <p style="font-size:13px;opacity:0.75;margin:0;">Zeichne eigene Wellenform-Pattern (16 Schritte, 0-100% Amplitude pro Kanal).</p>
-                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                  <input type="text" id="pattern-editor-name" placeholder="Pattern-Name" style="flex:1;min-width:120px;padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;">
-                  <button type="button" id="btn-pe-clear" class="btn btn-secondary btn-sm">Leeren</button>
-                  <button type="button" id="btn-pe-random" class="btn btn-secondary btn-sm">Zufall</button>
-                  <button type="button" id="btn-pe-smooth" class="btn btn-secondary btn-sm">Glätten</button>
-                  <button type="button" id="btn-pe-save" class="btn btn-secondary btn-sm">Speichern</button>
-                  <button type="button" id="btn-pe-play" class="btn btn-sm">Abspielen</button>
-                </div>
-                <div id="pattern-editor-grid" class="pattern-editor-grid"></div>
-                <div style="margin-top:10px;">
-                  <h4 style="font-size:13px;margin:0 0 6px 0;">Gespeicherte Patterns</h4>
-                  <div id="pattern-editor-saved"></div>
-                </div>
-              </div>
-            </div>
-
             <!-- Statistics -->
             <div class="card" style="grid-column: 1 / -1;">
               <div class="card-title">
@@ -1067,11 +1262,6 @@
                 Nutzung auf eigene Verantwortung.
               </p>
             </div>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Erfolge</div>
-            <div id="achievements-list" class="achievements-list"></div>
           </div>
 
           <!-- Diagnostic Logs -->
@@ -1118,6 +1308,7 @@
   <script src="js/modules/recorder.js"></script>
   <script src="js/modules/stats.js"></script>
   <script src="js/modules/pattern-editor.js"></script>
+  <script src="js/modules/pattern-editor-v2.js"></script>
   <script src="js/modules/game-config.js"></script>
   <script src="js/llm-service.js"></script>
 </body>

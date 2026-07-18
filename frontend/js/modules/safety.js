@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("keydown", (e) => {
     // ESC long-press detection is separate at bottom
 
-    // Number keys 1-5 for tabs
+    // Number keys 1-7 for tabs
     if (!e.ctrlKey && !e.altKey && !e.metaKey && !isTyping(e.target)) {
       const gameBlocksKeys =
         AppState.edgeState === "RUNNING" ||
@@ -53,8 +53,10 @@ document.addEventListener("DOMContentLoaded", () => {
         1: "deck",
         2: "stim",
         3: "games",
-        4: "ai",
-        5: "settings",
+        4: "editor",
+        5: "remote",
+        6: "ai",
+        7: "settings",
       };
       if (tabMap[e.key] && !gameBlocksKeys) {
         e.preventDefault();

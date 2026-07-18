@@ -494,11 +494,11 @@ function registerIpc() {
   });
 
   // WebSocket remote server
-  ipcMain.handle("remote:start", () => {
+  ipcMain.handle("remote:start", (_event, port) => {
     if (!mainWindow || mainWindow.isDestroyed()) {
       return { ok: false, error: "window not ready" };
     }
-    return startRemoteServer(mainWindow);
+    return startRemoteServer(mainWindow, port);
   });
   ipcMain.handle("remote:stop", () => stopRemoteServer());
   ipcMain.handle("remote:status", () => getRemoteStatus());

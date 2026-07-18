@@ -1446,6 +1446,8 @@ textarea.text-input { resize: vertical; min-height: 100px; }
   display: flex;
   align-items: center;
   gap: 6px;
+  border-radius: 4px;
+  min-height: 28px;
 }
 .pattern-editor-cell input[type="range"] {
   flex: 1;
@@ -1455,6 +1457,16 @@ textarea.text-input { resize: vertical; min-height: 100px; }
   font-size: 11px;
   opacity: 0.6;
   text-align: center;
+}
+.pattern-editor-bar {
+  transition: height 0.15s ease;
+}
+
+/* Remote code examples */
+#remote-code-snippet {
+  font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+  line-height: 1.5;
+  tab-size: 2;
 }
 
 /* Game Config Panel */
@@ -1512,4 +1524,17 @@ textarea.text-input { resize: vertical; min-height: 100px; }
   align-items: center;
   gap: 8px;
   font-size: 13px;
+}
+
+/* API Command Cards */
+.api-cmd-card {
+  transition: var(--transition-normal);
+}
+.api-cmd-card:hover {
+  border-color: rgba(255,255,255,0.15) !important;
+}
+
+/* Editor live info */
+#editor-live-info {
+  animation: fadeIn 0.3s ease-out;
 }
