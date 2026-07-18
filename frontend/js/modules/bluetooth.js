@@ -298,9 +298,8 @@ function handleDeviceNotification(event) {
 
   if (data[0] === 0xb1 && data.length >= 4) {
     const ackSeq = data[1];
-    const ackSeqNum = (ackSeq >> 4) & 0x0f;
 
-    if (AppState.btAwaitingAck && (ackSeq === AppState.btSeq || ackSeqNum === AppState.btSeq)) {
+    if (AppState.btAwaitingAck && ackSeq === AppState.btSeq) {
       AppState.btAwaitingAck = false;
       AppState.btSeq = 0;
     }
