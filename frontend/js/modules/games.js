@@ -1,5 +1,10 @@
 // games.js - Reflex Trainer and Rhythm Pulse Tapper for DG-LAB Coyote 3.0
 
+function gameWaveOff() {
+  if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
+  else sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+}
+
 // ========== REFLEX TRAINER ==========
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -32,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
   DOM["btn-exit-reflex"]?.addEventListener("click", () => {
     clearTimeout(AppState.reflexTimeoutId);
     AppState.reflexState = "IDLE";
-    sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+    gameWaveOff();
 
     if (typeof showGameSelectors === "function") showGameSelectors();
     else {
@@ -144,7 +149,7 @@ function triggerReflexFalseStart() {
 
   setTimeout(() => {
     AppState.reflexState = "IDLE";
-    sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+    gameWaveOff();
     resetReflexBox();
   }, CONSTANTS.REFLEX_PENALTY_MS);
 }
@@ -169,7 +174,7 @@ function triggerReflexTooSlow() {
 
   setTimeout(() => {
     AppState.reflexState = "IDLE";
-    sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+    gameWaveOff();
     resetReflexBox();
   }, CONSTANTS.REFLEX_TOO_SLOW_MS);
 }
@@ -263,8 +268,7 @@ function startRhythmPlaying() {
       sendWaveformCommand(40, 15, 40, 15);
 
       setTimeout(() => {
-        if (AppState.rhythmState === "PLAYING")
-          sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+        if (AppState.rhythmState === "PLAYING") gameWaveOff();
       }, 80);
     }
 
@@ -278,7 +282,7 @@ function stopRhythmGame() {
     AppState.rhythmIntervalId = null;
   }
   AppState.rhythmState = "IDLE";
-  sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+  gameWaveOff();
 }
 
 function handleRhythmTap() {
@@ -321,8 +325,7 @@ function handleRhythmTap() {
 
     sendWaveformCommand(150, 15, 150, 15);
     setTimeout(() => {
-      if (AppState.rhythmState === "PLAYING")
-        sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+      if (AppState.rhythmState === "PLAYING") gameWaveOff();
     }, 120);
 
     const activeNode = document.querySelector(".rhythm-beat-node.active");
@@ -348,8 +351,7 @@ function handleRhythmTap() {
     log("Rhythm: Beat verpasst! Strafe gesendet.", "warning");
 
     setTimeout(() => {
-      if (AppState.rhythmState === "PLAYING")
-        sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+      if (AppState.rhythmState === "PLAYING") gameWaveOff();
     }, 250);
 
     const activeNode = document.querySelector(".rhythm-beat-node.active");

@@ -143,7 +143,8 @@ function loadPlaylistIndex(idx, autoplay = false) {
     } else {
       AppState.isAudioPlaying = false;
       if (DOM["btn-play-audio"]) DOM["btn-play-audio"].textContent = "▶️ Play";
-      sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+      if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
+      else sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
       log("STIM Wiedergabe beendet.", "info");
       if (typeof updateOutputStatus === "function") updateOutputStatus();
     }
@@ -191,6 +192,9 @@ function playSTIMAudio() {
   if (DOM["check-settings-audio"]) DOM["check-settings-audio"].checked = AppState.audioHearSound;
   applyAudioMasterLink();
 
+  // V3: wave amps alone are not enough – need channel strength
+  if (typeof ensureGameStrength === "function") ensureGameStrength(40);
+
   AppState.audioElement.play();
   AppState.isAudioPlaying = true;
   if (DOM["btn-play-audio"]) DOM["btn-play-audio"].textContent = "⏸️ Pause";
@@ -212,7 +216,8 @@ function pauseSTIMAudio() {
   if (DOM["btn-play-audio"]) DOM["btn-play-audio"].textContent = "▶️ Play";
   clearInterval(AppState.audioTimer);
 
-  sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+  if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
+  else sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
   log("STIM Wiedergabe pausiert.", "info");
   if (typeof updateOutputStatus === "function") updateOutputStatus();
 }

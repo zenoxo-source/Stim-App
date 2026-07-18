@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.0
+
+### Hardware-Korrektheit
+- **Pulsweite / Wave-Amp %** skaliert die Wellenform-Amplitude (0–100 %) im `0xB0`-Paket
+- Soft-Stop: Amp 0 → **freq 0 + intensity 101** (inaktiv, V3-konform)
+- `sendSoftStop()` für Pausen/Stops (optional Strength behalten)
+- Patterns, Sessions, STIM, Roulette, AI-Muster: **Basisstärke** wenn Strength 0
+- Default Pulsweite 100 % (Migration: altes 15/15 → 100)
+
 ## 1.7.0
 
 ### Fun

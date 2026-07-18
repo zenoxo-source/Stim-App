@@ -13,8 +13,8 @@ const AppState = {
   strengthB: 0,
   frequencyA: 45,
   frequencyB: 45,
-  pulseWidthA: 15,
-  pulseWidthB: 15,
+  pulseWidthA: 100,
+  pulseWidthB: 100,
 
   masterScale: 1.0,
   softLimitA: 150,
@@ -122,8 +122,8 @@ const AppState = {
     this.strengthB = 0;
     this.frequencyA = 45;
     this.frequencyB = 45;
-    this.pulseWidthA = 15;
-    this.pulseWidthB = 15;
+    this.pulseWidthA = 100;
+    this.pulseWidthB = 100;
     this.activePattern = null;
     this.isAudioPlaying = false;
     this.lastWaveFreqA = 45;

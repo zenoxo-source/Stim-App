@@ -78,21 +78,22 @@ function beginMiniGame(arenaId) {
   return true;
 }
 
+function gameWaveOff() {
+  if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
+  else sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+}
+
 function gameShock(amp, ms = 280) {
   ensureGameStrength(35);
   const a = Math.min(100, Math.max(10, Math.round(amp)));
   sendWaveformCommand(60, a, 60, a);
-  setTimeout(() => {
-    sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
-  }, ms);
+  setTimeout(gameWaveOff, ms);
 }
 
 function gameTickle(amp = 12, ms = 100) {
   ensureGameStrength(25);
   sendWaveformCommand(120, amp, 120, amp);
-  setTimeout(() => {
-    sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
-  }, ms);
+  setTimeout(gameWaveOff, ms);
 }
 
 // ========== HOLD THE EDGE ==========
@@ -104,7 +105,7 @@ function stopEdgeGame() {
   }
   AppState.edgeState = "IDLE";
   AppState.edgeHolding = false;
-  sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+  gameWaveOff();
   if (typeof updateOutputStatus === "function") updateOutputStatus();
 }
 
@@ -143,7 +144,7 @@ function edgeLoop() {
   if (amp > 2) {
     sendWaveformCommand(50, amp, 50, Math.round(amp * 0.85));
   } else {
-    sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+    gameWaveOff();
   }
 
   if (inZone) {
@@ -214,7 +215,7 @@ function stopPotatoGame() {
     AppState.potatoTick = null;
   }
   AppState.potatoState = "IDLE";
-  sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+  gameWaveOff();
   if (typeof updateOutputStatus === "function") updateOutputStatus();
 }
 
@@ -301,7 +302,7 @@ function potatoExplode() {
     AppState.potatoScore = 0;
     AppState.potatoRound = 0;
     if (DOM["potato-score"]) DOM["potato-score"].textContent = "0";
-    sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+    gameWaveOff();
   }, 1200);
   log("Hot Potato: Explosion!", "warning");
 }
@@ -329,7 +330,7 @@ function stopSurvivalGame(record = false) {
   }
   const wasRunning = AppState.survivalState === "RUNNING";
   AppState.survivalState = "IDLE";
-  sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+  gameWaveOff();
   if (record && wasRunning) {
     const res = recordHighscore("survival", AppState.survivalScore);
     if (DOM["survival-feedback"]) {

@@ -9,8 +9,8 @@ const defaultSettings = {
   masterScale: 1.0,
   frequencyA: 45,
   frequencyB: 45,
-  pulseWidthA: 15,
-  pulseWidthB: 15,
+  pulseWidthA: 100,
+  pulseWidthB: 100,
   swapChannels: false,
   audioHearSound: true,
   aiProvider: "ollama",
@@ -80,8 +80,15 @@ function applySettings(settings) {
   AppState.masterScale = settings.masterScale;
   AppState.frequencyA = settings.frequencyA;
   AppState.frequencyB = settings.frequencyB;
-  AppState.pulseWidthA = settings.pulseWidthA;
-  AppState.pulseWidthB = settings.pulseWidthB;
+  // Legacy default was 15 while UI was 100 – treat 15/15 as full wave
+  let pwA = settings.pulseWidthA;
+  let pwB = settings.pulseWidthB;
+  if (pwA === 15 && pwB === 15) {
+    pwA = 100;
+    pwB = 100;
+  }
+  AppState.pulseWidthA = pwA;
+  AppState.pulseWidthB = pwB;
   AppState.swapChannels = settings.swapChannels;
   AppState.audioHearSound = settings.audioHearSound;
 
@@ -100,8 +107,8 @@ function applySettings(settings) {
   if (DOM["select-freq-a"]) DOM["select-freq-a"].value = String(settings.frequencyA);
   if (DOM["select-freq-b"]) DOM["select-freq-b"].value = String(settings.frequencyB);
 
-  if (DOM["slider-width-a"]) DOM["slider-width-a"].value = settings.pulseWidthA;
-  if (DOM["slider-width-b"]) DOM["slider-width-b"].value = settings.pulseWidthB;
+  if (DOM["slider-width-a"]) DOM["slider-width-a"].value = AppState.pulseWidthA;
+  if (DOM["slider-width-b"]) DOM["slider-width-b"].value = AppState.pulseWidthB;
 
   if (DOM["check-swap-channels"]) DOM["check-swap-channels"].checked = settings.swapChannels;
   if (DOM["check-hear-audio"]) DOM["check-hear-audio"].checked = settings.audioHearSound;
@@ -197,7 +204,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (about) about.textContent = `Version ${v}`;
     });
   } else if (DOM["app-version-text"]) {
-    DOM["app-version-text"].textContent = "v1.7.0";
+    DOM["app-version-text"].textContent = "v1.8.0";
   }
 
   const saveEvents = ["input", "change"];

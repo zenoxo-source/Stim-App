@@ -183,6 +183,7 @@ function startPatternRoulette() {
   if (typeof SESSION_STATE !== "undefined" && SESSION_STATE.activeSession) {
     SESSION_STATE.stop();
   }
+  if (typeof ensureGameStrength === "function") ensureGameStrength(45);
   const pick = ROULETTE_PATTERNS[Math.floor(Math.random() * ROULETTE_PATTERNS.length)];
   document.querySelectorAll(".pattern-card").forEach((c) => {
     c.classList.toggle("active", c.getAttribute("data-pattern") === pick);
@@ -216,7 +217,8 @@ function fireChancePulse() {
       AppState.survivalState !== "RUNNING" &&
       !AppState.activePattern
     ) {
-      sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+      if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
+      else sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
     }
   }, ms);
   log(`Zufallsimpuls: Würfel ${roll}, Amp ${amp}.`, "info");

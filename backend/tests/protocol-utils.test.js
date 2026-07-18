@@ -51,8 +51,43 @@ describe("buildEmergencyStopBytes", () => {
     assert.equal(p[1], 0x0f);
     assert.equal(p[2], 0);
     assert.equal(p[3], 0);
+    for (let i = 4; i <= 7; i++) assert.equal(p[i], 0);
     for (let i = 8; i <= 11; i++) assert.equal(p[i], 101);
+    for (let i = 12; i <= 15; i++) assert.equal(p[i], 0);
     for (let i = 16; i <= 19; i++) assert.equal(p[i], 101);
+  });
+});
+
+describe("applyPulseWidthScale", () => {
+  it("scales amp by pulse width percent", () => {
+    assert.equal(ProtocolUtils.applyPulseWidthScale(100, 50), 50);
+    assert.equal(ProtocolUtils.applyPulseWidthScale(80, 100), 80);
+    assert.equal(ProtocolUtils.applyPulseWidthScale(100, 0), 0);
+  });
+});
+
+describe("resolveWaveSegment", () => {
+  it("marks zero amp as inactive (freq 0, intensity 101)", () => {
+    const s = ProtocolUtils.resolveWaveSegment(45, 0);
+    assert.equal(s.freq, 0);
+    assert.equal(s.intensity, 101);
+  });
+
+  it("clamps active segments", () => {
+    const s = ProtocolUtils.resolveWaveSegment(45, 80);
+    assert.equal(s.freq, 45);
+    assert.equal(s.intensity, 80);
+  });
+});
+
+describe("buildSoftStopBytes", () => {
+  it("keeps optional strength with inactive wave", () => {
+    const p = ProtocolUtils.buildSoftStopBytes({ strengthA: 40, strengthB: 30, modeNibble: 0 });
+    assert.equal(p[2], 40);
+    assert.equal(p[3], 30);
+    assert.equal(p[8], 101);
+    assert.equal(p[16], 101);
+    assert.equal(p[4], 0);
   });
 });
 

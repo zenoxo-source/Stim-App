@@ -372,6 +372,7 @@ const SESSION_STATE = {
     this.sessionPauseAccum = 0;
     this.sessionPaused = false;
     AppState.activePattern = "session";
+    if (typeof ensureGameStrength === "function") ensureGameStrength(40);
     updateAIDashboard();
     updateSessionUI();
     log(`Session "${session.name}" gestartet (${session.durationSec}s)`, "success");
@@ -383,6 +384,7 @@ const SESSION_STATE = {
     this.activeSession = null;
     this.sessionPaused = false;
     AppState.activePattern = null;
+    if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
     updateAIDashboard();
     updateSessionUI();
     log(`Session "${name}" beendet.`, "info");
@@ -392,6 +394,7 @@ const SESSION_STATE = {
     if (!this.activeSession || this.sessionPaused) return;
     this.sessionPaused = true;
     this.sessionPauseStart = Date.now();
+    if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
     updateSessionUI();
     log("Session pausiert.", "warning");
   },

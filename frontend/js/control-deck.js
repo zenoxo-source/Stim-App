@@ -309,8 +309,9 @@ document.addEventListener("DOMContentLoaded", () => {
       ) {
         // Mini-games own their waveform output
       } else {
-        // Idle: constant output at user frequency, 100% amplitude
-        // Strength in 0xB0 packet controls actual output level
+        // Idle: constant output at user frequency.
+        // Logical amp 100 is then scaled by pulse-width sliders + master.
+        // Strength in 0xB0 packet controls actual output level.
         await sendWaveformCommand(AppState.frequencyA, 100, AppState.frequencyB, 100);
       }
     }, CONSTANTS.WAVE_LOOP_INTERVAL_MS);
@@ -407,13 +408,26 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   DOM["slider-width-a"]?.addEventListener("input", (e) => {
-    AppState.pulseWidthA = parseInt(e.target.value);
-    sendStrengthCommand(AppState.strengthA, AppState.strengthB);
+    AppState.pulseWidthA = parseInt(e.target.value, 10);
+    // Pulse width scales wave amp on next 0xB0; force refresh
+    if (AppState.isConnected) {
+      sendStrengthCommand(AppState.strengthA, AppState.strengthB);
+      if (!AppState.activePattern && !AppState.isAudioPlaying) {
+        sendWaveformCommand(AppState.frequencyA, 100, AppState.frequencyB, 100);
+      }
+    }
+    log(`Pulsweite A: ${AppState.pulseWidthA}%`, "info");
   });
 
   DOM["slider-width-b"]?.addEventListener("input", (e) => {
-    AppState.pulseWidthB = parseInt(e.target.value);
-    sendStrengthCommand(AppState.strengthA, AppState.strengthB);
+    AppState.pulseWidthB = parseInt(e.target.value, 10);
+    if (AppState.isConnected) {
+      sendStrengthCommand(AppState.strengthA, AppState.strengthB);
+      if (!AppState.activePattern && !AppState.isAudioPlaying) {
+        sendWaveformCommand(AppState.frequencyA, 100, AppState.frequencyB, 100);
+      }
+    }
+    log(`Pulsweite B: ${AppState.pulseWidthB}%`, "info");
   });
 
   // Master scale
@@ -459,13 +473,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (AppState.activePattern === id) {
         AppState.activePattern = null;
-        sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+        if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
+        else sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
       } else {
         AppState.activePattern = id;
         card.classList.add("active");
-        if ((AppState.strengthA || 0) === 0 && (AppState.strengthB || 0) === 0) {
+        if (typeof ensureGameStrength === "function") ensureGameStrength(40);
+        else if ((AppState.strengthA || 0) === 0 && (AppState.strengthB || 0) === 0) {
           log(
-            "Hinweis: Intensit\u00e4t A/B steht auf 0 – ohne Basisst\u00e4rke kein sp\u00fcrbarer Output. Slider oder Preset nutzen.",
+            "Hinweis: Intensit\u00e4t A/B steht auf 0 – ohne Basisst\u00e4rke kein sp\u00fcrbarer Output.",
             "warning"
           );
         }
@@ -481,6 +497,8 @@ document.addEventListener("DOMContentLoaded", () => {
     AppState.activePattern = null;
     if (typeof updateSlidersA === "function") updateSlidersA(0);
     if (typeof updateSlidersB === "function") updateSlidersB(0);
+    if (typeof sendSoftStop === "function")
+      sendSoftStop({ keepStrength: false, zeroUiStrength: true });
     updateAIDashboard();
     log("Muster gestoppt.", "info");
   });
@@ -493,6 +511,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       const sessionId = card.getAttribute("data-session");
       if (SESSION_STATE.activeSession) SESSION_STATE.stop();
+      if (typeof ensureGameStrength === "function") ensureGameStrength(40);
       SESSION_STATE.start(sessionId);
     });
   });
@@ -504,6 +523,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   DOM["btn-session-stop"]?.addEventListener("click", () => {
     SESSION_STATE.stop();
-    sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+    if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
+    else sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
   });
 });

@@ -106,26 +106,55 @@ function sendStrengthCommand(valA, valB) {
 function sendWaveformCommand(freqA, ampA, freqB, ampB) {
   if (!AppState.writeChar) return;
 
-  let outFreqA = Math.max(CONSTANTS.MIN_FREQUENCY, Math.min(CONSTANTS.MAX_FREQUENCY, freqA));
-  let outFreqB = Math.max(CONSTANTS.MIN_FREQUENCY, Math.min(CONSTANTS.MAX_FREQUENCY, freqB));
-  // Master scale applies to wave amplitudes as well as channel strength
-  let outAmpA =
+  // Pulse-width sliders scale logical wave amplitude (0–100%)
+  const logicalA =
     typeof ProtocolUtils !== "undefined"
-      ? ProtocolUtils.scaleWaveAmp(ampA, AppState.masterScale)
-      : Math.min(100, Math.max(0, Math.round(ampA * AppState.masterScale)));
-  let outAmpB =
+      ? ProtocolUtils.applyPulseWidthScale(ampA, AppState.pulseWidthA)
+      : Math.round((Number(ampA) || 0) * ((AppState.pulseWidthA ?? 100) / 100));
+  const logicalB =
     typeof ProtocolUtils !== "undefined"
-      ? ProtocolUtils.scaleWaveAmp(ampB, AppState.masterScale)
-      : Math.min(100, Math.max(0, Math.round(ampB * AppState.masterScale)));
+      ? ProtocolUtils.applyPulseWidthScale(ampB, AppState.pulseWidthB)
+      : Math.round((Number(ampB) || 0) * ((AppState.pulseWidthB ?? 100) / 100));
+
+  // Master scale on wave amplitudes
+  const scaledA =
+    typeof ProtocolUtils !== "undefined"
+      ? ProtocolUtils.scaleWaveAmp(logicalA, AppState.masterScale)
+      : Math.min(100, Math.max(0, Math.round(logicalA * AppState.masterScale)));
+  const scaledB =
+    typeof ProtocolUtils !== "undefined"
+      ? ProtocolUtils.scaleWaveAmp(logicalB, AppState.masterScale)
+      : Math.min(100, Math.max(0, Math.round(logicalB * AppState.masterScale)));
+
+  let segA =
+    typeof ProtocolUtils !== "undefined"
+      ? ProtocolUtils.resolveWaveSegment(freqA, scaledA)
+      : scaledA <= 0
+        ? { freq: 0, intensity: 101 }
+        : {
+            freq: Math.max(10, Math.min(240, Math.round(freqA))),
+            intensity: Math.min(100, scaledA),
+          };
+  let segB =
+    typeof ProtocolUtils !== "undefined"
+      ? ProtocolUtils.resolveWaveSegment(freqB, scaledB)
+      : scaledB <= 0
+        ? { freq: 0, intensity: 101 }
+        : {
+            freq: Math.max(10, Math.min(240, Math.round(freqB))),
+            intensity: Math.min(100, scaledB),
+          };
 
   if (AppState.swapChannels) {
-    const tmpF = outFreqA;
-    outFreqA = outFreqB;
-    outFreqB = tmpF;
-    const tmpA = outAmpA;
-    outAmpA = outAmpB;
-    outAmpB = tmpA;
+    const tmpSeg = segA;
+    segA = segB;
+    segB = tmpSeg;
   }
+
+  AppState.lastWaveFreqA = segA.freq;
+  AppState.lastWaveAmpA = segA.intensity === 101 ? 0 : segA.intensity;
+  AppState.lastWaveFreqB = segB.freq;
+  AppState.lastWaveAmpB = segB.intensity === 101 ? 0 : segB.intensity;
 
   const data = new Uint8Array(20);
   data[0] = 0xb0;
@@ -152,32 +181,87 @@ function sendWaveformCommand(freqA, ampA, freqB, ampB) {
   data[2] = getDeviceStrength(AppState.strengthA, AppState.softLimitA);
   data[3] = getDeviceStrength(AppState.strengthB, AppState.softLimitB);
 
-  // Channel A waveform: freq[4] at bytes 4-7, int[4] at bytes 8-11
-  data[4] = outFreqA;
-  data[5] = outFreqA;
-  data[6] = outFreqA;
-  data[7] = outFreqA;
-  data[8] = outAmpA;
-  data[9] = outAmpA;
-  data[10] = outAmpA;
-  data[11] = outAmpA;
+  if (typeof ProtocolUtils !== "undefined" && ProtocolUtils.fillChannelWave) {
+    ProtocolUtils.fillChannelWave(data, 4, 8, segA.freq, segA.intensity);
+    ProtocolUtils.fillChannelWave(data, 12, 16, segB.freq, segB.intensity);
+  } else {
+    for (let i = 0; i < 4; i++) {
+      data[4 + i] = segA.freq;
+      data[8 + i] = segA.intensity;
+      data[12 + i] = segB.freq;
+      data[16 + i] = segB.intensity;
+    }
+  }
 
-  // Channel B waveform: freq[4] at bytes 12-15, int[4] at bytes 16-19
-  data[12] = outFreqB;
-  data[13] = outFreqB;
-  data[14] = outFreqB;
-  data[15] = outFreqB;
-  data[16] = outAmpB;
-  data[17] = outAmpB;
-  data[18] = outAmpB;
-  data[19] = outAmpB;
+  AppState.pendingWaveformData = data;
+  drainBluetoothQueue();
+}
 
+/**
+ * Soft-stop: inactive waveforms (freq 0, intensity 101).
+ * @param {{ keepStrength?: boolean, zeroUiStrength?: boolean }} opts
+ *   keepStrength: leave channel strength as-is (for short gaps between pulses)
+ *   zeroUiStrength: also set AppState/UI strength to 0 (pattern stop etc.)
+ */
+function sendSoftStop(opts = {}) {
+  if (!AppState.writeChar) return;
+  const keepStrength = !!opts.keepStrength;
+  const zeroUi = !!opts.zeroUiStrength;
+
+  if (zeroUi) {
+    AppState.strengthA = 0;
+    AppState.strengthB = 0;
+  }
+
+  const strA = keepStrength ? getDeviceStrength(AppState.strengthA, AppState.softLimitA) : 0;
+  const strB = keepStrength ? getDeviceStrength(AppState.strengthB, AppState.softLimitB) : 0;
+
+  const data =
+    typeof ProtocolUtils !== "undefined"
+      ? ProtocolUtils.buildSoftStopBytes({
+          strengthA: strA,
+          strengthB: strB,
+          modeNibble: keepStrength ? 0 : 0x0f,
+        })
+      : (() => {
+          const d = new Uint8Array(20);
+          d[0] = 0xb0;
+          d[1] = keepStrength ? 0 : 0x0f;
+          d[2] = strA;
+          d[3] = strB;
+          for (let i = 4; i <= 7; i++) d[i] = 0;
+          for (let i = 8; i <= 11; i++) d[i] = 101;
+          for (let i = 12; i <= 15; i++) d[i] = 0;
+          for (let i = 16; i <= 19; i++) d[i] = 101;
+          return d;
+        })();
+
+  AppState.lastWaveAmpA = 0;
+  AppState.lastWaveAmpB = 0;
+  AppState.lastWaveFreqA = 0;
+  AppState.lastWaveFreqB = 0;
+
+  if (!keepStrength) {
+    AppState.btPendingMode = 0;
+    AppState.btSeq = 0;
+    AppState.btAwaitingAck = false;
+  }
+
+  AppState.pendingStrengthData = null;
   AppState.pendingWaveformData = data;
   drainBluetoothQueue();
 }
 
 function sendV3EmergencyStop() {
   if (!AppState.writeChar) return;
+
+  AppState.strengthA = 0;
+  AppState.strengthB = 0;
+  AppState.btPendingMode = 0;
+  AppState.btSeq = 0;
+  AppState.btAwaitingAck = false;
+  AppState.lastWaveAmpA = 0;
+  AppState.lastWaveAmpB = 0;
 
   const data =
     typeof ProtocolUtils !== "undefined"
@@ -186,18 +270,15 @@ function sendV3EmergencyStop() {
           const d = new Uint8Array(20);
           d[0] = 0xb0;
           d[1] = 0x0f;
+          d[2] = 0;
+          d[3] = 0;
+          for (let i = 4; i <= 7; i++) d[i] = 0;
           for (let i = 8; i <= 11; i++) d[i] = 101;
+          for (let i = 12; i <= 15; i++) d[i] = 0;
           for (let i = 16; i <= 19; i++) d[i] = 101;
           return d;
         })();
 
-  AppState.strengthA = 0;
-  AppState.strengthB = 0;
-  AppState.btPendingMode = 0;
-  AppState.btSeq = 0;
-  AppState.btAwaitingAck = false;
-
-  // Bypass queue coalescing: emergency stop must go out immediately
   AppState.pendingStrengthData = null;
   AppState.pendingWaveformData = data;
   drainBluetoothQueue();
@@ -559,6 +640,7 @@ document.addEventListener("DOMContentLoaded", () => {
 window.sendBluetoothCommand = sendBluetoothCommand;
 window.sendStrengthCommand = sendStrengthCommand;
 window.sendWaveformCommand = sendWaveformCommand;
+window.sendSoftStop = sendSoftStop;
 window.sendV3Init = sendV3Init;
 window.sendV3EmergencyStop = sendV3EmergencyStop;
 window.updateBatteryUI = updateBatteryUI;

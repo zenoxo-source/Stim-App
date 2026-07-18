@@ -19,17 +19,52 @@
     return Math.min(100, Math.max(0, Math.round((Number(amp) || 0) * scale)));
   }
 
+  /**
+   * Pulse-width slider (0–100) as wave amplitude scale. Default 100 = full amp.
+   */
+  function applyPulseWidthScale(amp, pulseWidth) {
+    const pw = Number(pulseWidth);
+    const scale = Number.isNaN(pw) ? 1 : Math.min(100, Math.max(0, pw)) / 100;
+    return Math.min(100, Math.max(0, Math.round((Number(amp) || 0) * scale)));
+  }
+
+  /**
+   * Coyote V3: intensity 0–100 active, 101 = inactive channel segment.
+   * Freq 0 when inactive.
+   */
+  function resolveWaveSegment(freq, amp) {
+    const a = Math.round(Number(amp) || 0);
+    if (a <= 0) {
+      return { freq: 0, intensity: 101 };
+    }
+    const f = Math.max(10, Math.min(240, Math.round(Number(freq) || 45)));
+    return { freq: f, intensity: Math.min(100, a) };
+  }
+
+  function fillChannelWave(data, freqOffset, intOffset, freq, intensity) {
+    for (let i = 0; i < 4; i++) {
+      data[freqOffset + i] = freq;
+      data[intOffset + i] = intensity;
+    }
+  }
+
   function buildEmergencyStopBytes() {
+    return buildSoftStopBytes({ strengthA: 0, strengthB: 0, modeNibble: 0x0f });
+  }
+
+  /**
+   * Soft-stop 0xB0: inactive waveforms (freq 0, intensity 101).
+   * @param {{ strengthA?: number, strengthB?: number, modeNibble?: number }} opts
+   */
+  function buildSoftStopBytes(opts) {
+    const o = opts || {};
     const data = new Uint8Array(20);
     data[0] = 0xb0;
-    data[1] = 0x0f; // seq=0, mode both absolute
-    data[2] = 0;
-    data[3] = 0;
-    // Inactive waveform: freq 0, intensity 101
-    for (let i = 4; i <= 7; i++) data[i] = 0;
-    for (let i = 8; i <= 11; i++) data[i] = 101;
-    for (let i = 12; i <= 15; i++) data[i] = 0;
-    for (let i = 16; i <= 19; i++) data[i] = 101;
+    data[1] = (o.modeNibble !== undefined ? o.modeNibble : 0x0f) & 0xff;
+    data[2] = Math.min(200, Math.max(0, Math.round(Number(o.strengthA) || 0)));
+    data[3] = Math.min(200, Math.max(0, Math.round(Number(o.strengthB) || 0)));
+    fillChannelWave(data, 4, 8, 0, 101);
+    fillChannelWave(data, 12, 16, 0, 101);
     return data;
   }
 
@@ -65,8 +100,8 @@
         masterScale: typeof s.masterScale === "number" ? s.masterScale : 1,
         frequencyA: Number(s.frequencyA) || 45,
         frequencyB: Number(s.frequencyB) || 45,
-        pulseWidthA: Number(s.pulseWidthA) || 15,
-        pulseWidthB: Number(s.pulseWidthB) || 15,
+        pulseWidthA: Number(s.pulseWidthA) || 100,
+        pulseWidthB: Number(s.pulseWidthB) || 100,
         swapChannels: !!s.swapChannels,
         audioHearSound: s.audioHearSound !== false,
         aiProvider: ai.aiProvider || "ollama",
@@ -92,8 +127,8 @@
       masterScale: clampNum(settings.masterScale, 0, 1, 1),
       frequencyA: clampInt(settings.frequencyA, 10, 240, 45),
       frequencyB: clampInt(settings.frequencyB, 10, 240, 45),
-      pulseWidthA: clampInt(settings.pulseWidthA, 1, 100, 15),
-      pulseWidthB: clampInt(settings.pulseWidthB, 1, 100, 15),
+      pulseWidthA: clampInt(settings.pulseWidthA, 0, 100, 100),
+      pulseWidthB: clampInt(settings.pulseWidthB, 0, 100, 100),
       swapChannels: !!settings.swapChannels,
       audioHearSound: settings.audioHearSound !== false,
       aiProvider: String(settings.aiProvider || "ollama"),
@@ -130,7 +165,11 @@
   return {
     getDeviceStrength,
     scaleWaveAmp,
+    applyPulseWidthScale,
+    resolveWaveSegment,
     buildEmergencyStopBytes,
+    buildSoftStopBytes,
+    fillChannelWave,
     escapeHtml,
     isCoyoteDeviceName,
     buildSettingsExport,

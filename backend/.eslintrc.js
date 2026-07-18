@@ -24,6 +24,7 @@ module.exports = {
     sendBluetoothCommand: 'readonly',
     sendStrengthCommand: 'readonly',
     sendWaveformCommand: 'readonly',
+    sendSoftStop: 'readonly',
     sendV3Init: 'readonly',
     sendV3EmergencyStop: 'readonly',
     startWaveLoop: 'readonly',

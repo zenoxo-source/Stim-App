@@ -107,6 +107,7 @@ window.aiPlayPattern = (patternName) => {
     document.querySelectorAll(".pattern-card").forEach((c) => c.classList.remove("active"));
     AppState.activePattern = patternName;
     btn.classList.add("active");
+    if (typeof ensureGameStrength === "function") ensureGameStrength(40);
 
     updateAIDashboard();
 
@@ -125,6 +126,7 @@ window.aiCreateCustomPattern = (name, patternA, patternB, intervalMs) => {
 
   document.querySelectorAll(".pattern-card").forEach((c) => c.classList.remove("active"));
   AppState.activePattern = CONSTANTS.PATTERNS.AI_CUSTOM;
+  if (typeof ensureGameStrength === "function") ensureGameStrength(40);
 
   const nameDisp = name || "KI Spezial";
   if (DOM["ai-dash-pattern"]) DOM["ai-dash-pattern"].textContent = nameDisp;
