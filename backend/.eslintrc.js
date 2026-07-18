@@ -1,0 +1,62 @@
+module.exports = {
+  env: {
+    browser: true,
+    es2022: true,
+    node: true
+  },
+  extends: ['eslint:recommended', 'plugin:prettier/recommended'],
+  parserOptions: {
+    ecmaVersion: 'latest',
+    sourceType: 'script'
+  },
+  globals: {
+    AppState: 'readonly',
+    DOM: 'readonly',
+    CONSTANTS: 'readonly',
+    log: 'readonly',
+    sendBluetoothCommand: 'readonly',
+    sendStrengthCommand: 'readonly',
+    sendWaveformCommand: 'readonly',
+    sendV3Init: 'readonly',
+    sendV3EmergencyStop: 'readonly',
+    startWaveLoop: 'readonly',
+    stopWaveLoop: 'readonly',
+    updateAIDashboard: 'readonly',
+    updateSlidersA: 'readonly',
+    updateSlidersB: 'readonly',
+    initCanvasVisualizers: 'readonly',
+    drawVisualizerLoop: 'readonly',
+    killAllOutput: 'readonly',
+    loadSettings: 'readonly',
+    saveSettings: 'readonly',
+    applySettings: 'readonly',
+    renderAIVisualizer: 'readonly',
+    SESSION_STATE: 'readonly',
+    SESSIONS: 'readonly',
+    ProtocolUtils: 'readonly',
+    updateSessionUI: 'readonly',
+    Blob: 'readonly',
+    URL: 'readonly',
+    isProcessing: 'writable',
+    currentLLMController: 'writable',
+    streamingBubbleEl: 'writable',
+    audioCtx: 'readonly',
+    Audio: 'readonly',
+    navigator: 'readonly',
+    document: 'readonly',
+    window: 'readonly',
+    localStorage: 'readonly',
+    requestAnimationFrame: 'readonly',
+    cancelAnimationFrame: 'readonly',
+    performance: 'readonly',
+    alert: 'readonly',
+    confirm: 'readonly'
+  },
+  rules: {
+    'no-unused-vars': ['warn', { args: 'none' }],
+    'no-undef': 'error',
+    'prefer-const': 'warn',
+    'no-var': 'off',
+    'prettier/prettier': 'error'
+  }
+};

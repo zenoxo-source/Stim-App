@@ -1,0 +1,47 @@
+﻿# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs (never commit)
+backend/dist/
+backend/dist-app/
+backend/frontend/
+frontend/dist/
+dist/
+dist-app/
+**/CoyoteApp-win32-x64/
+**/win-unpacked/
+*.exe
+*.blockmap
+builder-debug.yml
+latest.yml
+
+# Secrets & local config
+deploy
+deploy.pub
+deploy-stim
+deploy-stim.pub
+deploy_new
+deploy_new.pub
+deploy*
+*.pem
+*.key
+.env
+.env.*
+.opencode.json
+opencode.json
+
+# Large / local media
+mp3/
+*.mp3
+*.wav
+*.flac
+
+# Logs, caches, OS
+*.log
+.DS_Store
+Thumbs.db
+.cache/
+.eslintcache
+*.tmp
+*.temp

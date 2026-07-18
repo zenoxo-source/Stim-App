@@ -1,0 +1,101 @@
+{
+  "name": "stim-app",
+  "version": "1.2.1",
+  "description": "DG-LAB Coyote 3.0 Control Deck (Electron)",
+  "author": "zenoxo-source",
+  "main": "src/main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zenoxo-source/Stim-App.git"
+  },
+  "scripts": {
+    "start:app": "electron .",
+    "dev": "electron . --enable-logging",
+    "build:frontend": "node scripts/build-frontend.js",
+    "build:app": "node scripts/build-app.js",
+    "build:app:publish": "node scripts/build-app.js --publish",
+    "dist": "npm run build:app",
+    "lint": "eslint ../frontend/js --ext .js -c .eslintrc.js --resolve-plugins-relative-to .",
+    "lint:fix": "eslint ../frontend/js --ext .js -c .eslintrc.js --resolve-plugins-relative-to . --fix",
+    "format": "prettier --write \"../frontend/js/**/*.js\"",
+    "test": "node scripts/run-tests.js"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "electron": "^42.4.0",
+    "electron-builder": "^26.15.3",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "prettier": "^3.2.5",
+    "terser": "^5.48.0"
+  },
+  "build": {
+    "appId": "com.zenoxo.stimapp",
+    "productName": "StimApp",
+    "copyright": "Copyright © zenoxo-source",
+    "directories": {
+      "output": "dist-app",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "frontend/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-win-${arch}.${ext}",
+      "publish": [
+        {
+          "provider": "github",
+          "owner": "zenoxo-source",
+          "repo": "Stim-App",
+          "private": false,
+          "releaseType": "release"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Stim App – Coyote 3.0",
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "zenoxo-source",
+        "repo": "Stim-App",
+        "private": false,
+        "releaseType": "release"
+      }
+    ]
+  }
+}
