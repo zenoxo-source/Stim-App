@@ -3,13 +3,14 @@
 Electron-Desktop-App zur Bluetooth-Steuerung eines DG-LAB Coyote 3.0.
 
 **Repository:** [github.com/zenoxo-source/Stim-App](https://github.com/zenoxo-source/Stim-App)  
-**Version:** 1.5.0
+**Version:** 1.6.0
 
 ## Features
 
-- **Control Deck** – Kanal A/B, Soft-Limits, Master-Scale, Patterns & Sessions, Presets  
+- **Control Deck** – Kanal A/B, Soft-Limits, Master-Scale, Patterns, Sessions, Presets, Roulette  
 - **STIM Player** – Playlist, Echtzeit-Amplituden → Stim  
-- **Mini-Spiele** – Reflex, Rhythm, Hold the Edge, Hot Potato + Highscores  
+- **Mini-Spiele** – Reflex, Rhythm, Hold the Edge, Hot Potato, Survival + Highscores  
+- **Erfolge** – lokale Achievements mit Toasts  
 - **AI Chat** – Ollama / OpenRouter, Tool-Calling  
 - **Safety** – Panic/STOPP, Soft-Limits, Safety-Timer, Close-Handler  
 - **Updates** – electron-updater über öffentliche GitHub Releases  
@@ -51,7 +52,10 @@ Artefakte: `backend/dist-app/StimApp-<version>-win-x64.exe`
 |-------|--------|
 | `1`–`5` | Tabs |
 | `P` | STIM Play/Pause |
-| `↑`/`↓` `←`/`→` | Intensität A/B |
+| `↑`/`↓` `←`/`→` | Intensität A/B (außer in Spielen) |
+| `Leertaste` | Rhythm-Tap / Edge halten |
+| `A`/`B` | Hot Potato |
+| `Q` | Survival aufgeben |
 | `ESC` lang / `Strg`+`Leertaste` / STOPP | Panic |
 
 ## Sicherheit

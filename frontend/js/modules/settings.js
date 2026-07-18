@@ -1,6 +1,7 @@
 // settings.js - Persistent settings and preferences (API key via safeStorage)
 
-const SETTINGS_KEY = "coyote_app_settings_v1";
+const SETTINGS_KEY = "stim_app_settings_v1";
+const LEGACY_SETTINGS_KEY = "coyote_app_settings_v1";
 
 const defaultSettings = {
   softLimitA: 150,
@@ -21,7 +22,18 @@ const defaultSettings = {
 
 function loadSettings() {
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
+    let raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) {
+      const legacy = localStorage.getItem(LEGACY_SETTINGS_KEY);
+      if (legacy) {
+        raw = legacy;
+        try {
+          localStorage.setItem(SETTINGS_KEY, legacy);
+        } catch (e) {
+          /* ignore migrate write */
+        }
+      }
+    }
     return raw ? { ...defaultSettings, ...JSON.parse(raw) } : { ...defaultSettings };
   } catch (e) {
     console.warn("Failed to load settings:", e);
@@ -185,7 +197,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (about) about.textContent = `Version ${v}`;
     });
   } else if (DOM["app-version-text"]) {
-    DOM["app-version-text"].textContent = "v1.4.0";
+    DOM["app-version-text"].textContent = "v1.6.0";
   }
 
   const saveEvents = ["input", "change"];

@@ -20,7 +20,11 @@ document.addEventListener("DOMContentLoaded", () => {
       } else if (
         AppState.isAudioPlaying ||
         AppState.reflexState !== "IDLE" ||
-        AppState.rhythmState !== "IDLE"
+        AppState.rhythmState !== "IDLE" ||
+        AppState.edgeState === "RUNNING" ||
+        AppState.potatoState === "LIVE" ||
+        AppState.potatoState === "BOOM" ||
+        AppState.survivalState === "RUNNING"
       ) {
         killAllOutput();
         setTimeout(() => window.electronAPI.confirmClose(), 200);
@@ -36,6 +40,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Number keys 1-5 for tabs
     if (!e.ctrlKey && !e.altKey && !e.metaKey && !isTyping(e.target)) {
+      const gameBlocksKeys =
+        AppState.edgeState === "RUNNING" ||
+        AppState.potatoState === "LIVE" ||
+        AppState.potatoState === "BOOM" ||
+        AppState.survivalState === "RUNNING" ||
+        AppState.rhythmState === "PLAYING" ||
+        AppState.reflexState === "WAITING" ||
+        AppState.reflexState === "TRIGGERED";
+
       const tabMap = {
         1: "deck",
         2: "stim",
@@ -43,7 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
         4: "ai",
         5: "settings",
       };
-      if (tabMap[e.key]) {
+      if (tabMap[e.key] && !gameBlocksKeys) {
         e.preventDefault();
         document.querySelector(`.nav-item[data-tab="${tabMap[e.key]}"]`)?.click();
       }
@@ -51,28 +64,31 @@ document.addEventListener("DOMContentLoaded", () => {
       // P: toggle audio play/pause when on stim tab
       if (
         e.key.toLowerCase() === "p" &&
-        document.getElementById("view-stim")?.classList.contains("active")
+        document.getElementById("view-stim")?.classList.contains("active") &&
+        !gameBlocksKeys
       ) {
         e.preventDefault();
         DOM["btn-play-audio"]?.click();
       }
 
-      // Arrow keys for intensity
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        updateSlidersA(Math.min(AppState.softLimitA, AppState.strengthA + 5));
-      }
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        updateSlidersA(Math.max(CONSTANTS.MIN_INTENSITY, AppState.strengthA - 5));
-      }
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        updateSlidersB(Math.min(AppState.softLimitB, AppState.strengthB + 5));
-      }
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        updateSlidersB(Math.max(CONSTANTS.MIN_INTENSITY, AppState.strengthB - 5));
+      // Arrow keys for intensity (disabled during mini-games that use keys)
+      if (!gameBlocksKeys) {
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          updateSlidersA(Math.min(AppState.softLimitA, AppState.strengthA + 5));
+        }
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          updateSlidersA(Math.max(CONSTANTS.MIN_INTENSITY, AppState.strengthA - 5));
+        }
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          updateSlidersB(Math.min(AppState.softLimitB, AppState.strengthB + 5));
+        }
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          updateSlidersB(Math.max(CONSTANTS.MIN_INTENSITY, AppState.strengthB - 5));
+        }
       }
     }
 
@@ -154,6 +170,7 @@ function killAllOutput() {
     AppState.rhythmState = "IDLE";
     if (typeof stopEdgeGame === "function") stopEdgeGame();
     if (typeof stopPotatoGame === "function") stopPotatoGame();
+    if (typeof stopSurvivalGame === "function") stopSurvivalGame();
     if (typeof stopSafetyTimer === "function") stopSafetyTimer(false);
 
     // Zero sliders

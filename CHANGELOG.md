@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.6.0
+
+### Fun
+- **Survival** – steigende Intensität, Score = Durchhaltezeit, Q zum Aufgeben
+- **Pattern-Roulette** & **Zufallsimpuls** (Würfel) im Control Deck
+- **Erfolge** mit Toasts (Verbindung, Highscores, Meilensteine)
+- UI-SFX für Treffer / Fail / Unlock
+- Hold the Edge: Leertaste halten
+
+### Fixes / Cleanup
+- Wave-Loop überschreibt Edge/Potato/Survival nicht mehr
+- Hotkeys: Pfeile während Spielen deaktiviert (kein Intensitäts-Konflikt)
+- DOM-Cache für Edge/Potato/Survival vollständig
+- Panic/Close stoppen Survival; Status-Chip zeigt Spielmodus
+- Settings/AI-Sessions: Keys `stim_*` mit Migration von `coyote_*`
+- Branding: Terminal & Versions-Fallback → Stim App 1.6.0
+
 ## 1.5.0
 
 ### Fun & Games

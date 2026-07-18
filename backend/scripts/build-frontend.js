@@ -17,6 +17,7 @@ const jsOrder = [
   'js/modules/highscores.js',
   'js/modules/games.js',
   'js/modules/games-extra.js',
+  'js/modules/fun.js',
   'js/modules/presets.js',
   'js/modules/ai-bridge.js',
   'js/modules/settings.js',

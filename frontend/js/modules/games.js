@@ -112,10 +112,12 @@ function triggerReflexSuccess() {
     DOM["reflex-subtext"].textContent = "Klicke das Feld f\u00fcr das n\u00e4chste Level";
 
   log(`Reflex Level ${AppState.reflexLevel - 1} bestanden: ${reactionTime} ms`, "success");
+  if (typeof playGameSfx === "function") playGameSfx("hit");
   const hs = recordHighscore("reflex", AppState.reflexLevel - 1);
   if (hs.isNew && DOM["reflex-feedback-message"]) {
     DOM["reflex-feedback-message"].textContent += " · Highscore!";
   }
+  if (hs.isNew && typeof unlockAchievement === "function") unlockAchievement("first_hs");
   if (typeof refreshHighscoreUI === "function") refreshHighscoreUI();
 }
 
@@ -133,6 +135,7 @@ function triggerReflexFalseStart() {
   if (DOM["reflex-subtext"]) DOM["reflex-subtext"].textContent = "Sp\u00fcre die Warnung...";
 
   log("Reflex Trainer: Fehlstart! Strafe gesendet.", "warning");
+  if (typeof playGameSfx === "function") playGameSfx("fail");
 
   setTimeout(() => {
     AppState.reflexState = "IDLE";
@@ -157,6 +160,7 @@ function triggerReflexTooSlow() {
     `Reflex Trainer: Zu langsam! ${AppState.reflexTargetTime} ms \u00fcberschritten. Strafe gesendet.`,
     "error"
   );
+  if (typeof playGameSfx === "function") playGameSfx("fail");
 
   setTimeout(() => {
     AppState.reflexState = "IDLE";
@@ -292,8 +296,10 @@ function handleRhythmTap() {
       Math.floor(AppState.rhythmCombo / 5) + 1
     );
     AppState.rhythmScore += 10 * AppState.rhythmMultiplier;
-    recordHighscore("rhythm", AppState.rhythmScore);
+    const rhythmHs = recordHighscore("rhythm", AppState.rhythmScore);
     if (typeof refreshHighscoreUI === "function") refreshHighscoreUI();
+    if (typeof playGameSfx === "function") playGameSfx("hit");
+    if (rhythmHs.isNew && typeof unlockAchievement === "function") unlockAchievement("first_hs");
 
     if (DOM["rhythm-score"]) DOM["rhythm-score"].textContent = AppState.rhythmScore;
     if (DOM["rhythm-combo"])
@@ -328,6 +334,7 @@ function handleRhythmTap() {
       CONSTANTS.DEFAULT_FREQUENCY,
       AppState.rhythmShockVal
     );
+    if (typeof playGameSfx === "function") playGameSfx("fail");
     log("Rhythm: Beat verpasst! Strafe gesendet.", "warning");
 
     setTimeout(() => {

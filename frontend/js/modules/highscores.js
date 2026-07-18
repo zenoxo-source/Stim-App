@@ -1,4 +1,4 @@
-// highscores.js - local high scores for mini-gameses
+// highscores.js - local high scores for mini-games
 
 const HIGHSCORE_KEY = "stim_app_highscores_v1";
 
@@ -45,6 +45,7 @@ function refreshHighscoreUI() {
     "hs-rhythm": "rhythm",
     "hs-edge": "edge",
     "hs-potato": "potato",
+    "hs-survival": "survival",
   };
   Object.keys(map).forEach((elId) => {
     const el = document.getElementById(elId);

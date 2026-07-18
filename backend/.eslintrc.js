@@ -54,6 +54,12 @@ module.exports = {
     stopSafetyTimer: 'readonly',
     stopEdgeGame: 'readonly',
     stopPotatoGame: 'readonly',
+    stopSurvivalGame: 'readonly',
+    playGameSfx: 'readonly',
+    unlockAchievement: 'readonly',
+    showFunToast: 'readonly',
+    startPatternRoulette: 'readonly',
+    fireChancePulse: 'readonly',
 
     Blob: 'readonly',
     URL: 'readonly',

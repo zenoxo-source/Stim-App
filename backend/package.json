@@ -1,6 +1,6 @@
 {
   "name": "stim-app",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Stim App – DG-LAB Coyote 3.0 Control Deck (Electron)",
   "author": "zenoxo-source",
   "main": "src/main.js",

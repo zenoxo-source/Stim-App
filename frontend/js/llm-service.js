@@ -180,9 +180,23 @@ let selectedPersona = "domina";
 let userName = "User";
 let currentSessionId = null;
 
-// Storage Logic
+// Storage Logic (migrate legacy coyote_* key once)
+const AI_SESSIONS_KEY = "stim_ai_sessions";
+const LEGACY_AI_SESSIONS_KEY = "coyote_ai_sessions";
+
 function getSavedSessions() {
-  const data = localStorage.getItem("coyote_ai_sessions");
+  let data = localStorage.getItem(AI_SESSIONS_KEY);
+  if (!data) {
+    const legacy = localStorage.getItem(LEGACY_AI_SESSIONS_KEY);
+    if (legacy) {
+      data = legacy;
+      try {
+        localStorage.setItem(AI_SESSIONS_KEY, legacy);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+  }
   return data ? JSON.parse(data) : {};
 }
 
@@ -196,7 +210,7 @@ function saveSession() {
     userName: userName,
     history: chatHistory,
   };
-  localStorage.setItem("coyote_ai_sessions", JSON.stringify(sessions));
+  localStorage.setItem(AI_SESSIONS_KEY, JSON.stringify(sessions));
   renderSessionsList();
 }
 
@@ -204,7 +218,7 @@ function deleteSession(id, e) {
   e.stopPropagation();
   const sessions = getSavedSessions();
   delete sessions[id];
-  localStorage.setItem("coyote_ai_sessions", JSON.stringify(sessions));
+  localStorage.setItem(AI_SESSIONS_KEY, JSON.stringify(sessions));
   if (currentSessionId === id) {
     showOnboarding();
   } else {

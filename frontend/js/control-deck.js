@@ -300,8 +300,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (DOM["visualizer-val-b"]) DOM["visualizer-val-b"].textContent = `${ampB}%`;
       } else if (AppState.reflexState === "SHOCKING") {
         await sendWaveformCommand(80, AppState.reflexShockVal, 80, AppState.reflexShockVal);
-      } else if (AppState.rhythmState !== "IDLE") {
-        // Rhythm game handles its own waveform via separate interval
+      } else if (
+        AppState.rhythmState !== "IDLE" ||
+        AppState.edgeState === "RUNNING" ||
+        AppState.potatoState === "LIVE" ||
+        AppState.potatoState === "BOOM" ||
+        AppState.survivalState === "RUNNING"
+      ) {
+        // Mini-games own their waveform output
       } else {
         // Idle: constant output at user frequency, 100% amplitude
         // Strength in 0xB0 packet controls actual output level

@@ -2,7 +2,7 @@
 
 function hideGameSelectors() {
   if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "none";
-  ["arena-reflex", "arena-rhythm", "arena-edge", "arena-potato"].forEach((id) => {
+  ["arena-reflex", "arena-rhythm", "arena-edge", "arena-potato", "arena-survival"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
@@ -93,12 +93,17 @@ function edgeLoop() {
   if (lvl > AppState.edgeZoneMax + 8) {
     AppState.edgeState = "FAIL";
     gameShock(Math.min(70, 25 + AppState.edgeScore / 10), 400);
+    if (typeof playGameSfx === "function") playGameSfx("fail");
     const res = recordHighscore("edge", AppState.edgeScore);
     if (DOM["edge-feedback"]) {
       DOM["edge-feedback"].textContent = res.isNew
         ? `Über der Kante! Score ${AppState.edgeScore} – NEUER HIGHSCORE!`
         : `Über der Kante! Score ${AppState.edgeScore} (Best: ${res.best})`;
       DOM["edge-feedback"].style.color = "#a80000";
+    }
+    if (typeof unlockAchievement === "function") {
+      if (AppState.edgeScore >= 50) unlockAchievement("edge_50");
+      if (res.isNew) unlockAchievement("first_hs");
     }
     stopEdgeGame();
     AppState.edgeState = "IDLE";
@@ -187,6 +192,7 @@ function potatoPass() {
   if (AppState.potatoState !== "LIVE") return;
   AppState.potatoScore += 1;
   gameTickle(18, 90);
+  if (typeof playGameSfx === "function") playGameSfx("hit");
   if (AppState.potatoTick) {
     clearInterval(AppState.potatoTick);
     AppState.potatoTick = null;
@@ -195,6 +201,9 @@ function potatoPass() {
   if (DOM["potato-feedback"]) {
     DOM["potato-feedback"].textContent = "Weitergegeben!";
     DOM["potato-feedback"].style.color = "#107c41";
+  }
+  if (typeof unlockAchievement === "function" && AppState.potatoScore >= 15) {
+    unlockAchievement("potato_15");
   }
   AppState.potatoTimeout = setTimeout(() => {
     if (AppState.potatoState === "LIVE" || AppState.potatoState === "IDLE") {
@@ -212,6 +221,7 @@ function potatoExplode() {
     AppState.potatoTick = null;
   }
   gameShock(Math.min(80, 30 + AppState.potatoRound * 3), 500);
+  if (typeof playGameSfx === "function") playGameSfx("fail");
   const res = recordHighscore("potato", AppState.potatoScore);
   if (DOM["potato-feedback"]) {
     DOM["potato-feedback"].textContent = res.isNew
@@ -219,6 +229,7 @@ function potatoExplode() {
       : `Zu spät! Score ${AppState.potatoScore} (Best: ${res.best})`;
     DOM["potato-feedback"].style.color = "#a80000";
   }
+  if (typeof unlockAchievement === "function" && res.isNew) unlockAchievement("first_hs");
   if (typeof refreshHighscoreUI === "function") refreshHighscoreUI();
   AppState.potatoTimeout = setTimeout(() => {
     AppState.potatoState = "IDLE";
@@ -236,11 +247,80 @@ function handlePotatoKey(channel) {
   else {
     // Wrong channel = mild shock, continue
     gameShock(35, 200);
+    if (typeof playGameSfx === "function") playGameSfx("fail");
     if (DOM["potato-feedback"]) {
       DOM["potato-feedback"].textContent = "Falscher Kanal!";
       DOM["potato-feedback"].style.color = "#fd971f";
     }
   }
+}
+
+// ========== SURVIVAL ==========
+
+function stopSurvivalGame(record = false) {
+  if (AppState.survivalRaf) {
+    cancelAnimationFrame(AppState.survivalRaf);
+    AppState.survivalRaf = null;
+  }
+  const wasRunning = AppState.survivalState === "RUNNING";
+  AppState.survivalState = "IDLE";
+  sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+  if (record && wasRunning) {
+    const res = recordHighscore("survival", AppState.survivalScore);
+    if (DOM["survival-feedback"]) {
+      DOM["survival-feedback"].textContent = res.isNew
+        ? `Ende! ${AppState.survivalScore}s – HIGHSCORE!`
+        : `Ende! ${AppState.survivalScore}s (Best: ${res.best}s)`;
+      DOM["survival-feedback"].style.color = res.isNew ? "#107c41" : "#fd971f";
+    }
+    if (typeof playGameSfx === "function") playGameSfx(res.isNew ? "win" : "hit");
+    if (typeof unlockAchievement === "function") {
+      if (AppState.survivalScore >= 30) unlockAchievement("survive_30");
+      if (res.isNew) unlockAchievement("first_hs");
+    }
+    if (typeof refreshHighscoreUI === "function") refreshHighscoreUI();
+  }
+  if (typeof updateOutputStatus === "function") updateOutputStatus();
+}
+
+function survivalLoop() {
+  if (AppState.survivalState !== "RUNNING") return;
+  const now = performance.now();
+  AppState.survivalLastTick = now;
+
+  const elapsed = (now - AppState.survivalStartedAt) / 1000;
+  AppState.survivalScore = Math.floor(elapsed);
+  // Ramp 8 → ~70 over ~45s, soft-capped
+  AppState.survivalLevel = Math.min(70, 8 + elapsed * 1.35 + Math.sin(elapsed * 0.7) * 6);
+  const amp = Math.round(AppState.survivalLevel);
+  const wobble = Math.round(4 + Math.sin(elapsed * 2.2) * 4);
+  sendWaveformCommand(
+    40 + Math.round(elapsed),
+    amp,
+    55 + Math.round(elapsed * 0.8),
+    amp - 5 + wobble
+  );
+
+  if (DOM["survival-score"]) DOM["survival-score"].textContent = `${AppState.survivalScore}s`;
+  if (DOM["survival-level"]) DOM["survival-level"].textContent = `${amp}%`;
+  const bar = document.getElementById("survival-bar");
+  if (bar) bar.style.width = `${Math.min(100, (amp / 70) * 100)}%`;
+
+  AppState.survivalRaf = requestAnimationFrame(survivalLoop);
+}
+
+function startSurvivalRound() {
+  AppState.survivalState = "RUNNING";
+  AppState.survivalScore = 0;
+  AppState.survivalLevel = 8;
+  AppState.survivalStartedAt = performance.now();
+  AppState.survivalLastTick = performance.now();
+  if (DOM["survival-feedback"]) {
+    DOM["survival-feedback"].textContent = "Halte durch – Q oder „Aufgeben“ beendet.";
+    DOM["survival-feedback"].style.color = "#5ab3ff";
+  }
+  survivalLoop();
+  log("Survival gestartet – Intensität steigt langsam.", "info");
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -302,18 +382,65 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-potato-a")?.addEventListener("click", () => handlePotatoKey("A"));
   document.getElementById("btn-potato-b")?.addEventListener("click", () => handlePotatoKey("B"));
 
+  // Survival
+  document.getElementById("btn-start-survival")?.addEventListener("click", () => {
+    if (!requireConnectedForGame()) return;
+    hideGameSelectors();
+    const arena = document.getElementById("arena-survival");
+    if (arena) arena.style.display = "flex";
+    startSurvivalRound();
+  });
+  document.getElementById("btn-exit-survival")?.addEventListener("click", () => {
+    stopSurvivalGame(AppState.survivalState === "RUNNING");
+    const arena = document.getElementById("arena-survival");
+    if (arena) arena.style.display = "none";
+    if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "grid";
+  });
+  document.getElementById("btn-survival-bail")?.addEventListener("click", () => {
+    if (AppState.survivalState === "RUNNING") stopSurvivalGame(true);
+  });
+
   window.addEventListener("keydown", (e) => {
-    if (document.getElementById("arena-potato")?.style.display !== "flex") return;
-    if (e.code === "KeyA" || e.code === "ArrowLeft") {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+
+    // Edge: Space hold
+    const edgeOpen = document.getElementById("arena-edge")?.style.display === "flex";
+    if (edgeOpen && e.code === "Space") {
       e.preventDefault();
-      handlePotatoKey("A");
+      if (AppState.edgeState === "IDLE") startEdgeRound();
+      AppState.edgeHolding = true;
     }
-    if (e.code === "KeyB" || e.code === "ArrowRight") {
+
+    // Potato
+    if (document.getElementById("arena-potato")?.style.display === "flex") {
+      if (e.code === "KeyA" || e.code === "ArrowLeft") {
+        e.preventDefault();
+        handlePotatoKey("A");
+      }
+      if (e.code === "KeyB" || e.code === "ArrowRight") {
+        e.preventDefault();
+        handlePotatoKey("B");
+      }
+    }
+
+    // Survival bail
+    if (
+      document.getElementById("arena-survival")?.style.display === "flex" &&
+      AppState.survivalState === "RUNNING" &&
+      (e.code === "KeyQ" || e.key.toLowerCase() === "q")
+    ) {
       e.preventDefault();
-      handlePotatoKey("B");
+      stopSurvivalGame(true);
+    }
+  });
+
+  window.addEventListener("keyup", (e) => {
+    if (e.code === "Space" && document.getElementById("arena-edge")?.style.display === "flex") {
+      AppState.edgeHolding = false;
     }
   });
 });
 
 window.stopEdgeGame = stopEdgeGame;
 window.stopPotatoGame = stopPotatoGame;
+window.stopSurvivalGame = stopSurvivalGame;

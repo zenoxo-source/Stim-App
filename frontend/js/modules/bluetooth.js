@@ -516,6 +516,7 @@ document.addEventListener("DOMContentLoaded", () => {
       AppState.isConnected = true;
       AppState.reconnectAttempts = 0;
       log("Erfolgreich mit Coyote 3.0 verbunden!", "success");
+      if (typeof unlockAchievement === "function") unlockAchievement("first_connect");
       setReconnectStatus("");
       setDeviceListHint([AppState.device?.name || "Coyote 3.0 · verbunden"]);
 

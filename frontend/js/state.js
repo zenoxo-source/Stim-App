@@ -58,7 +58,6 @@ const AppState = {
   reflexState: "IDLE",
   reflexLevel: 1,
   reflexTargetTime: 450,
-  reflexHighscore: 0,
   reflexStartTime: 0,
   reflexTimeoutId: null,
   reflexShockVal: 30,
@@ -94,6 +93,13 @@ const AppState = {
   potatoDeadline: 0,
   potatoTimeout: null,
   potatoTick: null,
+
+  survivalState: "IDLE",
+  survivalScore: 0,
+  survivalLevel: 0,
+  survivalRaf: null,
+  survivalLastTick: 0,
+  survivalStartedAt: 0,
 
   safetyTimerEndsAt: null,
   safetyTimerInterval: null,
@@ -131,6 +137,7 @@ const AppState = {
     this.rhythmState = "IDLE";
     this.edgeState = "IDLE";
     this.potatoState = "IDLE";
+    this.survivalState = "IDLE";
   },
 };
 
@@ -216,6 +223,28 @@ document.addEventListener("DOMContentLoaded", () => {
     "rhythm-shock",
     "rhythm-feedback-message",
     "rhythm-start-prompt",
+    "arena-edge",
+    "btn-start-edge",
+    "btn-exit-edge",
+    "edge-feedback",
+    "edge-score",
+    "edge-hold-btn",
+    "arena-potato",
+    "btn-start-potato",
+    "btn-exit-potato",
+    "potato-feedback",
+    "potato-score",
+    "potato-channel",
+    "btn-potato-a",
+    "btn-potato-b",
+    "arena-survival",
+    "btn-start-survival",
+    "btn-exit-survival",
+    "btn-survival-bail",
+    "survival-feedback",
+    "survival-score",
+    "survival-level",
+    "survival-bar",
     // AI
     "ai-dash-int-a",
     "ai-dash-int-b",

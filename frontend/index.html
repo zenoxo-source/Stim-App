@@ -154,7 +154,9 @@
             <li><kbd>P</kbd> STIM Play/Pause</li>
             <li><kbd>↑</kbd><kbd>↓</kbd> Intensität A · <kbd>←</kbd><kbd>→</kbd> Intensität B</li>
             <li><kbd>Strg</kbd>+<kbd>Leertaste</kbd> / <kbd>ESC</kbd> lang / STOPP = Panic</li>
-            <li><kbd>Leertaste</kbd> Rhythm-Tap · <kbd>A</kbd>/<kbd>B</kbd> Hot Potato</li>
+            <li><kbd>Leertaste</kbd> Rhythm-Tap · Edge halten</li>
+            <li><kbd>A</kbd>/<kbd>B</kbd> oder <kbd>←</kbd>/<kbd>→</kbd> Hot Potato</li>
+            <li><kbd>Q</kbd> Survival aufgeben</li>
             <li><kbd>?</kbd> Diese Hilfe</li>
           </ul>
           <button type="button" id="hotkey-close" class="btn">Schließen</button>
@@ -325,7 +327,9 @@
               <span class="pattern-name">Duet</span>
             </div>
           </div>
-          <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+          <div style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+            <button type="button" id="btn-pattern-roulette" class="btn" title="Zufälliges Pattern">🎲 Roulette</button>
+            <button type="button" id="btn-chance-pulse" class="btn btn-secondary" title="Würfel-Impuls">🎲 Zufallsimpuls</button>
             <button id="btn-stop-pattern" class="btn btn-secondary">⏹️ Pattern stoppen</button>
           </div>
         </div>
@@ -498,6 +502,18 @@
             </div>
             <button id="btn-start-potato" class="btn" style="background: linear-gradient(135deg, #8660a9, #0078d4);">Spiel starten</button>
           </div>
+
+          <div class="game-card">
+            <div>
+              <div class="game-title">⏱️ Survival</div>
+              <p class="game-desc">
+                Die Intensität steigt langsam und unregelmäßig. Wie lange hältst du durch?
+                Mit <strong>Q</strong> oder „Aufgeben“ endest du und sicherst deinen Score.
+              </p>
+              <p class="game-hs">Highscore: <span id="hs-survival">0</span>s</p>
+            </div>
+            <button id="btn-start-survival" class="btn" style="background: linear-gradient(135deg, #107c41, #0078d4);">Spiel starten</button>
+          </div>
         </div>
 
         <!-- Game 1: Reflex Arena -->
@@ -593,6 +609,28 @@
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span id="potato-feedback" style="font-weight: 500; font-size: 14px;"></span>
             <button id="btn-exit-potato" class="btn btn-secondary">Beenden</button>
+          </div>
+        </div>
+
+        <!-- Game 5: Survival -->
+        <div id="arena-survival" class="game-arena">
+          <div class="game-arena-header">
+            <span class="game-arena-title">⏱️ Survival</span>
+            <div class="game-stats">
+              <div class="game-stat-box">Zeit: <span id="survival-score" class="game-stat-val">0s</span></div>
+              <div class="game-stat-box">Level: <span id="survival-level" class="game-stat-val">0%</span></div>
+            </div>
+          </div>
+          <div class="survival-track"><div id="survival-bar" class="survival-bar"></div></div>
+          <p style="font-size: 13px; color: var(--text-muted); text-align: center;">
+            Intensität steigt – Soft-Limits greifen weiterhin. Beende mit Q wenn es zu viel wird.
+          </p>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+            <span id="survival-feedback" style="font-weight: 500; font-size: 14px;"></span>
+            <div style="display:flex; gap:8px;">
+              <button type="button" id="btn-survival-bail" class="btn">Aufgeben (Score)</button>
+              <button id="btn-exit-survival" class="btn btn-secondary">Beenden</button>
+            </div>
           </div>
         </div>
       </section>
@@ -856,7 +894,7 @@
           <div class="card">
             <div class="card-title">
               <span>App-Updates</span>
-              <span id="app-version-text" style="font-size:11px; opacity:0.7;">v1.4.0</span>
+              <span id="app-version-text" style="font-size:11px; opacity:0.7;">v1.6.0</span>
             </div>
             <p id="update-status-text" style="font-size:13px; margin: 0 0 10px;">—</p>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -881,6 +919,11 @@
             </div>
           </div>
 
+          <div class="card">
+            <div class="card-title">Erfolge</div>
+            <div id="achievements-list" class="achievements-list"></div>
+          </div>
+
           <!-- Diagnostic Logs -->
           <div class="card">
             <div class="card-title">
@@ -890,7 +933,7 @@
                 <button id="btn-clear-logs" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;">Löschen</button>
               </div>
             </div>
-            <div id="terminal-log" class="terminal-box">[SYSTEM] Coyote App gestartet.</div>
+            <div id="terminal-log" class="terminal-box">[SYSTEM] Stim App gestartet.</div>
             <p style="font-size:12px; opacity:0.65; margin-top:8px;">
               API-Keys werden verschlüsselt im App-Profil gespeichert (Electron safeStorage / Windows DPAPI), nicht im Klartext.
             </p>
@@ -911,6 +954,7 @@
   <script src="js/modules/highscores.js"></script>
   <script src="js/modules/games.js"></script>
   <script src="js/modules/games-extra.js"></script>
+  <script src="js/modules/fun.js"></script>
   <script src="js/modules/presets.js"></script>
   <script src="js/modules/ai-bridge.js"></script>
   <script src="js/modules/settings.js"></script>
