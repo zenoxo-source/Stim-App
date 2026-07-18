@@ -82,21 +82,24 @@
       </div>
       
       <div class="sidebar-footer">
+        <div style="display:flex; gap:6px; justify-content:center; margin-bottom: 4px;">
+          <button type="button" id="btn-lang-toggle" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 11px;" aria-label="Switch language" title="Sprache wechseln">EN</button>
+        </div>
         <div id="update-banner" class="update-banner" style="display:none;" data-kind="info"></div>
-        <div id="output-status" class="output-status idle" title="Geräte-Ausgabe">
+        <div id="output-status" class="output-status idle" title="Geräte-Ausgabe" role="status" aria-live="polite">
           <span class="output-dot"></span>
           <span id="output-status-text">Ausgabe: aus</span>
         </div>
         <div class="device-status">
           <span>Verbindung:</span>
           <span id="connection-text">Getrennt</span>
-          <span id="connection-indicator" class="status-indicator"></span>
+          <span id="connection-indicator" class="status-indicator" role="img" aria-label="Verbindungsstatus"></span>
         </div>
-        <div id="reconnect-status" class="reconnect-status" style="display:none;"></div>
+        <div id="reconnect-status" class="reconnect-status" style="display:none;" role="alert" aria-live="assertive"></div>
         <div id="bt-device-list" class="bt-device-list" style="display:none;"></div>
-        <button id="btn-connect" class="btn">🔌 Bluetooth Verbinden</button>
-        <button id="btn-disconnect" class="btn btn-danger" style="display: none;">🔌 Trennen</button>
-        <button id="btn-panic" class="btn btn-danger btn-panic" title="Notstopp (Strg+Leertaste)">🛑 STOPP</button>
+        <button id="btn-connect" class="btn" aria-label="Bluetooth verbinden">🔌 Bluetooth Verbinden</button>
+        <button id="btn-disconnect" class="btn btn-danger" style="display: none;" aria-label="Bluetooth trennen">🔌 Trennen</button>
+        <button id="btn-panic" class="btn btn-danger btn-panic" title="Notstopp (Strg+Leertaste)" aria-label="Notstopp – Ausgabe sofort stoppen">🛑 STOPP</button>
       </div>
     </aside>
 
@@ -930,9 +933,13 @@
                 <div class="btn-row">
                   <button type="button" id="btn-toggle-remote" class="btn btn-secondary btn-sm">Server starten</button>
                 </div>
+                <div id="remote-token-wrap" style="display: none;">
+                  <p style="font-size: 12px; opacity: 0.75; margin: 4px 0;">Auth-Token (für externe Clients):</p>
+                  <code id="remote-token" style="font-size: 11px; word-break: break-all; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; display: block;"></code>
+                </div>
                 <p class="settings-hint">
                   Befehle: set_intensity, set_pattern, stop_pattern, stop_all, get_state, get_patterns.<br>
-                  Nur localhost (127.0.0.1:8080).
+                  Nur localhost (127.0.0.1:8080). Token-Auth erforderlich.
                 </p>
               </div>
             </div>
@@ -1010,8 +1017,39 @@
             </p>
           </div>
 
-          <div class="card">
-            <div class="card-title">Über Stim App</div>
+            <!-- Pattern Editor -->
+            <div class="card" style="grid-column: 1 / -1;">
+              <div class="card-title">Pattern Editor</div>
+              <div class="channel-box" style="gap: 10px;">
+                <p style="font-size:13px;opacity:0.75;margin:0;">Zeichne eigene Wellenform-Pattern (16 Schritte, 0-100% Amplitude pro Kanal).</p>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <input type="text" id="pattern-editor-name" placeholder="Pattern-Name" style="flex:1;min-width:120px;padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;">
+                  <button type="button" id="btn-pe-clear" class="btn btn-secondary btn-sm">Leeren</button>
+                  <button type="button" id="btn-pe-random" class="btn btn-secondary btn-sm">Zufall</button>
+                  <button type="button" id="btn-pe-smooth" class="btn btn-secondary btn-sm">Glätten</button>
+                  <button type="button" id="btn-pe-save" class="btn btn-secondary btn-sm">Speichern</button>
+                  <button type="button" id="btn-pe-play" class="btn btn-sm">Abspielen</button>
+                </div>
+                <div id="pattern-editor-grid" class="pattern-editor-grid"></div>
+                <div style="margin-top:10px;">
+                  <h4 style="font-size:13px;margin:0 0 6px 0;">Gespeicherte Patterns</h4>
+                  <div id="pattern-editor-saved"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="card" style="grid-column: 1 / -1;">
+              <div class="card-title">
+                <span>Statistiken</span>
+                <button type="button" id="btn-reset-stats" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;">Zurücksetzen</button>
+              </div>
+              <div id="stats-content"></div>
+            </div>
+
+            <!-- About -->
+            <div class="card">
+              <div class="card-title">Über Stim App</div>
             <div class="about-block">
               <p><strong>Stim App</strong> · Control Deck für DG-LAB Coyote 3.0</p>
               <p id="about-version-line" style="opacity:0.8;">Version —</p>
@@ -1049,6 +1087,7 @@
   </div>
 
   <script src="js/state.js"></script>
+  <script src="js/modules/i18n.js"></script>
   <script src="js/constants.js"></script>
   <script src="js/lib/protocol-utils.js"></script>
   <script src="js/control-deck.js"></script>
@@ -1068,6 +1107,8 @@
   <script src="js/modules/updater-ui.js"></script>
   <script src="js/modules/remote.js"></script>
   <script src="js/modules/recorder.js"></script>
+  <script src="js/modules/stats.js"></script>
+  <script src="js/modules/pattern-editor.js"></script>
   <script src="js/llm-service.js"></script>
 </body>
 </html>

@@ -71,6 +71,7 @@ function handleRemoteCommand(msg) {
   }
   try {
     const result = handler(msg);
+    if (typeof trackStat === "function") trackStat("remote_command");
     if (result && result.ok !== false) {
       log(`Remote: ${type} ausgeführt`, "info");
     } else if (result && result.error) {
@@ -87,6 +88,7 @@ async function updateRemoteUI() {
     const status = await window.electronAPI.getRemoteStatus();
     const el = document.getElementById("remote-status");
     const toggle = document.getElementById("btn-toggle-remote");
+    const tokenEl = document.getElementById("remote-token");
     if (el) {
       el.textContent = status.running
         ? `läuft auf ws://127.0.0.1:${status.port} (${status.clients} Client${status.clients !== 1 ? "s" : ""})`
@@ -95,6 +97,14 @@ async function updateRemoteUI() {
     }
     if (toggle) {
       toggle.textContent = status.running ? "Server stoppen" : "Server starten";
+    }
+    if (tokenEl) {
+      if (status.running && status.token) {
+        tokenEl.textContent = status.token;
+        document.getElementById("remote-token-wrap").style.display = "block";
+      } else {
+        document.getElementById("remote-token-wrap").style.display = "none";
+      }
     }
   } catch (err) {
     console.warn("Failed to get remote status:", err);

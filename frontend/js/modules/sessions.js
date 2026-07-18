@@ -387,6 +387,7 @@ const SESSION_STATE = {
     if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
     updateAIDashboard();
     updateSessionUI();
+    if (typeof trackStat === "function") trackStat("session_completed");
     log(`Session "${name}" beendet.`, "info");
   },
 

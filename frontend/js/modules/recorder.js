@@ -58,6 +58,7 @@ const RECORDER = {
     a.download = `stim-recording-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    if (typeof trackStat === "function") trackStat("recording_created");
     log(`Aufnahme gespeichert (${this.frames.length} Frames).`, "success");
   },
 

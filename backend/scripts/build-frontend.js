@@ -9,6 +9,7 @@ const outputDir = path.join(frontendDir, 'dist');
 // Must match the exact load order in frontend/index.html <script> tags
 const jsOrder = [
   'js/state.js',
+  'js/modules/i18n.js',
   'js/constants.js',
   'js/lib/protocol-utils.js',
   'js/control-deck.js',
@@ -28,6 +29,8 @@ const jsOrder = [
   'js/modules/updater-ui.js',
   'js/modules/remote.js',
   'js/modules/recorder.js',
+  'js/modules/stats.js',
+  'js/modules/pattern-editor.js',
   'js/llm-service.js',
 ];
 

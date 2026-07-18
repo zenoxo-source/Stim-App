@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.3.0
+
+### Phase 1: Tests & Sicherheit
+- **17 neue Tests** für remote.js + recorder.js (Sandbox mit `vm`)
+- **AGENTS.md** — vollständige Doku für AI-Assistenten und Entwickler
+- **WebSocket-Auth (Token)** — Remote-Server generiert Token, Clients müssen authentifizieren
+
+### Phase 2: Features
+- **Statistik-Dashboard** — Spielzeit, Verbindungen, Sessions, Top-Pattern, Top-Spiele, Max-Strength, Aufnahmen, Remote-Befehle
+- **Pattern-Editor** — Visueller 16-Schritt-Editor für eigene Wellenform-Pattern (Speichern/Laden/Abspielen)
+- **i18n (DE/EN)** — Sprachumschalter, data-i18n-Attribute, übersetzte UI-Strings
+- **Accessibility** — aria-label, aria-live, role-Attribute für Status/Sidebar/Panic
+
+### Geplant für v3.0.0
+- control-deck.js in Module aufteilen (wave-loop.js, patterns.js, sliders.js)
+- ES Modules Migration (Vite + import/export statt window-Globals)
+
 ## 2.2.0
 
 ### Fixes

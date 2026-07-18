@@ -579,6 +579,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
       updateAIDashboard();
+      if (typeof trackStat === "function" && AppState.activePattern) {
+        trackStat("pattern_used", AppState.activePattern);
+      }
       log(`Muster ge\u00e4ndert: ${AppState.activePattern || "Aus"}`, "info");
     });
   });

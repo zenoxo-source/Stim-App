@@ -786,6 +786,7 @@ document.addEventListener("DOMContentLoaded", () => {
       AppState.isConnected = true;
       AppState.reconnectAttempts = 0;
       AppState.lastB1Time = Date.now();
+      if (typeof trackStat === "function") trackStat("connection");
       log("Erfolgreich mit Coyote 3.0 verbunden!", "success");
       if (typeof unlockAchievement === "function") unlockAchievement("first_connect");
       setReconnectStatus("");
