@@ -83,3 +83,39 @@ describe("master scale edge cases", () => {
     assert.equal(ProtocolUtils.getDeviceStrength(200, 100, 0.8), 80);
   });
 });
+
+describe("settings export/import", () => {
+  it("exports without secrets and with format marker", () => {
+    const exp = ProtocolUtils.buildSettingsExport(
+      { softLimitA: 120, softLimitB: 90, masterScale: 0.5, swapChannels: true },
+      { aiProvider: "openrouter", aiModel: "test-model" }
+    );
+    assert.equal(exp.format, "stim-app-settings");
+    assert.equal(exp.settings.softLimitA, 120);
+    assert.equal(exp.settings.masterScale, 0.5);
+    assert.equal(exp.settings.aiProvider, "openrouter");
+    assert.equal(exp.settings.aiApiKey, undefined);
+  });
+
+  it("imports and clamps values, strips secrets", () => {
+    const raw = JSON.stringify({
+      settings: {
+        softLimitA: 999,
+        softLimitB: 1,
+        masterScale: 2,
+        aiApiKey: "secret-should-drop",
+        aiProvider: "ollama",
+      },
+    });
+    const s = ProtocolUtils.parseSettingsImport(raw);
+    assert.equal(s.softLimitA, 200);
+    assert.equal(s.softLimitB, 10);
+    assert.equal(s.masterScale, 1);
+    assert.equal(s.aiApiKey, undefined);
+    assert.equal(s.aiProvider, "ollama");
+  });
+
+  it("rejects invalid JSON", () => {
+    assert.throws(() => ProtocolUtils.parseSettingsImport("not-json"), /JSON|Ungültig/i);
+  });
+});

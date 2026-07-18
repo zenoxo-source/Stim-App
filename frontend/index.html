@@ -9,6 +9,37 @@
 </head>
 <body>
 
+  <!-- First-run onboarding -->
+  <div id="onboarding-overlay" class="onboarding-overlay" style="display:none;" aria-modal="true" role="dialog">
+    <div class="onboarding-card">
+      <div class="onboarding-step" data-step="0">
+        <h2>Willkommen bei Stim App</h2>
+        <p>Kurzer Einstieg: Sicherheit, Bluetooth und Notstopp. Du kannst das jederzeit überspringen.</p>
+      </div>
+      <div class="onboarding-step" data-step="1" style="display:none;">
+        <h2>1 · Soft-Limits setzen</h2>
+        <p>Unter <strong>Einstellungen</strong> Soft-Limits für Kanal A/B festlegen und mit niedriger Intensität starten. Der Master skaliert den Geräte-Output global.</p>
+      </div>
+      <div class="onboarding-step" data-step="2" style="display:none;">
+        <h2>2 · Bluetooth verbinden</h2>
+        <p>In der Sidebar <strong>Bluetooth Verbinden</strong> tippen und dein Coyote-Gerät (Prefix 47L121) auswählen. Der Status zeigt Verbindung und Reconnects.</p>
+      </div>
+      <div class="onboarding-step" data-step="3" style="display:none;">
+        <h2>3 · Panic / STOPP</h2>
+        <p>Rote Taste <strong>STOPP</strong>, <strong>Strg+Leertaste</strong> oder <strong>ESC lang</strong> setzen die Ausgabe sofort auf 0 – die Verbindung bleibt bestehen.</p>
+      </div>
+      <div class="onboarding-step" data-step="4" style="display:none;">
+        <h2>Fertig</h2>
+        <p>Du kannst Control Deck, STIM Player, Spiele und AI nutzen. Viel Spaß – und bleib im sicheren Bereich.</p>
+      </div>
+      <div class="onboarding-actions">
+        <button type="button" id="onboarding-skip" class="btn btn-secondary">Überspringen</button>
+        <div class="onboarding-dots" id="onboarding-dots"></div>
+        <button type="button" id="onboarding-next" class="btn">Weiter</button>
+      </div>
+    </div>
+  </div>
+
   <div class="app-container">
     
     <!-- Sidebar Navigation -->
@@ -678,6 +709,15 @@
                   <span style="color: var(--text-secondary);">Audio-Ausgabe aktivieren</span>
                   <input type="checkbox" id="check-settings-audio" checked style="width: 18px; height: 18px; cursor: pointer;">
                 </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+                  <button type="button" id="btn-export-settings" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Einstellungen exportieren</button>
+                  <button type="button" id="btn-import-settings" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Einstellungen importieren</button>
+                  <input type="file" id="input-import-settings" accept="application/json,.json" style="display:none;">
+                  <button type="button" id="btn-show-onboarding" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Einführung anzeigen</button>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+                  Export enthält Soft-Limits, Master, Frequenzen und AI-Endpoint – API-Keys werden nicht in die Datei geschrieben.
+                </p>
               </div>
             </div>
 
@@ -716,7 +756,7 @@
           <div class="card">
             <div class="card-title">
               <span>App-Updates</span>
-              <span id="app-version-text" style="font-size:11px; opacity:0.7;">v1.3.0</span>
+              <span id="app-version-text" style="font-size:11px; opacity:0.7;">v1.4.0</span>
             </div>
             <p id="update-status-text" style="font-size:13px; margin: 0 0 10px;">—</p>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -773,6 +813,7 @@
   <script src="js/modules/settings.js"></script>
   <script src="js/modules/safety.js"></script>
   <script src="js/modules/status-ui.js"></script>
+  <script src="js/modules/onboarding.js"></script>
   <script src="js/modules/sessions.js"></script>
   <script src="js/modules/updater-ui.js"></script>
   <script src="js/llm-service.js"></script>

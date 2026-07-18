@@ -45,6 +45,8 @@ module.exports = {
     updateOutputStatus: 'readonly',
     isOutputActive: 'readonly',
     applyAudioMasterLink: 'readonly',
+    showOnboarding: 'readonly',
+
     Blob: 'readonly',
     URL: 'readonly',
     URLSearchParams: 'readonly',

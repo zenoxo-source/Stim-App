@@ -47,11 +47,81 @@
     return n.includes("47L121") || n.toLowerCase().includes("coyote");
   }
 
+  /**
+   * Build a portable settings object (no secrets).
+   * @param {object} state partial AppState-like fields
+   * @param {object} aiFields provider/endpoint/model/prompt
+   */
+  function buildSettingsExport(state, aiFields) {
+    const s = state || {};
+    const ai = aiFields || {};
+    return {
+      format: "stim-app-settings",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      settings: {
+        softLimitA: Number(s.softLimitA) || 150,
+        softLimitB: Number(s.softLimitB) || 150,
+        masterScale: typeof s.masterScale === "number" ? s.masterScale : 1,
+        frequencyA: Number(s.frequencyA) || 45,
+        frequencyB: Number(s.frequencyB) || 45,
+        pulseWidthA: Number(s.pulseWidthA) || 15,
+        pulseWidthB: Number(s.pulseWidthB) || 15,
+        swapChannels: !!s.swapChannels,
+        audioHearSound: s.audioHearSound !== false,
+        aiProvider: ai.aiProvider || "ollama",
+        aiEndpoint: ai.aiEndpoint || "http://localhost:11434/v1/chat/completions",
+        aiModel: ai.aiModel || "qwen2.5",
+        aiSystemPrompt: ai.aiSystemPrompt || "",
+      },
+    };
+  }
+
+  function parseSettingsImport(raw) {
+    const data = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!data || typeof data !== "object") throw new Error("Ungültige Datei");
+    const settings = data.settings || data;
+    if (typeof settings !== "object") throw new Error("Keine settings gefunden");
+    // Strip secrets if present
+    delete settings.aiApiKey;
+    delete settings.githubToken;
+    delete settings.ghToken;
+    return {
+      softLimitA: clampInt(settings.softLimitA, 10, 200, 150),
+      softLimitB: clampInt(settings.softLimitB, 10, 200, 150),
+      masterScale: clampNum(settings.masterScale, 0, 1, 1),
+      frequencyA: clampInt(settings.frequencyA, 10, 240, 45),
+      frequencyB: clampInt(settings.frequencyB, 10, 240, 45),
+      pulseWidthA: clampInt(settings.pulseWidthA, 1, 100, 15),
+      pulseWidthB: clampInt(settings.pulseWidthB, 1, 100, 15),
+      swapChannels: !!settings.swapChannels,
+      audioHearSound: settings.audioHearSound !== false,
+      aiProvider: String(settings.aiProvider || "ollama"),
+      aiEndpoint: String(settings.aiEndpoint || "http://localhost:11434/v1/chat/completions"),
+      aiModel: String(settings.aiModel || "qwen2.5"),
+      aiSystemPrompt: String(settings.aiSystemPrompt || ""),
+    };
+  }
+
+  function clampInt(v, min, max, fallback) {
+    const n = parseInt(v, 10);
+    if (Number.isNaN(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
+  }
+
+  function clampNum(v, min, max, fallback) {
+    const n = parseFloat(v);
+    if (Number.isNaN(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
+  }
+
   return {
     getDeviceStrength,
     scaleWaveAmp,
     buildEmergencyStopBytes,
     escapeHtml,
     isCoyoteDeviceName,
+    buildSettingsExport,
+    parseSettingsImport,
   };
 });

@@ -38,9 +38,13 @@ jobs:
       # Build ONLY — never publish from electron-builder (avoids dual-release race
       # when nsis + portable both call the GitHub API simultaneously).
       - name: Build Windows packages
+        env:
+          # Optional code signing (repo secrets). Omit for unsigned builds.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         run: npm run build:app
 
-      # Remove any broken/duplicate releases for this tag (GITHUB_TOKEN has write)
+      # Remove any broken/duplicate releases for this tag + legacy broken tags
       - name: Remove previous release for tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -49,13 +53,20 @@ jobs:
         run: |
           set -e
           TAG="${GITHUB_REF_NAME}"
-          # Delete all releases that claim this tag (handles duplicates)
-          gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
-            --jq ".[] | select(.tag_name==\"${TAG}\") | .id" \
-            | while read -r id; do
-                echo "Deleting release id=${id} for tag ${TAG}"
-                gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/${id}" || true
-              done
+          cleanup_tag() {
+            local t="$1"
+            gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+              --jq ".[] | select(.tag_name==\"${t}\") | .id" \
+              | while read -r id; do
+                  echo "Deleting release id=${id} for tag ${t}"
+                  gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/${id}" || true
+                done
+          }
+          cleanup_tag "${TAG}"
+          # One-time hygiene: broken dual v1.3.0 releases from builder race
+          if [ "${TAG}" != "v1.3.0" ]; then
+            cleanup_tag "v1.3.0"
+          fi
 
       - name: Publish single GitHub Release
         uses: softprops/action-gh-release@v2

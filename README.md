@@ -3,7 +3,7 @@
 Electron-Desktop-App zur Bluetooth-Steuerung eines DG-LAB Coyote 3.0.
 
 **Repository:** [github.com/zenoxo-source/Stim-App](https://github.com/zenoxo-source/Stim-App)  
-**Version:** 1.3.0
+**Version:** 1.4.0
 
 ## Features
 
@@ -58,6 +58,13 @@ Artefakte: `backend/dist-app/StimApp-<version>-win-x64.exe`
 
 Soft-Limits setzen, niedrig starten. Panic stoppt die Ausgabe, trennt Bluetooth nicht.  
 Nutzung auf eigene Verantwortung.
+
+Beim ersten Start erscheint eine kurze **Einführung** (auch unter Einstellungen erneut aufrufbar).  
+Einstellungen lassen sich **exportieren/importieren** (ohne API-Keys).
+
+## Code Signing
+
+Optional – siehe [docs/CODE_SIGNING.md](./docs/CODE_SIGNING.md) (`CSC_LINK` / `CSC_KEY_PASSWORD`).
 
 ## Changelog
 

@@ -83,6 +83,7 @@ const AppState = {
 
   playlist: [],
   playlistIndex: -1,
+  onboardingStep: 0,
 
   btSeq: 0,
   btAwaitingAck: false,

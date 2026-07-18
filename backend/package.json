@@ -1,6 +1,6 @@
 {
   "name": "stim-app",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "Stim App – DG-LAB Coyote 3.0 Control Deck (Electron)",
   "author": "zenoxo-source",
   "main": "src/main.js",
@@ -18,7 +18,8 @@
     "lint": "eslint ../frontend/js src --ext .js -c .eslintrc.js --resolve-plugins-relative-to .",
     "lint:fix": "eslint ../frontend/js src --ext .js -c .eslintrc.js --resolve-plugins-relative-to . --fix",
     "format": "prettier --write \"../frontend/js/**/*.js\" \"src/**/*.js\"",
-    "test": "node scripts/run-tests.js"
+    "test": "node scripts/run-tests.js",
+    "icons": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-icons.ps1"
   },
   "engines": {
     "node": ">=24.0.0"
@@ -51,7 +52,7 @@
     ],
     "asar": true,
     "win": {
-      "icon": "assets/icon.png",
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -67,6 +68,10 @@
         }
       ],
       "artifactName": "${productName}-${version}-win-${arch}.${ext}",
+      "signingHashAlgorithms": [
+        "sha256"
+      ],
+      "signAndEditExecutable": true,
       "publish": [
         {
           "provider": "github",

@@ -19,6 +19,7 @@ const jsOrder = [
   'js/modules/settings.js',
   'js/modules/safety.js',
   'js/modules/status-ui.js',
+  'js/modules/onboarding.js',
   'js/modules/sessions.js',
   'js/modules/updater-ui.js',
   'js/llm-service.js',

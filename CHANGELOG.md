@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.0
+
+### Product polish
+- Multi-size Windows icon (ICO)
+- First-run onboarding (Safety, Bluetooth, Panic)
+- Settings export/import (JSON, ohne API-Keys)
+- Code-Signing-Dokumentation (`docs/CODE_SIGNING.md`)
+- Cleanup-Workflow für kaputte Doppel-Releases (v1.3.0)
+
 ## 1.3.1
 
 ### Fixes

@@ -1121,3 +1121,53 @@ input[type="range"]::-webkit-slider-thumb:hover {
   background: rgba(0,120,212,0.18);
   color: #9ecbff;
 }
+
+/* Onboarding */
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0,0,0,0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.onboarding-card {
+  width: min(480px, 100%);
+  background: var(--bg-surface-solid, #1e1e24);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.45);
+}
+.onboarding-card h2 {
+  margin: 0 0 10px;
+  font-size: 20px;
+}
+.onboarding-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.onboarding-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+}
+.onboarding-dots {
+  display: flex;
+  gap: 6px;
+}
+.onboarding-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+}
+.onboarding-dot.active {
+  background: var(--accent-primary);
+}

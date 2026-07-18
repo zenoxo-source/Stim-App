@@ -134,6 +134,45 @@ async function loadApiKeySecurely(settings) {
   if (DOM["ai-api-key"]) DOM["ai-api-key"].value = key;
 }
 
+function exportSettingsFile() {
+  const payload =
+    typeof ProtocolUtils !== "undefined"
+      ? ProtocolUtils.buildSettingsExport(AppState, {
+          aiProvider: DOM["ai-provider"]?.value,
+          aiEndpoint: DOM["ai-endpoint"]?.value,
+          aiModel: DOM["ai-model"]?.value,
+          aiSystemPrompt: DOM["ai-system-prompt"]?.value,
+        })
+      : { settings: loadSettings() };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `stim-app-settings-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  log("Einstellungen exportiert (ohne API-Keys).", "success");
+}
+
+async function importSettingsFromFile(file) {
+  const text = await file.text();
+  let parsed;
+  try {
+    parsed =
+      typeof ProtocolUtils !== "undefined"
+        ? ProtocolUtils.parseSettingsImport(text)
+        : { ...defaultSettings, ...JSON.parse(text).settings };
+  } catch (e) {
+    log(`Import fehlgeschlagen: ${e.message}`, "error");
+    return;
+  }
+  applySettings(parsed);
+  saveSettings();
+  log("Einstellungen importiert.", "success");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const settings = loadSettings();
   applySettings(settings);
@@ -146,7 +185,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (about) about.textContent = `Version ${v}`;
     });
   } else if (DOM["app-version-text"]) {
-    DOM["app-version-text"].textContent = "v1.3.0";
+    DOM["app-version-text"].textContent = "v1.4.0";
   }
 
   const saveEvents = ["input", "change"];
@@ -172,6 +211,16 @@ document.addEventListener("DOMContentLoaded", () => {
     if (el) {
       saveEvents.forEach((evt) => el.addEventListener(evt, saveSettings));
     }
+  });
+
+  document.getElementById("btn-export-settings")?.addEventListener("click", exportSettingsFile);
+  document.getElementById("btn-import-settings")?.addEventListener("click", () => {
+    document.getElementById("input-import-settings")?.click();
+  });
+  document.getElementById("input-import-settings")?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (file) importSettingsFromFile(file);
+    e.target.value = "";
   });
 });
 

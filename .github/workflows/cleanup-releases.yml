@@ -1,0 +1,38 @@
+name: Cleanup releases
+
+# Removes known-broken duplicate releases (e.g. dual v1.3.0 from builder race).
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete broken v1.3.0 releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAGS_TO_CLEAN=("v1.3.0")
+          for TAG in "${TAGS_TO_CLEAN[@]}"; do
+            # Only clean if a newer release exists (v1.3.1+)
+            if gh release view v1.3.1 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+              || gh release view v1.4.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "Cleaning releases for tag ${TAG}..."
+              gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+                --jq ".[] | select(.tag_name==\"${TAG}\") | .id" \
+                | while read -r id; do
+                    echo "Deleting release id=${id} tag=${TAG}"
+                    gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/${id}" || true
+                  done
+              # Keep git tag; only remove broken release objects
+            else
+              echo "Skip cleanup of ${TAG}: no newer release found yet"
+            fi
+          done
