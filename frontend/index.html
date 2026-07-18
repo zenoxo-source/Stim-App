@@ -916,6 +916,52 @@
               </div>
             </div>
 
+            <!-- Remote Server -->
+            <div class="card">
+              <div class="card-title">Remote-Server</div>
+              <div class="channel-box" style="gap: 12px; font-size: 14px;">
+                <p style="font-size: 13px; opacity: 0.75; margin: 0;">
+                  WebSocket-Server für externe Steuerung (z.B. Python, Node, andere Geräte).
+                </p>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span>Status:</span>
+                  <span id="remote-status" class="remote-status">gestoppt</span>
+                </div>
+                <div class="btn-row">
+                  <button type="button" id="btn-toggle-remote" class="btn btn-secondary btn-sm">Server starten</button>
+                </div>
+                <p class="settings-hint">
+                  Befehle: set_intensity, set_pattern, stop_pattern, stop_all, get_state, get_patterns.<br>
+                  Nur localhost (127.0.0.1:8080).
+                </p>
+              </div>
+            </div>
+
+            <!-- Session Recorder -->
+            <div class="card">
+              <div class="card-title">Session Recorder</div>
+              <div class="channel-box" style="gap: 12px; font-size: 14px;">
+                <p style="font-size: 13px; opacity: 0.75; margin: 0;">
+                  Zeichnet die Stimulation auf und spielt sie später wieder ab.
+                </p>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span>Status:</span>
+                  <span id="recorder-status" class="remote-status">Bereit</span>
+                </div>
+                <div id="recorder-info" style="font-size: 12px; opacity: 0.65;">Keine Aufnahme</div>
+                <div class="btn-row" style="flex-wrap: wrap; gap: 6px;">
+                  <button type="button" id="btn-recorder-toggle" class="btn btn-secondary btn-sm">Aufnahme starten</button>
+                  <button type="button" id="btn-recorder-play" class="btn btn-secondary btn-sm" disabled>Abspielen</button>
+                  <button type="button" id="btn-recorder-stop" class="btn btn-secondary btn-sm" disabled>Stop</button>
+                </div>
+                <div class="btn-row" style="gap: 6px;">
+                  <button type="button" id="btn-recorder-save" class="btn btn-secondary btn-sm" disabled>Speichern</button>
+                  <button type="button" id="btn-recorder-load" class="btn btn-secondary btn-sm">Laden</button>
+                  <input type="file" id="input-recorder-load" accept="application/json,.json" style="display:none;">
+                </div>
+              </div>
+            </div>
+
             <!-- AI -->
             <div class="card" style="grid-column: 1 / -1;">
               <div class="card-title">AI (LLM)</div>
@@ -1020,6 +1066,8 @@
   <script src="js/modules/onboarding.js"></script>
   <script src="js/modules/sessions.js"></script>
   <script src="js/modules/updater-ui.js"></script>
+  <script src="js/modules/remote.js"></script>
+  <script src="js/modules/recorder.js"></script>
   <script src="js/llm-service.js"></script>
 </body>
 </html>

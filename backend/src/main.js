@@ -12,6 +12,7 @@ const {
 const path = require("path");
 const fs = require("fs");
 const { autoUpdater } = require("electron-updater");
+const { startRemoteServer, stopRemoteServer, getRemoteStatus } = require("./remote-server");
 
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
@@ -491,6 +492,16 @@ function registerIpc() {
       return { ok: false, error: err.message };
     }
   });
+
+  // WebSocket remote server
+  ipcMain.handle("remote:start", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return { ok: false, error: "window not ready" };
+    }
+    return startRemoteServer(mainWindow);
+  });
+  ipcMain.handle("remote:stop", () => stopRemoteServer());
+  ipcMain.handle("remote:status", () => getRemoteStatus());
 }
 
 app.on("second-instance", () => {

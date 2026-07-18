@@ -30,7 +30,6 @@ const AppState = {
   activePattern: null,
 
   isBluetoothWriting: false,
-  pendingStrengthData: null,
   pendingWaveformData: null,
   swapChannels: false,
 

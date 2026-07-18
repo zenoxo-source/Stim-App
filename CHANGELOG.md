@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.2.0
+
+### Fixes
+- **B1-Strength-Feedback** — Gerät meldet externe Strength-Änderungen (z.B. physisches Rad), UI-Sliders aktualisieren sich automatisch
+- **Dead Code entfernt** — `pendingStrengthData` war nach v2.0.0 unbenutzt
+- **Protokoll-Kommentar korrigiert** — Mode-Bits sind 3-2 (A) und 1-0 (B), nicht 4-5/0-1
+
+### Quality of Life
+- **Exponentielles Backoff** — Reconnect-Delay 2s → 4s → 8s → 16s → 30s (max)
+- **Dynamisches Wave-Loop-Intervall** — 100ms aktiv, 500ms idle (spart CPU)
+
+### Features
+- **WebSocket Remote-Server** — `ws://127.0.0.1:8080` für externe Steuerung (Befehle: set_intensity, set_pattern, stop_all, get_state, get_patterns)
+- **Session Recorder** — Aufnahme + Replay der Stimulation als JSON, speicher/ladbar
+
 ## 2.1.0
 
 ### Tests & Plattform

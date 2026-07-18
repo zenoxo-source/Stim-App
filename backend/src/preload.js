@@ -21,4 +21,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("update-status", handler);
     return () => ipcRenderer.removeListener("update-status", handler);
   },
+  // WebSocket remote server
+  startRemote: () => ipcRenderer.invoke("remote:start"),
+  stopRemote: () => ipcRenderer.invoke("remote:stop"),
+  getRemoteStatus: () => ipcRenderer.invoke("remote:status"),
+  onRemoteCommand: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on("remote-command", handler);
+    return () => ipcRenderer.removeListener("remote-command", handler);
+  },
 });

@@ -70,15 +70,35 @@ document.addEventListener("DOMContentLoaded", () => {
   // ==========================================
 
   window.startWaveLoop = function () {
-    if (AppState.waveLoopInterval) clearInterval(AppState.waveLoopInterval);
+    if (AppState.waveLoopInterval) clearTimeout(AppState.waveLoopInterval);
 
     if (!AppState.aiVisRunning) {
       AppState.aiVisRunning = true;
       renderAIVisualizer();
     }
 
-    AppState.waveLoopInterval = setInterval(async () => {
-      if (!AppState.isConnected) return;
+    // Dynamic interval: 100ms when active, 500ms when idle (Fix 5)
+    function getLoopInterval() {
+      if (
+        AppState.activePattern ||
+        AppState.isAudioPlaying ||
+        AppState.reflexState === "SHOCKING" ||
+        (AppState.rhythmState && AppState.rhythmState !== "IDLE") ||
+        AppState.edgeState === "RUNNING" ||
+        AppState.potatoState === "LIVE" ||
+        AppState.potatoState === "BOOM" ||
+        AppState.survivalState === "RUNNING"
+      ) {
+        return CONSTANTS.WAVE_LOOP_INTERVAL_MS; // 100ms
+      }
+      return CONSTANTS.WAVE_LOOP_IDLE_MS || 500; // idle
+    }
+
+    async function waveLoopTick() {
+      if (!AppState.isConnected) {
+        AppState.waveLoopInterval = setTimeout(waveLoopTick, getLoopInterval());
+        return;
+      }
       AppState.loopTimeCounter += 1;
       updateHeartbeat();
 
@@ -320,12 +340,27 @@ document.addEventListener("DOMContentLoaded", () => {
         // Strength in 0xB0 packet controls actual output level.
         await sendWaveformCommand(AppState.frequencyA, 100, AppState.frequencyB, 100);
       }
-    }, CONSTANTS.WAVE_LOOP_INTERVAL_MS);
+
+      // Capture tick for session recorder (Fix 7)
+      if (typeof RECORDER !== "undefined" && RECORDER.recording) {
+        RECORDER.captureTick(
+          AppState.lastWaveFreqA || AppState.frequencyA,
+          AppState.lastWaveAmpA || 0,
+          AppState.lastWaveFreqB || AppState.frequencyB,
+          AppState.lastWaveAmpB || 0
+        );
+      }
+
+      // Dynamic interval: re-schedule with current delay (Fix 5)
+      AppState.waveLoopInterval = setTimeout(waveLoopTick, getLoopInterval());
+    }
+
+    AppState.waveLoopInterval = setTimeout(waveLoopTick, getLoopInterval());
   };
 
   window.stopWaveLoop = function () {
     if (AppState.waveLoopInterval) {
-      clearInterval(AppState.waveLoopInterval);
+      clearTimeout(AppState.waveLoopInterval);
       AppState.waveLoopInterval = null;
     }
   };

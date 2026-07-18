@@ -26,6 +26,8 @@ const jsOrder = [
   'js/modules/onboarding.js',
   'js/modules/sessions.js',
   'js/modules/updater-ui.js',
+  'js/modules/remote.js',
+  'js/modules/recorder.js',
   'js/llm-service.js',
 ];
 

@@ -5,8 +5,8 @@
 //   0xB0 packet (20 bytes): combined strength + waveform, sent every 100ms
 //     byte 0:  0xB0
 //     byte 1:  ((seq & 0x0f) << 4) | (mode & 0x0f)
-//               mode bits 4-5: channel A (0=none, 1=+delta, 2=-delta, 3=absolute)
-//               mode bits 0-1: channel B
+//               mode bits 3-2: channel A (0=none, 1=+delta, 2=-delta, 3=absolute)
+//               mode bits 1-0: channel B
 //     byte 2:  strengthA (0-200)
 //     byte 3:  strengthB (0-200)
 //     bytes 4-7:   frequency[4] for channel A (0=inactive, 10-240=active)
@@ -67,16 +67,9 @@ function sendBluetoothCommand(data) {
 async function drainBluetoothQueue() {
   if (AppState.isBluetoothWriting || !AppState.writeChar) return;
 
-  let dataToWrite = null;
-  if (AppState.pendingStrengthData) {
-    dataToWrite = AppState.pendingStrengthData;
-    AppState.pendingStrengthData = null;
-  } else if (AppState.pendingWaveformData) {
-    dataToWrite = AppState.pendingWaveformData;
-    AppState.pendingWaveformData = null;
-  } else {
-    return;
-  }
+  const dataToWrite = AppState.pendingWaveformData;
+  if (!dataToWrite) return;
+  AppState.pendingWaveformData = null;
 
   AppState.isBluetoothWriting = true;
   await sendBluetoothCommand(dataToWrite);
@@ -337,7 +330,6 @@ function sendSoftStop(opts = {}) {
     AppState.btAwaitingAck = false;
   }
 
-  AppState.pendingStrengthData = null;
   AppState.pendingWaveformData = data;
   drainBluetoothQueue();
 }
@@ -373,7 +365,6 @@ function sendV3EmergencyStop() {
 
   debugHex("B0-emergency", data);
 
-  AppState.pendingStrengthData = null;
   AppState.pendingWaveformData = data;
   drainBluetoothQueue();
 }
@@ -405,11 +396,32 @@ function handleDeviceNotification(event) {
   if (data[0] === 0xb1 && data.length >= 4) {
     AppState.lastB1Time = Date.now();
     const ackSeq = data[1];
+    const deviceStrA = data[2];
+    const deviceStrB = data[3];
     debugHex("B1-recv", data);
 
+    // ACK for our own B0 strength change — clear awaitingAck
     if (AppState.btAwaitingAck && ackSeq === AppState.btSeq) {
       AppState.btAwaitingAck = false;
       AppState.btSeq = 0;
+      // Our own change was applied — AppState already has the correct values
+      return;
+    }
+
+    // External strength change (e.g. physical wheel on the device).
+    // Update AppState and UI to match the device-reported strength.
+    if (deviceStrA !== AppState.strengthA || deviceStrB !== AppState.strengthB) {
+      log(`Ger\u00e4t-Strength extern ge\u00e4ndert: A=${deviceStrA} B=${deviceStrB}`, "info");
+      AppState.strengthA = deviceStrA;
+      AppState.strengthB = deviceStrB;
+      if (DOM["slider-intensity-a"]) DOM["slider-intensity-a"].value = deviceStrA;
+      if (DOM["intensity-circle-a"]) DOM["intensity-circle-a"].textContent = deviceStrA;
+      if (DOM["label-intensity-a"]) DOM["label-intensity-a"].textContent = deviceStrA;
+      if (DOM["slider-intensity-b"]) DOM["slider-intensity-b"].value = deviceStrB;
+      if (DOM["intensity-circle-b"]) DOM["intensity-circle-b"].textContent = deviceStrB;
+      if (DOM["label-intensity-b"]) DOM["label-intensity-b"].textContent = deviceStrB;
+      updateAIDashboard();
+      updateOutputStatus();
     }
   }
 }
@@ -492,14 +504,19 @@ function scheduleReconnect() {
   AppState.reconnectAttempts += 1;
   const attempt = AppState.reconnectAttempts;
   const max = CONSTANTS.MAX_RECONNECT_ATTEMPTS;
-  const secs = CONSTANTS.RECONNECT_DELAY_MS / 1000;
+  // Exponential backoff: base * 2^(attempt-1), capped at max
+  const delay = Math.min(
+    CONSTANTS.RECONNECT_DELAY_MAX_MS,
+    CONSTANTS.RECONNECT_DELAY_BASE_MS * Math.pow(2, attempt - 1)
+  );
+  const secs = (delay / 1000).toFixed(1);
   log(`Versuche Reconnect in ${secs}s (Versuch ${attempt}/${max})...`, "warning");
   setReconnectStatus(`Reconnect ${attempt}/${max} in ${secs}s…`);
   AppState.reconnectTimer = setTimeout(() => {
     AppState.reconnectTimer = null;
     setReconnectStatus(`Reconnect ${attempt}/${max} läuft…`);
     DOM["btn-connect"]?.click();
-  }, CONSTANTS.RECONNECT_DELAY_MS);
+  }, delay);
 }
 
 function clearReconnect() {
