@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.9.1
+
+### Bugfixes (V3 BLE-Protokoll)
+- **V3_MODE_ABSOLUTE_BOTH** von `0x33` auf `0x0F` korrigiert — Kanal A wurde zuvor nie absolut gesteuert
+- **B1-ACK-Handler** vereinfacht: entfernt fehlerhaftes `>> 4` beim Seq-Vergleich
+
 ## 1.9.0
 
 ### UX & Hardware-Klarheit
