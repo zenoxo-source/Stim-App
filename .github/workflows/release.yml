@@ -107,13 +107,16 @@ jobs:
         run: npm test
 
       - name: Build macOS packages
+        continue-on-error: true
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          DEBUG: "electron-builder"
         run: npm run build:app
 
       - name: Publish macOS artifacts to release
+        if: always()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
@@ -174,9 +177,13 @@ jobs:
         run: npm test
 
       - name: Build Linux packages
+        continue-on-error: true
+        env:
+          DEBUG: "electron-builder"
         run: npm run build:app
 
       - name: Publish Linux artifacts to release
+        if: always()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
