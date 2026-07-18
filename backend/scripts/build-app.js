@@ -12,9 +12,9 @@ const publish = process.argv.includes('--publish');
 
 function detectPlatform() {
   const platform = os.platform();
-  if (platform === 'win32') return ['--win', '--x64'];
-  if (platform === 'darwin') return ['--mac', '--x64', '--arm64'];
-  return ['--linux', '--x64'];
+  if (platform === "win32") return ["--win", "--x64"];
+  if (platform === "darwin") return ["--mac"];
+  return ["--linux", "--x64"];
 }
 
 function switchToProductionBundle(frontendRoot) {

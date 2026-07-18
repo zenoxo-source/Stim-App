@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.2
+
+### Bugfix: Linux/macOS Release Build (2. Versuch)
+- **Linux**: Systempaket-Namen auf Ubuntu 24.04 aktualisiert (`libgtk-3-0t64`, `libfuse2t64`, etc.)
+- **macOS**: `CSC_IDENTITY_AUTO_DISCOVERY=false` gesetzt, Icon auf `build/icon.png` konfiguriert, `--x64 --arm64` aus Build-Args entfernt
+- **build-app.js**: macOS baut nur `--mac` (Architekturen kommen aus electron-builder config)
+
 ## 2.5.1
 
 ### Bugfix: Linux/macOS Build
