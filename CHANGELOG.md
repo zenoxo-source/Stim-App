@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.1
+
+### Bugfix: Linux/macOS Build
+- **build-app.js** erkennt jetzt die Plattform (`os.platform()`) und baut `--linux`/`--mac`/`--win` statt immer `--win --x64`
+- **Linux-Systemabhängigkeiten** im Release-Workflow installiert (`libgtk-3-0`, `libfuse2`, etc.)
+- **`.github/workflows/release.yml`** im Repository hinterlegt (vorher nur auf GitHub Web UI)
+
 ## 2.5.0
 
 ### Pattern Editor ausgebaut

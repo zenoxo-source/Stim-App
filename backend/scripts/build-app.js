@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const childProcess = require('child_process');
+const os = require('os');
 
 const rootDir = path.resolve(__dirname, '..', '..');
 const backendDir = path.resolve(__dirname, '..');
@@ -8,6 +9,13 @@ const srcFrontend = path.join(rootDir, 'frontend');
 const destFrontend = path.join(backendDir, 'frontend');
 
 const publish = process.argv.includes('--publish');
+
+function detectPlatform() {
+  const platform = os.platform();
+  if (platform === 'win32') return ['--win', '--x64'];
+  if (platform === 'darwin') return ['--mac', '--x64', '--arm64'];
+  return ['--linux', '--x64'];
+}
 
 function switchToProductionBundle(frontendRoot) {
   const indexPath = path.join(frontendRoot, 'index.html');
@@ -48,7 +56,8 @@ function prepareFrontend() {
 }
 
 function runBuilder() {
-  const args = ['electron-builder', '--win', '--x64'];
+  const platformArgs = detectPlatform();
+  const args = ['electron-builder', ...platformArgs];
   if (publish) {
     args.push('--publish', 'always');
     if (!process.env.GH_TOKEN && !process.env.GITHUB_TOKEN) {
