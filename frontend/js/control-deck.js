@@ -262,10 +262,9 @@ export function startWaveLoop() {
       let mappedFreqA = CONSTANTS.DEFAULT_FREQUENCY;
       if (maxValA > 20) {
         const logical = 10 + maxBinA * 8; // ~10–1000-ish range
-        mappedFreqA =
-          typeof ProtocolUtils !== "undefined" && ProtocolUtils.encodeWaveFreqLogical
-            ? ProtocolUtils.encodeWaveFreqLogical(logical)
-            : Math.max(10, Math.min(240, Math.round(logical)));
+        mappedFreqA = ProtocolUtils.encodeWaveFreqLogical
+          ? ProtocolUtils.encodeWaveFreqLogical(logical)
+          : Math.max(10, Math.min(240, Math.round(logical)));
       }
 
       let ampA = Math.round(peakA * 100 * AppState.sensitivityA);
@@ -279,7 +278,7 @@ export function startWaveLoop() {
       if (DOM["visualizer-val-a"]) DOM["visualizer-val-a"].textContent = `${ampA}%`;
       if (DOM["visualizer-val-b"]) DOM["visualizer-val-b"].textContent = `${ampB}%`;
     } else if (AppState.reflexState === "SHOCKING") {
-      const shockFreq = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.shockFreq : 80;
+      const shockFreq = GAME_CONFIG.data.shockFreq;
       await sendWaveformCommand(
         shockFreq,
         AppState.reflexShockVal,
@@ -302,7 +301,7 @@ export function startWaveLoop() {
     }
 
     // Capture tick for session recorder (Fix 7)
-    if (typeof RECORDER !== "undefined" && RECORDER.recording) {
+    if (RECORDER.recording) {
       RECORDER.captureTick(
         AppState.lastWaveFreqA || AppState.frequencyA,
         AppState.lastWaveAmpA || 0,
@@ -381,7 +380,7 @@ export function updateSlidersB(val) {
 }
 
 function freqLabel(wire) {
-  if (typeof ProtocolUtils !== "undefined" && ProtocolUtils.waveFreqLabel) {
+  if (ProtocolUtils.waveFreqLabel) {
     return `${wire} · ${ProtocolUtils.waveFreqLabel(wire)}`;
   }
   return String(wire);
@@ -404,10 +403,9 @@ export function syncFreqUI(channel) {
 }
 
 export function setChannelFreq(channel, value, source) {
-  const wire =
-    typeof ProtocolUtils !== "undefined" && ProtocolUtils.clampWireFreq
-      ? ProtocolUtils.clampWireFreq(value)
-      : Math.max(10, Math.min(240, Math.round(Number(value) || 45)));
+  const wire = ProtocolUtils.clampWireFreq
+    ? ProtocolUtils.clampWireFreq(value)
+    : Math.max(10, Math.min(240, Math.round(Number(value) || 45)));
   if (channel === "A") AppState.frequencyA = wire;
   else AppState.frequencyB = wire;
   syncFreqUI(channel);
@@ -483,7 +481,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (tabName === "editor") {
         startEditorVisualizers();
-        if (typeof PATTERN_EDITOR2 !== "undefined" && PATTERN_EDITOR2.updateUI) {
+        if (PATTERN_EDITOR2.updateUI) {
           setTimeout(() => {
             PATTERN_EDITOR2.updateUI();
             PATTERN_EDITOR2.renderSavedList();

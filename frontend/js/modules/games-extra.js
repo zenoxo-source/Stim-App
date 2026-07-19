@@ -14,7 +14,7 @@ import { playGameSfx, unlockAchievement } from "./fun.js";
  * Uses GAME_CONFIG.baseStrength if available.
  */
 export function ensureGameStrength(minLevel) {
-  const cfgBase = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.effectiveBaseStrength() : 40;
+  const cfgBase = GAME_CONFIG.effectiveBaseStrength();
   const min = minLevel != null ? Math.max(10, Math.min(80, Number(minLevel) || 40)) : cfgBase;
   const targetA = Math.min(AppState.softLimitA, Math.max(AppState.strengthA || 0, min));
   const targetB = Math.min(AppState.softLimitB, Math.max(AppState.strengthB || 0, min));
@@ -77,7 +77,7 @@ function requireConnectedForGame() {
 export function beginMiniGame(arenaId) {
   if (!requireConnectedForGame()) return false;
   hideGameSelectors();
-  const baseStr = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.effectiveBaseStrength() : 40;
+  const baseStr = GAME_CONFIG.effectiveBaseStrength();
   ensureGameStrength(baseStr);
   const arena = document.getElementById(arenaId);
   if (arena) arena.style.display = "flex";
@@ -90,7 +90,7 @@ function gameWaveOff() {
 }
 
 function gameShock(amp, ms = 280) {
-  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG : null;
+  const cfg = GAME_CONFIG;
   const baseStr = cfg ? cfg.effectiveBaseStrength() : 35;
   ensureGameStrength(baseStr);
   const rawAmp = cfg ? cfg.clampAmp(amp) : Math.min(100, Math.max(10, Math.round(amp)));
@@ -100,7 +100,7 @@ function gameShock(amp, ms = 280) {
 }
 
 function gameTickle(amp = 12, ms = 100) {
-  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG : null;
+  const cfg = GAME_CONFIG;
   const baseStr = cfg ? Math.max(25, cfg.effectiveBaseStrength() * 0.6) : 25;
   ensureGameStrength(baseStr);
   const rawAmp = cfg ? cfg.clampRewardAmp(amp) : amp;
@@ -123,8 +123,8 @@ export function stopEdgeGame() {
 }
 
 function startEdgeRound() {
-  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.edge : null;
-  const baseStr = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.effectiveBaseStrength() : 35;
+  const cfg = GAME_CONFIG.data.edge;
+  const baseStr = GAME_CONFIG.effectiveBaseStrength();
   ensureGameStrength(baseStr);
   AppState.edgeState = "RUNNING";
   AppState.edgeHolding = false;
@@ -145,7 +145,7 @@ function startEdgeRound() {
 
 function edgeLoop() {
   if (AppState.edgeState !== "RUNNING") return;
-  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.edge : null;
+  const cfg = GAME_CONFIG.data.edge;
   const riseSpeed = cfg ? cfg.riseSpeed : 0.035;
   const fallSpeed = cfg ? cfg.fallSpeed : 0.05;
   const ampScale = cfg ? cfg.ampScale : 55;
@@ -249,7 +249,7 @@ export function stopPotatoGame() {
 }
 
 function startPotatoRound() {
-  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.potato : null;
+  const cfg = GAME_CONFIG.data.potato;
   AppState.potatoState = "LIVE";
   AppState.potatoScore = AppState.potatoScore || 0;
   AppState.potatoRound = (AppState.potatoRound || 0) + 1;
@@ -293,7 +293,7 @@ function startPotatoRound() {
 function potatoPass() {
   if (AppState.potatoState !== "LIVE") return;
   AppState.potatoScore += 1;
-  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.potato : null;
+  const cfg = GAME_CONFIG.data.potato;
   const tickleAmp = cfg ? cfg.tickleAmp : 18;
   gameTickle(tickleAmp, 90);
   playGameSfx("hit");
@@ -320,7 +320,7 @@ function potatoPass() {
 function potatoExplode() {
   if (AppState.potatoState !== "LIVE") return;
   AppState.potatoState = "BOOM";
-  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.potato : null;
+  const cfg = GAME_CONFIG.data.potato;
   const explodeBase = cfg ? cfg.explodeBase : 30;
   const explodePerRound = cfg ? cfg.explodePerRound : 3;
   const explodeMax = cfg ? cfg.explodeMax : 80;
@@ -354,7 +354,7 @@ function handlePotatoKey(channel) {
   if (channel === AppState.potatoChannel) potatoPass();
   else {
     // Wrong channel = mild shock, continue
-    const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.potato : null;
+    const cfg = GAME_CONFIG.data.potato;
     const wrongAmp = cfg ? cfg.wrongChannelAmp : 35;
     gameShock(wrongAmp, 200);
     playGameSfx("fail");
@@ -393,7 +393,7 @@ export function stopSurvivalGame(record = false) {
 
 function survivalLoop() {
   if (AppState.survivalState !== "RUNNING") return;
-  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.survival : null;
+  const cfg = GAME_CONFIG.data.survival;
   const maxLevel = cfg ? cfg.maxLevel : 70;
   const rampSpeed = cfg ? cfg.rampSpeed : 1.35;
   const startLevel = cfg ? cfg.startLevel : 8;
@@ -431,9 +431,9 @@ function survivalLoop() {
 }
 
 function startSurvivalRound() {
-  const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.survival : null;
+  const cfg = GAME_CONFIG.data.survival;
   const startLevel = cfg ? cfg.startLevel : 8;
-  const baseStr = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.effectiveBaseStrength() : 30;
+  const baseStr = GAME_CONFIG.effectiveBaseStrength();
   ensureGameStrength(baseStr);
   AppState.survivalState = "RUNNING";
   AppState.survivalScore = 0;

@@ -41,13 +41,12 @@ const baseOptions = {
 };
 
 async function build() {
-  // Raw dev bundle (readable, with source map)
+  // Raw dev bundle (readable)
   console.log("esbuild: dev bundle...");
   await esbuild.build({
     ...baseOptions,
     outfile: rawOut,
     minify: false,
-    sourcemap: "linked",
   });
   const rawSize = fs.statSync(rawOut).size;
   console.log(`esbuild: wrote ${rawOut} (${rawSize} bytes)`);
@@ -58,7 +57,6 @@ async function build() {
     ...baseOptions,
     outfile: minOut,
     minify: true,
-    sourcemap: false,
     legalComments: "none",
   });
   const minSize = fs.statSync(minOut).size;
@@ -72,7 +70,6 @@ if (watch) {
       ...baseOptions,
       outfile: minOut,
       minify: false,
-      sourcemap: "linked",
     });
     await ctx.watch();
     console.log("esbuild: watching for changes...");

@@ -31,7 +31,7 @@ import { unlockAchievement } from "./fun.js";
 // ---------------------------------------------------------------------------
 function debugHex(label, data) {
   if (!AppState.debugMode) return;
-  const hex = typeof ProtocolUtils !== "undefined" ? ProtocolUtils.bytesToHex(data) : "";
+  const hex = ProtocolUtils.bytesToHex(data);
   log(`[BLE-DEBUG] ${label}: ${hex}`, "info");
 }
 
@@ -108,11 +108,7 @@ export function sendV3Init() {
 
 function getDeviceStrength(val, softLimit) {
   // UI/logical intensity stays unscaled; masterScale applies only to device output.
-  if (typeof ProtocolUtils !== "undefined") {
-    return ProtocolUtils.getDeviceStrength(val, softLimit, AppState.masterScale);
-  }
-  const clamped = Math.min(softLimit, Math.max(0, Math.round(val)));
-  return Math.min(200, Math.max(0, Math.round(clamped * AppState.masterScale)));
+  return ProtocolUtils.getDeviceStrength(val, softLimit, AppState.masterScale);
 }
 
 // ---------------------------------------------------------------------------
@@ -139,43 +135,15 @@ export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
   const o = opts || {};
 
   // Pulse-width sliders scale logical wave amplitude (0–100%)
-  const logicalA =
-    typeof ProtocolUtils !== "undefined"
-      ? ProtocolUtils.applyPulseWidthScale(ampA, AppState.pulseWidthA)
-      : Math.round((Number(ampA) || 0) * ((AppState.pulseWidthA ?? 100) / 100));
-  const logicalB =
-    typeof ProtocolUtils !== "undefined"
-      ? ProtocolUtils.applyPulseWidthScale(ampB, AppState.pulseWidthB)
-      : Math.round((Number(ampB) || 0) * ((AppState.pulseWidthB ?? 100) / 100));
+  const logicalA = ProtocolUtils.applyPulseWidthScale(ampA, AppState.pulseWidthA);
+  const logicalB = ProtocolUtils.applyPulseWidthScale(ampB, AppState.pulseWidthB);
 
   // Master scale on wave amplitudes
-  const scaledA =
-    typeof ProtocolUtils !== "undefined"
-      ? ProtocolUtils.scaleWaveAmp(logicalA, AppState.masterScale)
-      : Math.min(100, Math.max(0, Math.round(logicalA * AppState.masterScale)));
-  const scaledB =
-    typeof ProtocolUtils !== "undefined"
-      ? ProtocolUtils.scaleWaveAmp(logicalB, AppState.masterScale)
-      : Math.min(100, Math.max(0, Math.round(logicalB * AppState.masterScale)));
+  const scaledA = ProtocolUtils.scaleWaveAmp(logicalA, AppState.masterScale);
+  const scaledB = ProtocolUtils.scaleWaveAmp(logicalB, AppState.masterScale);
 
-  let segA =
-    typeof ProtocolUtils !== "undefined"
-      ? ProtocolUtils.resolveWaveSegment(freqA, scaledA)
-      : scaledA <= 0
-        ? { freq: 0, intensity: 101 }
-        : {
-            freq: Math.max(10, Math.min(240, Math.round(freqA))),
-            intensity: Math.min(100, scaledA),
-          };
-  let segB =
-    typeof ProtocolUtils !== "undefined"
-      ? ProtocolUtils.resolveWaveSegment(freqB, scaledB)
-      : scaledB <= 0
-        ? { freq: 0, intensity: 101 }
-        : {
-            freq: Math.max(10, Math.min(240, Math.round(freqB))),
-            intensity: Math.min(100, scaledB),
-          };
+  let segA = ProtocolUtils.resolveWaveSegment(freqA, scaledA);
+  let segB = ProtocolUtils.resolveWaveSegment(freqB, scaledB);
 
   if (AppState.swapChannels) {
     const tmpSeg = segA;
@@ -238,7 +206,7 @@ export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
   data[2] = strA;
   data[3] = strB;
 
-  if (typeof ProtocolUtils !== "undefined" && ProtocolUtils.fillChannelWave) {
+  if (ProtocolUtils.fillChannelWave) {
     ProtocolUtils.fillChannelWave(data, 4, 8, segA.freq, segA.intensity);
     ProtocolUtils.fillChannelWave(data, 12, 16, segB.freq, segB.intensity);
   } else {
@@ -298,25 +266,11 @@ export function sendSoftStop(opts = {}) {
   const strA = keepStrength ? getDeviceStrength(AppState.strengthA, AppState.softLimitA) : 0;
   const strB = keepStrength ? getDeviceStrength(AppState.strengthB, AppState.softLimitB) : 0;
 
-  const data =
-    typeof ProtocolUtils !== "undefined"
-      ? ProtocolUtils.buildSoftStopBytes({
-          strengthA: strA,
-          strengthB: strB,
-          modeNibble: keepStrength ? 0 : 0x0f,
-        })
-      : (() => {
-          const d = new Uint8Array(20);
-          d[0] = 0xb0;
-          d[1] = keepStrength ? 0 : 0x0f;
-          d[2] = strA;
-          d[3] = strB;
-          for (let i = 4; i <= 7; i++) d[i] = 0;
-          for (let i = 8; i <= 11; i++) d[i] = 101;
-          for (let i = 12; i <= 15; i++) d[i] = 0;
-          for (let i = 16; i <= 19; i++) d[i] = 101;
-          return d;
-        })();
+  const data = ProtocolUtils.buildSoftStopBytes({
+    strengthA: strA,
+    strengthB: strB,
+    modeNibble: keepStrength ? 0 : 0x0f,
+  });
 
   debugHex("B0-soft-stop", data);
 
@@ -353,21 +307,7 @@ export function sendV3EmergencyStop() {
   AppState._lastSentStrA = 0;
   AppState._lastSentStrB = 0;
 
-  const data =
-    typeof ProtocolUtils !== "undefined"
-      ? ProtocolUtils.buildEmergencyStopBytes()
-      : (() => {
-          const d = new Uint8Array(20);
-          d[0] = 0xb0;
-          d[1] = 0x0f;
-          d[2] = 0;
-          d[3] = 0;
-          for (let i = 4; i <= 7; i++) d[i] = 0;
-          for (let i = 8; i <= 11; i++) d[i] = 101;
-          for (let i = 12; i <= 15; i++) d[i] = 0;
-          for (let i = 16; i <= 19; i++) d[i] = 101;
-          return d;
-        })();
+  const data = ProtocolUtils.buildEmergencyStopBytes();
 
   debugHex("B0-emergency", data);
 
@@ -474,13 +414,7 @@ function setDeviceListHint(names) {
 }
 
 function escapeBtHtml(value) {
-  if (typeof ProtocolUtils !== "undefined" && ProtocolUtils.escapeHtml) {
-    return ProtocolUtils.escapeHtml(value);
-  }
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return ProtocolUtils.escapeHtml(value);
 }
 
 function friendlyBtError(err) {
@@ -596,52 +530,7 @@ export function resetUIOnDisconnect() {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Fix 3: Module registry validation
-// ---------------------------------------------------------------------------
-export function validateModules() {
-  const required = [
-    "AppState",
-    "DOM",
-    "CONSTANTS",
-    "ProtocolUtils",
-    "log",
-    "sendWaveformCommand",
-    "sendStrengthCommand",
-    "sendSoftStop",
-    "sendV3Init",
-    "sendV3EmergencyStop",
-    "startWaveLoop",
-    "stopWaveLoop",
-    "updateSlidersA",
-    "updateSlidersB",
-    "setChannelFreq",
-    "syncFreqUI",
-    "updateOutputStatus",
-    "killAllOutput",
-    "loadSettings",
-    "saveSettings",
-    "applySettings",
-    "updateAIDashboard",
-    "SESSION_STATE",
-    "SESSIONS",
-    "updateSessionUI",
-    "renderAIVisualizer",
-    "unlockAchievement",
-    "ensureGameStrength",
-    "sendB0Now",
-  ];
-  const missing = required.filter((name) => typeof window[name] === "undefined");
-  if (missing.length > 0) {
-    console.warn("Module validation — missing globals:", missing);
-  }
-  return missing.length === 0;
-}
-
 document.addEventListener("DOMContentLoaded", () => {
-  // Validate all modules loaded (Fix 3)
-  setTimeout(validateModules, 100);
-
   DOM["check-swap-channels"]?.addEventListener("change", (e) => {
     AppState.swapChannels = e.target.checked;
     log(`Kan\u00e4le tauschen: ${AppState.swapChannels ? "Aktiv" : "Inaktiv"}`, "info");

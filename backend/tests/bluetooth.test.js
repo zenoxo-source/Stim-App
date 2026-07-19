@@ -17,7 +17,6 @@ import {
   sendV3Init,
   sendV3EmergencyStop,
   updateHeartbeat,
-  validateModules,
 } from "../../frontend/js/modules/bluetooth.js";
 
 const writes = [];
@@ -254,13 +253,6 @@ describe("bluetooth.js", () => {
       AppState.btAwaitingAck = true;
       AppState.btSeq = 3;
       assert.equal(AppState.btSeq, 3);
-    });
-  });
-
-  describe("validateModules", () => {
-    it("returns a boolean", () => {
-      const ok = validateModules();
-      assert.equal(typeof ok, "boolean");
     });
   });
 

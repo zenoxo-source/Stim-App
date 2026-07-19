@@ -12,7 +12,7 @@ function gameWaveOff() {
 
 // Helper to read reflex config with fallback
 function reflexCfg() {
-  return typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.reflex : null;
+  return GAME_CONFIG.data.reflex;
 }
 
 // ========== REFLEX TRAINER ==========
@@ -229,12 +229,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Helper to read rhythm config with fallback
 function rhythmCfg() {
-  return typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.rhythm : null;
+  return GAME_CONFIG.data.rhythm;
 }
 
 function startRhythmPlaying() {
   const cfg = rhythmCfg();
-  const baseStr = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.effectiveBaseStrength() : 35;
+  const baseStr = GAME_CONFIG.effectiveBaseStrength();
   ensureGameStrength(baseStr);
   AppState.rhythmState = "PLAYING";
   if (DOM["rhythm-start-prompt"]) DOM["rhythm-start-prompt"].style.display = "none";
@@ -265,7 +265,7 @@ function startRhythmPlaying() {
     }
 
     if (AppState.rhythmBeatsArray[nodeIndex]) {
-      const tickleFreq = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.tickleFreq : 40;
+      const tickleFreq = GAME_CONFIG.data.tickleFreq;
       sendWaveformCommand(tickleFreq, beatAmp, tickleFreq, beatAmp);
 
       setTimeout(() => {
@@ -289,7 +289,7 @@ function stopRhythmGame() {
 function handleRhythmTap() {
   if (AppState.rhythmState !== "PLAYING") return;
   const cfg = rhythmCfg();
-  const gc = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data : null;
+  const gc = GAME_CONFIG.data;
   const hitWindow = cfg ? cfg.hitWindowMs : CONSTANTS.RHYTHM_HIT_WINDOW_MS;
   const maxMult = cfg ? cfg.maxMultiplier : CONSTANTS.RHYTHM_MAX_MULTIPLIER;
 
@@ -327,8 +327,7 @@ function handleRhythmTap() {
 
     const rewardFreq = gc ? gc.rewardFreq : 150;
     const hitAmp = cfg ? cfg.hitAmp : 15;
-    const scaledHitAmp =
-      typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.clampRewardAmp(hitAmp) : hitAmp;
+    const scaledHitAmp = GAME_CONFIG.clampRewardAmp(hitAmp);
     sendWaveformCommand(rewardFreq, scaledHitAmp, rewardFreq, scaledHitAmp);
     setTimeout(() => {
       if (AppState.rhythmState === "PLAYING") gameWaveOff();
@@ -349,8 +348,7 @@ function handleRhythmTap() {
 
     const shockFreq = gc ? gc.shockFreq : CONSTANTS.DEFAULT_FREQUENCY;
     const missAmp = cfg ? cfg.missAmp : AppState.rhythmShockVal;
-    const scaledMissAmp =
-      typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.clampAmp(missAmp) : missAmp;
+    const scaledMissAmp = GAME_CONFIG.clampAmp(missAmp);
     sendWaveformCommand(shockFreq, scaledMissAmp, shockFreq, scaledMissAmp);
     playGameSfx("fail");
     log("Rhythm: Beat verpasst! Strafe gesendet.", "warning");

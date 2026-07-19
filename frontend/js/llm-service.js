@@ -15,15 +15,7 @@ import {
 let chatHistory = [];
 
 function escapeHtml(value) {
-  if (typeof ProtocolUtils !== "undefined" && ProtocolUtils.escapeHtml) {
-    return ProtocolUtils.escapeHtml(value);
-  }
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+  return ProtocolUtils.escapeHtml(value);
 }
 
 // Inject typing indicator animation styles
