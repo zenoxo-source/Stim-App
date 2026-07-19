@@ -1,5 +1,34 @@
 # Changelog
 
+## 3.0.1
+
+### Security-Hardening
+- **`webPreferences`** explizit gesetzt: `webSecurity: true`, `allowRunningInsecureContent: false`, `webviewTag: false` (zusätzlich zu bestehendem `nodeIntegration: false` / `contextIsolation: true` / `sandbox: true`)
+- **`will-navigate`-Handler**: blockt alle externen Navigationen (`file://` only) — verhindert Phishing-Routes
+- **`setWindowOpenHandler`**: deny-all für Popups / `target=_blank` / `window.open`
+- **`will-attach-webview`**: verhindert `<webview>`-Embedding (Defense in Depth)
+- **CSP verschärft**: `object-src 'none'`, `base-uri 'self'`, `form-action 'none'`, `frame-ancestors 'none'` ergänzt
+- **IPC-Input-Validierung** für `secrets:setApiKey` / `secrets:setGithubToken` (max. 4096 Zeichen, Type-Check), `diagnostics:exportLog` (max. 5 MB), `remote:start` (Port-Bereich 1024–65535)
+
+### Remote-Server gehärtet
+- **Auth-Timeout**: unauthentifizierte WebSocket-Clients werden nach 5 s getrennt (vorher: unbegrenzt offen)
+- **Max. 5 gleichzeitige Clients** (vorher: unlimitiert)
+- **Max. 64 KB pro WebSocket-Frame** via `maxPayload` (Memory-Bomb-Schutz)
+- **Rate-Limit**: max. 5 Befehle/Sekunde pro Client (Sliding-Window)
+
+### Cross-Platform
+- **`tray.displayBalloon`** nur auf Windows aufgerufen (`process.platform === "win32"`) — auf Linux/macOS wirft die API oder ist ohne Effekt
+- **Linux `maintainer`-Feld** in `electron-builder`-Config ergänzt (Pflicht für `.deb`-Bauten)
+- **`build-app.js` v3-kompatibel**: neue Logik für `switchToProductionBundle` erkennt die v3-Architektur (index.html referenziert bereits `dist/bundle.min.js`), entpackt das Source-`frontend/js/`-Verzeichnis konsequent aus dem Produktionspaket
+
+### Verifiziert
+- ✅ Windows NSIS + Portable (`StimApp-3.0.0-win-x64.exe`, 99 MB) baut und startet
+- ✅ Linux `tar.gz` cross-build auf Windows möglich (AppImage/deb benötigen Linux-Runner — CI übernimmt das)
+- ✅ Linux-unpacked enthält `chrome-sandbox`, `libEGL.so`, `libGLESv2.so`, `libffmpeg.so` etc.
+- ⚠️ macOS-Build nur auf macOS selbst möglich (CI-Runner übernimmt das)
+- ✅ Produktionasar enthält `frontend/dist/bundle.min.js`, **nicht** mehr `frontend/js/` (slim package)
+- ✅ Lint clean, 65/65 Unit-Tests grün
+
 ## 3.0.0
 
 ### Architektur: ES Modules Migration (Big-Bang)

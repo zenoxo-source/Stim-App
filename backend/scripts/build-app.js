@@ -21,22 +21,32 @@ function switchToProductionBundle(frontendRoot) {
   const indexPath = path.join(frontendRoot, 'index.html');
   let html = fs.readFileSync(indexPath, 'utf8');
 
-  const scriptBlockRe = /(?:\s*<script src="js\/[^"]+"><\/script>\s*)+/g;
-  const productionScripts = '\n  <script src="dist/bundle.min.js"></script>\n';
-  if (!scriptBlockRe.test(html)) {
-    console.warn('Could not locate script block in index.html for production swap.');
-    return;
+  // v3 architecture: index.html already references a single bundled script.
+  // Just verify that's the case — no swap needed.
+  if (html.includes('dist/bundle.min.js')) {
+    console.log('index.html already references dist/bundle.min.js (v3 architecture).');
+  } else {
+    // Legacy v2 fallback: many separate <script src="js/..."> tags → swap to bundle.
+    const scriptBlockRe = /(?:\s*<script src="js\/[^"]+"><\/script>\s*)+/g;
+    const productionScripts = '\n  <script src="dist/bundle.min.js"></script>\n';
+    if (!scriptBlockRe.test(html)) {
+      console.warn(
+        'Could not locate v2 script block and no v3 bundle reference found. Leaving index.html as-is.'
+      );
+      return;
+    }
+    scriptBlockRe.lastIndex = 0;
+    html = html.replace(scriptBlockRe, productionScripts);
+    fs.writeFileSync(indexPath, html, 'utf8');
   }
-  // Reset lastIndex after test()
-  scriptBlockRe.lastIndex = 0;
-  html = html.replace(scriptBlockRe, productionScripts);
-  fs.writeFileSync(indexPath, html, 'utf8');
 
+  // Slim down the package by removing the now-unused ES module sources.
+  // (Bundle in dist/ is what's loaded; js/ is dead weight in production.)
   const jsDir = path.join(frontendRoot, 'js');
   if (fs.existsSync(jsDir)) {
     fs.rmSync(jsDir, { recursive: true, force: true });
+    console.log('Removed frontend/js/ source from production package (bundle in dist/ is used).');
   }
-  console.log('Production index uses dist/bundle.min.js; source JS removed from package.');
 }
 
 function prepareFrontend() {

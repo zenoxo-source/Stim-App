@@ -45,3 +45,4 @@ Thumbs.db
 .eslintcache
 *.tmp
 *.temp
+backend/dist-app-test/

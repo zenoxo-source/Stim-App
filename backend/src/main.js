@@ -102,21 +102,50 @@ function createWindow() {
     height: 820,
     title: "Stim App",
     webPreferences: {
+      // Security defaults — explicit even though most are Electron defaults,
+      // so a future Electron version changing defaults can't silently weaken us.
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      webviewTag: false,
+      javascript: true,
       preload: path.join(__dirname, "preload.js"),
     },
   });
 
   mainWindow.setMenu(null);
 
+  // Lock down permissions: only bluetooth is ever granted.
   session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
     return permission === "bluetooth";
   });
 
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     callback(permission === "bluetooth");
+  });
+
+  // Block all navigation away from the bundled file:// document.
+  // Any external redirect is treated as a potential phishing / RCE vector.
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    const allowed = url.startsWith("file://");
+    if (!allowed) {
+      console.warn(`Blocked navigation to external URL: ${url}`);
+      event.preventDefault();
+    }
+  });
+
+  // Deny all new-window / popup attempts (target=_blank, window.open, etc.).
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    console.warn(`Blocked new-window attempt: ${url}`);
+    return { action: "deny" };
+  });
+
+  // Defense in depth: even if webviewTag were flipped on by accident,
+  // refuse to attach any <webview>.
+  mainWindow.webContents.on("will-attach-webview", (event) => {
+    event.preventDefault();
   });
 
   // Auto-select Coyote; if several match, show a picker dialog once.
@@ -184,11 +213,22 @@ function createWindow() {
   });
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    // Tightened CSP. Notes:
+    // - script-src 'self' → only bundle.min.js from file://
+    // - object-src 'none' → no Flash/Java/PDF embeds
+    // - base-uri 'self' → can't override <base>
+    // - form-action 'none' → no form submissions
+    // - frame-ancestors 'none' → can't be framed
+    // - connect-src explicit allow-list for AI providers + local Ollama
     const csp =
       "default-src 'self'; " +
       "style-src 'self' 'unsafe-inline'; " +
       "font-src 'self' data:; " +
       "script-src 'self'; " +
+      "object-src 'none'; " +
+      "base-uri 'self'; " +
+      "form-action 'none'; " +
+      "frame-ancestors 'none'; " +
       "connect-src 'self' http://localhost:11434 https://openrouter.ai https://api.openrouter.ai https://api.z.ai; " +
       "img-src 'self' data: blob:; " +
       "media-src 'self' blob:;";
@@ -232,11 +272,15 @@ function createWindow() {
   mainWindow.on("minimize", () => {
     if (tray) {
       mainWindow.hide();
-      tray.displayBalloon({
-        iconType: "info",
-        title: "Stim App",
-        content: "Im Hintergrund aktiv (Tray).",
-      });
+      // Tray balloon notifications are Windows-only; on mac/linux the tray
+      // icon + context menu is enough, the user sees the hidden window anyway.
+      if (process.platform === "win32" && typeof tray.displayBalloon === "function") {
+        tray.displayBalloon({
+          iconType: "info",
+          title: "Stim App",
+          content: "Im Hintergrund aktiv (Tray).",
+        });
+      }
     }
   });
 }
@@ -460,10 +504,17 @@ function registerIpc() {
   ipcMain.handle("updater:hasToken", () => Boolean(getGithubUpdateToken()));
 
   ipcMain.handle("secrets:getApiKey", () => readSecretFile(API_KEY_FILENAME));
-  ipcMain.handle("secrets:setApiKey", (event, apiKey) => writeSecretFile(API_KEY_FILENAME, apiKey));
+  ipcMain.handle("secrets:setApiKey", (event, apiKey) => {
+    // Validate input type and length to defuse any path-traversal / memory-bomb attempts.
+    if (typeof apiKey !== "string") return false;
+    if (apiKey.length > 4096) return false;
+    return writeSecretFile(API_KEY_FILENAME, apiKey);
+  });
 
   ipcMain.handle("secrets:getGithubToken", () => readSecretFile(GH_UPDATE_TOKEN_FILENAME));
   ipcMain.handle("secrets:setGithubToken", (event, token) => {
+    if (typeof token !== "string") return false;
+    if (token.length > 4096) return false;
     const ok = writeSecretFile(GH_UPDATE_TOKEN_FILENAME, token);
     // Re-apply feed so the next check uses the new token
     try {
@@ -475,6 +526,8 @@ function registerIpc() {
   });
 
   ipcMain.handle("diagnostics:exportLog", async (event, content) => {
+    if (typeof content !== "string") return { ok: false, error: "invalid content" };
+    if (content.length > 5 * 1024 * 1024) return { ok: false, error: "log too large (max 5 MB)" };
     try {
       const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
         title: "Diagnose-Log speichern",
@@ -485,7 +538,7 @@ function registerIpc() {
         ],
       });
       if (canceled || !filePath) return { ok: false, canceled: true };
-      fs.writeFileSync(filePath, content || "", "utf8");
+      fs.writeFileSync(filePath, content, "utf8");
       return { ok: true, filePath };
     } catch (err) {
       console.warn("Failed to export log:", err.message);
@@ -498,7 +551,12 @@ function registerIpc() {
     if (!mainWindow || mainWindow.isDestroyed()) {
       return { ok: false, error: "window not ready" };
     }
-    return startRemoteServer(mainWindow, port);
+    // Validate port range (avoid privileged ports and out-of-range values)
+    const p = Number(port);
+    if (!Number.isInteger(p) || p < 1024 || p > 65535) {
+      return { ok: false, error: "port must be an integer in 1024–65535" };
+    }
+    return startRemoteServer(mainWindow, p);
   });
   ipcMain.handle("remote:stop", () => stopRemoteServer());
   ipcMain.handle("remote:status", () => getRemoteStatus());
