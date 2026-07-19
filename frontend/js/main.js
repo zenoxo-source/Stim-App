@@ -95,6 +95,11 @@ import "./modules/triggers.js";
 import "./modules/ai-memory.js";
 import "./modules/ui-bindings-pr4.js";
 
+// PR5 / v3.5.0 hardware + lock
+import "./modules/midi-controller.js";
+import "./modules/session-pin.js";
+import "./modules/ui-bindings-pr5.js";
+
 // LLM service (chat completion + tool dispatch)
 import "./llm-service.js";
 

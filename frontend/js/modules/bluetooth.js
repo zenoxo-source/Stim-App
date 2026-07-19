@@ -14,6 +14,7 @@ import {
   disarmSignalLossWatcher,
   resetSignalLossFlag,
 } from "./safety-extras.js";
+import { blockIfLocked as blockIfPinLocked } from "./session-pin.js";
 
 // V3 Protocol overview:
 //   0xB0 packet (20 bytes): combined strength + waveform, sent every 100ms
@@ -237,6 +238,7 @@ export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
 export function sendStrengthCommand(valA, valB) {
   if (!AppState.writeChar) return;
   if (blockDuringPanicCooldown("Strength-Befehl")) return;
+  if (blockIfPinLocked("Strength-Befehl")) return;
 
   // Keep AppState as logical (UI) values; do not bake masterScale into state.
   // Apply panic-cooldown + active pattern/ramp ceiling.

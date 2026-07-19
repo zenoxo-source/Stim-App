@@ -1,5 +1,33 @@
 # Changelog
 
+## 3.5.0 — PR5: Hardware + Lock
+
+### Neue Features
+- **🎹 MIDI-Controller-Mapping** — Web MIDI API. Hardware-Fader (Korg nanoKONTROL, Akai LPD8 etc.) steuern Strength / Frequenz / Master-Scale / Pattern-Triggers. Mapping-Typen: CC (continuous controller), Note (Note On mit Velocity > 0), Program Change. Pro Mapping: Input-Substring-Filter, Channel-Filter (-1 = alle), Action-Typ + Kanal + Min/Max-Wertebereich. UI-Mapping-Editor im Settings-Tab. 7-bit MIDI-Werte werden linear in [min, max] gemappt.
+- **🔒 Session-PIN** — SHA-256-gehashte PIN-Sperre (per-Installation Salt). Blockt Strength-Slider / Settings-Änderungen während einer laufenden Session (consent enforcement). **PANIC + Soft-Stop bleiben IMMER freigeschaltet** (safety first). Stärke-Validierung: kurz+digits-only = schwach, Mix = stark. UI: PIN setzen/ändern/löschen + sperren/entsperren.
+
+### Dateien
+- Neu: `frontend/js/modules/midi-controller.js` (Web MIDI + Pure Mapping-Helpers)
+- Neu: `frontend/js/modules/session-pin.js` (PIN-Hashing + Lock-State)
+- Neu: `frontend/js/modules/ui-bindings-pr5.js` (DOM-Verdrahtung für MIDI-Manager + PIN-UI)
+- Neu: `backend/tests/midi-controller.test.js` (28 Tests — Validation, Range-Mapping, Message-Matching, CRUD)
+- Neu: `backend/tests/session-pin.test.js` (25 Tests — Hashing, Lock-State, Listeners, PIN-Stärke)
+- Geändert: `control-deck.js` (updateSliders A/B prüfen PIN-Sperre), `bluetooth.js` (sendStrengthCommand prüft PIN-Sperre), `index.html` (+MIDI-Manager-Card, +Session-PIN-Card), `main.js` (+3 Imports)
+
+### Tests
+- **329/329 grün** (+53 neu)
+- Lint clean
+- Bundle: 221.5 KB (-40.7% vs Dev)
+- Electron-Smoke: 3/3 sauber
+
+### Cross-Platform
+- MIDI: macOS + Windows haben nativen Chromium-Support; Linux benötigt ALSA (User muss Zugriff auf `/dev/snd/*` haben — typischerweise via `audio`-Gruppe)
+- Session-PIN: Web Crypto SHA-256 verfügbar auf Win/macOS/Linux; Fallback-Hash falls crypto.subtle fehlt
+- PIN-Sperre ist rein Client-Side; keine Plattform-Besonderheiten
+
+### Wichtigster Safety-Hinweis
+**PANIC + Soft-Stop sind NIEMALS durch PIN gesperrt.** Sie bypassen den Lock-Zustand immer. Der Partner kann also im Notfall immer noch everything stoppen.
+
 ## 3.4.0 — PR4: Fun & AI
 
 ### Neue Features
