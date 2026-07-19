@@ -1,4 +1,5 @@
 // updater-ui.js - electron-updater status (public GitHub releases)
+import { DOM, log } from "../state.js";
 
 function setUpdateBanner(text, kind = "info") {
   const el = document.getElementById("update-banner");

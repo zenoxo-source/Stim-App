@@ -1,5 +1,43 @@
 # Changelog
 
+## 3.0.0
+
+### Architektur: ES Modules Migration (Big-Bang)
+- **Alle 27 Frontend-Module** von `window.X = Y`-Global-Kopplung auf `import`/`export` umgestellt
+- **`frontend/js/main.js`** als neuen Einstiegspunkt; `index.html` lädt nur noch ein einzelnes `<script src="dist/bundle.min.js">` statt 26 Script-Tags in fixer Reihenfolge
+- **esbuild** ersetzt die Terser-Konkatenation als Bundler + Minifier (`backend/scripts/build-frontend.js` komplett neu)
+  - Dev-Bundle: 278.8 KB (mit Source-Map)
+  - Prod-Bundle: 168.2 KB (-39,7 % vs Dev, -10 % vs v2.5.4)
+- **`mangle.reserved`-Liste** und das `jsOrder`-Array entfallen — esbuild resolved den Import-Graph selbst
+
+### Tests modernisiert
+- **vm-Sandbox entfernt** — `bluetooth.test.js` und `remote-recorder.test.js` nutzen jetzt direkte `import`-Statements (~700 Zeilen Boilerplate gelöscht)
+- **`backend/tests/helpers/dom-mock.js`** neu: Browser-API-Shims (`document`, `Audio`, `localStorage`, `navigator`, …) für den Node-Test-Runner
+- **AppState als Singleton** in Tests direkt mutiert statt zu mocken
+- **`backend/tests/package.json`** neu: `{type: module}` damit Node `.js`-Testdateien als ESM parst
+- 66/66 Tests grün, ~420 ms Gesamtlaufzeit
+
+### Tooling & Konventionen
+- **`.eslintrc.js`** drastisch vereinfacht: `sourceType: module`, 80+ Globals-Einträge gelöscht (sind jetzt Imports); Browser-APIs bleiben als `globals` deklariert
+- **`frontend/js/package.json`** neu: `{type: module}` (damit Node die Frontend-Dateien als ESM für die Tests parst; Browser und esbuild ignorieren dies)
+- **`npm run dev`** baut das Frontend jetzt automatisch vor dem Electron-Start (vormals gelang Electron via `file://` direkt zu den Roh-Dateien)
+- **`npm run build:frontend:watch`** neu: esbuild-Watch-Modus für iterative Entwicklung
+
+### Code-Qualität
+- **`frontend/js/modules/ai-state.js`** neu: Extrahierter Shared-State (`AIChatState`) zwischen `llm-service.js` und `safety.js` — ersetzt frühere modul-lokale `let currentLLMController`/`isProcessing`/`streamingBubbleEl`-Variablen, die bei Panic-Aborts von außen erreicht werden mussten
+- **Alle `if (typeof X === "function")`-Guards** entfernt (mit ES Modules sind Imports garantiert vorhanden)
+- **`ProtocolUtils`** nicht mehr UMD-wrapped, sondern reines ES-Module
+- **`state.js`** re-exportiert `CONSTANTS` für Kompatibilität mit Konsumenten, die noch `import { CONSTANTS } from "./state.js"` schreiben
+
+### Entfernungen
+- **Kein `vm`-Modul** mehr in den Tests
+- **Kein `terser`** als direkte Dev-Dependency (esbuild übernimmt Minify)
+- **Keine `jsOrder`-Konstante** mehr in `build-frontend.js`
+
+### Nicht enthaltene Refactorings (Folge-PRs)
+- `control-deck.js` (weiterhin 647 Zeilen) in `tab-nav.js` / `wave-loop.js` / `sliders.js` / `diagnostics.js` aufteilen
+- `AppState` (352 Zeilen, 20 Konsumenten) in `bleState` / `audioState` / `gameState` / `safetyState` splitten
+
 ## 2.5.2
 
 ### Bugfix: Linux/macOS Release Build (2. Versuch)

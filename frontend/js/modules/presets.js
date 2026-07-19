@@ -1,4 +1,9 @@
 // presets.js - intensity presets + session safety timer
+import { AppState, DOM, log } from "../state.js";
+import { applySettings, saveSettings } from "./settings.js";
+import { updateSlidersA, updateSlidersB, syncFreqUI } from "../control-deck.js";
+import { sendV3Init } from "./bluetooth.js";
+import { killAllOutput } from "./safety.js";
 
 const PRESETS = {
   gentle: {
@@ -27,7 +32,7 @@ const PRESETS = {
   },
 };
 
-function applyIntensityPreset(id) {
+export function applyIntensityPreset(id) {
   const p = PRESETS[id];
   if (!p) return;
   AppState.softLimitA = p.softLimitA;
@@ -37,32 +42,28 @@ function applyIntensityPreset(id) {
   AppState.frequencyB = p.frequencyB;
   if (AppState.strengthA > AppState.softLimitA) AppState.strengthA = AppState.softLimitA;
   if (AppState.strengthB > AppState.softLimitB) AppState.strengthB = AppState.softLimitB;
-  if (typeof applySettings === "function") {
-    applySettings({
-      ...AppState,
-      softLimitA: p.softLimitA,
-      softLimitB: p.softLimitB,
-      masterScale: p.masterScale,
-      frequencyA: p.frequencyA,
-      frequencyB: p.frequencyB,
-      pulseWidthA: AppState.pulseWidthA,
-      pulseWidthB: AppState.pulseWidthB,
-      swapChannels: AppState.swapChannels,
-      audioHearSound: AppState.audioHearSound,
-      aiProvider: DOM["ai-provider"]?.value,
-      aiEndpoint: DOM["ai-endpoint"]?.value,
-      aiModel: DOM["ai-model"]?.value,
-      aiSystemPrompt: DOM["ai-system-prompt"]?.value,
-    });
-  }
-  if (typeof updateSlidersA === "function") updateSlidersA(AppState.strengthA);
-  if (typeof updateSlidersB === "function") updateSlidersB(AppState.strengthB);
-  if (typeof syncFreqUI === "function") {
-    syncFreqUI("A");
-    syncFreqUI("B");
-  }
-  if (AppState.isConnected && typeof sendV3Init === "function") sendV3Init();
-  if (typeof saveSettings === "function") saveSettings();
+  applySettings({
+    ...AppState,
+    softLimitA: p.softLimitA,
+    softLimitB: p.softLimitB,
+    masterScale: p.masterScale,
+    frequencyA: p.frequencyA,
+    frequencyB: p.frequencyB,
+    pulseWidthA: AppState.pulseWidthA,
+    pulseWidthB: AppState.pulseWidthB,
+    swapChannels: AppState.swapChannels,
+    audioHearSound: AppState.audioHearSound,
+    aiProvider: DOM["ai-provider"]?.value,
+    aiEndpoint: DOM["ai-endpoint"]?.value,
+    aiModel: DOM["ai-model"]?.value,
+    aiSystemPrompt: DOM["ai-system-prompt"]?.value,
+  });
+  updateSlidersA(AppState.strengthA);
+  updateSlidersB(AppState.strengthB);
+  syncFreqUI("A");
+  syncFreqUI("B");
+  if (AppState.isConnected) sendV3Init();
+  saveSettings();
   document.querySelectorAll(".preset-btn").forEach((b) => {
     b.classList.toggle("active", b.getAttribute("data-preset") === id);
   });
@@ -73,7 +74,7 @@ function applyIntensityPreset(id) {
 }
 
 // ---- Session safety timer ----
-function startSafetyTimer(minutes) {
+export function startSafetyTimer(minutes) {
   stopSafetyTimer(false);
   const ms = Math.max(1, Number(minutes) || 15) * 60 * 1000;
   AppState.safetyTimerEndsAt = Date.now() + ms;
@@ -83,7 +84,7 @@ function startSafetyTimer(minutes) {
   log(`Safety-Timer: ${minutes} Min. – danach Soft-Stop.`, "warning");
 }
 
-function stopSafetyTimer(logMsg = true) {
+export function stopSafetyTimer(logMsg = true) {
   if (AppState.safetyTimerInterval) {
     clearInterval(AppState.safetyTimerInterval);
     AppState.safetyTimerInterval = null;
@@ -106,7 +107,7 @@ function updateSafetyTimerUI() {
   const left = AppState.safetyTimerEndsAt - Date.now();
   if (left <= 0) {
     stopSafetyTimer(false);
-    if (typeof killAllOutput === "function") killAllOutput();
+    killAllOutput();
     log("Safety-Timer abgelaufen – Ausgabe gestoppt.", "warning");
     if (el) {
       el.textContent = "Zeit abgelaufen";
@@ -156,7 +157,3 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
-
-window.applyIntensityPreset = applyIntensityPreset;
-window.startSafetyTimer = startSafetyTimer;
-window.stopSafetyTimer = stopSafetyTimer;

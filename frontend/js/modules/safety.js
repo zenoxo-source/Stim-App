@@ -1,4 +1,11 @@
 // safety.js - Global safety layer: panic handler, close handler, kill switch
+import { AppState, DOM, CONSTANTS, log } from "../state.js";
+import { AIChatState } from "./ai-state.js";
+import { updateSlidersA, updateSlidersB, updateAIDashboard } from "../control-deck.js";
+import { updateOutputStatus } from "./status-ui.js";
+import { sendV3EmergencyStop } from "./bluetooth.js";
+import { stopAllMiniGames } from "./games-extra.js";
+import { stopSafetyTimer } from "./presets.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   // Register beforeunload to stop all output on accidental close
@@ -98,10 +105,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if ((e.ctrlKey || e.metaKey) && e.code === "Space") {
       e.preventDefault();
       killAllOutput();
-      if (typeof updateOutputStatus === "function") updateOutputStatus({ panic: true });
+      updateOutputStatus({ panic: true });
       log("PANIC STOP aktiviert (Strg+Leertaste).", "error");
       setTimeout(() => {
-        if (typeof updateOutputStatus === "function") updateOutputStatus();
+        updateOutputStatus();
       }, 2500);
     }
   });
@@ -114,10 +121,10 @@ document.addEventListener("DOMContentLoaded", () => {
         escTimer = setTimeout(() => {
           escTimer = null;
           killAllOutput();
-          if (typeof updateOutputStatus === "function") updateOutputStatus({ panic: true });
-          log("PANIC STOP aktiviert (ESC lang gedr\u00fcckt).", "error");
+          updateOutputStatus({ panic: true });
+          log("PANIC STOP aktiviert (ESC lang gedrückt).", "error");
           setTimeout(() => {
-            if (typeof updateOutputStatus === "function") updateOutputStatus();
+            updateOutputStatus();
           }, 2500);
         }, 500);
       }
@@ -140,20 +147,20 @@ function isTyping(element) {
   );
 }
 
-function killAllOutput() {
+export function killAllOutput() {
   try {
     // Abort any in-flight AI chat request
-    if (typeof currentLLMController !== "undefined" && currentLLMController !== null) {
-      currentLLMController.abort();
-      currentLLMController = null;
-      if (typeof isProcessing !== "undefined") isProcessing = false;
+    if (AIChatState.currentController !== null) {
+      AIChatState.currentController.abort();
+      AIChatState.currentController = null;
+      AIChatState.isProcessing = false;
       const statusText = document.getElementById("ai-status-text");
       const btnSend = document.getElementById("btn-ai-send");
       if (statusText) statusText.textContent = "Bereit.";
       if (btnSend) btnSend.disabled = false;
-      if (typeof streamingBubbleEl !== "undefined" && streamingBubbleEl) {
-        streamingBubbleEl.remove();
-        streamingBubbleEl = null;
+      if (AIChatState.streamingBubbleEl) {
+        AIChatState.streamingBubbleEl.remove();
+        AIChatState.streamingBubbleEl = null;
       }
     }
 
@@ -162,22 +169,12 @@ function killAllOutput() {
     // Stop audio
     AppState.audioElement?.pause();
     AppState.isAudioPlaying = false;
-    if (DOM["btn-play-audio"]) DOM["btn-play-audio"].textContent = "\u25b6\ufe0f Play";
+    if (DOM["btn-play-audio"]) DOM["btn-play-audio"].textContent = "▶️ Play";
     if (AppState.audioTimer) clearInterval(AppState.audioTimer);
 
     // Stop games
-    if (typeof stopAllMiniGames === "function") {
-      stopAllMiniGames();
-    } else {
-      clearTimeout(AppState.reflexTimeoutId);
-      AppState.reflexState = "IDLE";
-      if (AppState.rhythmIntervalId) clearInterval(AppState.rhythmIntervalId);
-      AppState.rhythmState = "IDLE";
-      if (typeof stopEdgeGame === "function") stopEdgeGame();
-      if (typeof stopPotatoGame === "function") stopPotatoGame();
-      if (typeof stopSurvivalGame === "function") stopSurvivalGame();
-    }
-    if (typeof stopSafetyTimer === "function") stopSafetyTimer(false);
+    stopAllMiniGames();
+    stopSafetyTimer(false);
 
     // Zero sliders
     AppState.strengthA = 0;
@@ -194,11 +191,9 @@ function killAllOutput() {
 
     updateAIDashboard();
     sendV3EmergencyStop();
-    if (typeof updateOutputStatus === "function") updateOutputStatus({ panic: true });
+    updateOutputStatus({ panic: true });
     // Do not call setConnected(false): panic stops output but keeps BLE link.
   } catch (err) {
     console.error("killAllOutput error:", err);
   }
 }
-
-window.killAllOutput = killAllOutput;

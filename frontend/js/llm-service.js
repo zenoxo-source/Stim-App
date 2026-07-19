@@ -1,11 +1,18 @@
 // llm-service.js
 // Handles communication with OpenRouter/Ollama and tool execution
+import { log } from "./state.js";
+import * as ProtocolUtils from "./lib/protocol-utils.js";
+import { AIChatState } from "./modules/ai-state.js";
+import { updateOutputStatus } from "./modules/status-ui.js";
+import {
+  aiSetIntensity,
+  aiPlayPattern,
+  aiCreateCustomPattern,
+  aiStartSession,
+  aiStopAll,
+} from "./modules/ai-bridge.js";
 
 let chatHistory = [];
-
-let isProcessing = false;
-let currentLLMController = null;
-let streamingBubbleEl = null;
 
 function escapeHtml(value) {
   if (typeof ProtocolUtils !== "undefined" && ProtocolUtils.escapeHtml) {
@@ -422,7 +429,7 @@ document.getElementById("ai-provider")?.addEventListener("change", (e) => {
 });
 
 async function processUserMessage() {
-  if (isProcessing) return;
+  if (AIChatState.isProcessing) return;
   const inputEl = document.getElementById("ai-chat-input");
   const text = inputEl.value.trim();
   if (!text) return;
@@ -437,8 +444,8 @@ async function processUserMessage() {
 }
 
 async function triggerLLM() {
-  if (isProcessing) return;
-  isProcessing = true;
+  if (AIChatState.isProcessing) return;
+  AIChatState.isProcessing = true;
 
   const btnSend = document.getElementById("btn-ai-send");
   const statusText = document.getElementById("ai-status-text");
@@ -446,10 +453,10 @@ async function triggerLLM() {
   statusText.textContent = "KI denkt nach...";
 
   // Abort any previous request
-  if (currentLLMController) {
-    currentLLMController.abort();
+  if (AIChatState.currentController) {
+    AIChatState.currentController.abort();
   }
-  currentLLMController = new AbortController();
+  AIChatState.currentController = new AbortController();
 
   const provider = document.getElementById("ai-provider").value;
   const endpoint = document.getElementById("ai-endpoint").value;
@@ -486,7 +493,7 @@ async function triggerLLM() {
       method: "POST",
       headers: headers,
       body: JSON.stringify(requestBody),
-      signal: currentLLMController.signal,
+      signal: AIChatState.currentController.signal,
     });
 
     if (!response.ok) {
@@ -514,7 +521,7 @@ async function triggerLLM() {
         '<span class="typing-dot">.</span><span class="typing-dot">.</span><span class="typing-dot">.</span>';
       container.appendChild(div);
       container.scrollTop = container.scrollHeight;
-      streamingBubbleEl = div;
+      AIChatState.streamingBubbleEl = div;
     }
 
     try {
@@ -545,9 +552,9 @@ async function triggerLLM() {
 
           if (delta.content) {
             accumulatedContent += delta.content;
-            if (streamingBubbleEl) {
-              streamingBubbleEl.textContent = accumulatedContent;
-              streamingBubbleEl.classList.remove("streaming");
+            if (AIChatState.streamingBubbleEl) {
+              AIChatState.streamingBubbleEl.textContent = accumulatedContent;
+              AIChatState.streamingBubbleEl.classList.remove("streaming");
             }
             if (container) container.scrollTop = container.scrollHeight;
           }
@@ -577,13 +584,13 @@ async function triggerLLM() {
       }
     } catch (streamErr) {
       if (streamErr.name === "AbortError") {
-        if (streamingBubbleEl) {
-          streamingBubbleEl.remove();
-          streamingBubbleEl = null;
+        if (AIChatState.streamingBubbleEl) {
+          AIChatState.streamingBubbleEl.remove();
+          AIChatState.streamingBubbleEl = null;
         }
         reader.releaseLock?.();
-        isProcessing = false;
-        currentLLMController = null;
+        AIChatState.isProcessing = false;
+        AIChatState.currentController = null;
         btnSend.disabled = false;
         statusText.textContent = "Bereit.";
         return;
@@ -594,13 +601,13 @@ async function triggerLLM() {
     }
 
     // Finalize bubble
-    if (streamingBubbleEl) {
+    if (AIChatState.streamingBubbleEl) {
       if (!accumulatedContent.trim()) {
-        streamingBubbleEl.remove();
+        AIChatState.streamingBubbleEl.remove();
       } else {
-        streamingBubbleEl.classList.remove("streaming");
+        AIChatState.streamingBubbleEl.classList.remove("streaming");
       }
-      streamingBubbleEl = null;
+      AIChatState.streamingBubbleEl = null;
     }
 
     const accumulatedToolCalls = Object.values(toolCallBuffers).filter(
@@ -716,28 +723,20 @@ async function triggerLLM() {
                   : args.channel?.toUpperCase() === "B"
                     ? args.level
                     : undefined;
-              toolResult = window.aiSetIntensity
-                ? window.aiSetIntensity(lvlA, lvlB)
-                : "Error: Controller not ready";
+              toolResult = aiSetIntensity(lvlA, lvlB);
             } else if (fnName === "play_pattern") {
-              toolResult = window.aiPlayPattern
-                ? window.aiPlayPattern(args.pattern_name)
-                : "Error: Controller not ready";
+              toolResult = aiPlayPattern(args.pattern_name);
             } else if (fnName === "create_custom_pattern") {
-              toolResult = window.aiCreateCustomPattern
-                ? window.aiCreateCustomPattern(
-                    args.name,
-                    args.patternA,
-                    args.patternB,
-                    args.intervalMs
-                  )
-                : "Error: Controller not ready";
+              toolResult = aiCreateCustomPattern(
+                args.name,
+                args.patternA,
+                args.patternB,
+                args.intervalMs
+              );
             } else if (fnName === "stop_all") {
-              toolResult = window.aiStopAll ? window.aiStopAll() : "Error: Controller not ready";
+              toolResult = aiStopAll();
             } else if (fnName === "start_session") {
-              toolResult = window.aiStartSession
-                ? window.aiStartSession(args.session_id)
-                : "Error: Controller not ready";
+              toolResult = aiStartSession(args.session_id);
             } else {
               toolResult = `Unknown function: ${fnName}`;
             }
@@ -759,7 +758,7 @@ async function triggerLLM() {
                 chip.textContent = `⚙ ${fnName}`;
                 lastAsst.appendChild(chip);
               }
-              if (typeof updateOutputStatus === "function") updateOutputStatus();
+              updateOutputStatus();
 
               const displayArgs = [];
               if (args.levelA !== undefined) displayArgs.push(`A: ${args.levelA}`);
@@ -803,39 +802,39 @@ async function triggerLLM() {
       console.error("LLM Error:", err);
     }
   } finally {
-    isProcessing = false;
-    currentLLMController = null;
+    AIChatState.isProcessing = false;
+    AIChatState.currentController = null;
     btnSend.disabled = false;
     statusText.textContent = "Bereit.";
-    if (streamingBubbleEl) {
-      streamingBubbleEl.remove();
-      streamingBubbleEl = null;
+    if (AIChatState.streamingBubbleEl) {
+      AIChatState.streamingBubbleEl.remove();
+      AIChatState.streamingBubbleEl = null;
     }
   }
 }
 
 document.getElementById("btn-ai-send")?.addEventListener("click", processUserMessage);
 document.getElementById("ai-chat-input")?.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !isProcessing) processUserMessage();
+  if (e.key === "Enter" && !AIChatState.isProcessing) processUserMessage();
 });
 
 document.getElementById("btn-ai-panic")?.addEventListener("click", () => {
   appendMessage("system", "🛑 PANIC BUTTON GEDRÜCKT! Alle Ausgaben gestoppt.");
 
   // Abort any in-flight LLM request immediately
-  if (currentLLMController) {
-    currentLLMController.abort();
-    isProcessing = false;
-    currentLLMController = null;
+  if (AIChatState.currentController) {
+    AIChatState.currentController.abort();
+    AIChatState.isProcessing = false;
+    AIChatState.currentController = null;
     const btnSend = document.getElementById("btn-ai-send");
     const statusText = document.getElementById("ai-status-text");
     if (btnSend) btnSend.disabled = false;
     if (statusText) statusText.textContent = "Bereit.";
-    if (streamingBubbleEl) {
-      streamingBubbleEl.remove();
-      streamingBubbleEl = null;
+    if (AIChatState.streamingBubbleEl) {
+      AIChatState.streamingBubbleEl.remove();
+      AIChatState.streamingBubbleEl = null;
     }
   }
 
-  if (window.aiStopAll) window.aiStopAll();
+  aiStopAll();
 });

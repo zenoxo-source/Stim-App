@@ -7,31 +7,32 @@
 cd backend
 
 # Development
-npm run dev              # Start Electron app with logging
-npm run start:app        # Start Electron app
+npm run dev              # Build frontend (esbuild) + start Electron with logging
+npm run start:app        # Start Electron app (assumes frontend is built)
 
 # Build
-npm run build:frontend   # Bundle + minify frontend JS → frontend/dist/bundle.min.js
-npm run build:app        # Full app build (frontend + electron-builder)
-npm run dist             # Alias for build:app
+npm run build:frontend        # esbuild bundle + minify → frontend/dist/bundle.min.js
+npm run build:frontend:watch  # esbuild watch mode (rebuild on save)
+npm run build:app             # Full app build (frontend + electron-builder)
+npm run dist                  # Alias for build:app
 
 # Quality
 npm run lint             # ESLint check
 npm run lint:fix         # ESLint auto-fix
-npm test                 # Run all tests (node --test)
+npm test                 # Run all tests (node --test, ESM)
 npm run format           # Prettier format
 
 # Versioning
-npm run version:patch    # Bump patch version (2.2.0 → 2.2.1)
-npm run version:minor    # Bump minor version (2.2.0 → 2.3.0)
-npm run version:major    # Bump major version (2.2.0 → 3.0.0)
+npm run version:patch    # Bump patch version (3.0.0 → 3.0.1)
+npm run version:minor    # Bump minor version (3.0.0 → 3.1.0)
+npm run version:major    # Bump major version (3.0.0 → 4.0.0)
 ```
 
 ### Architecture
 - **Backend** (`backend/src/`): Electron main process (`main.js`), preload bridge (`preload.js`), WebSocket remote server (`remote-server.js`)
-- **Frontend** (`frontend/js/`): Vanilla JS modules loaded via `<script>` tags in fixed order, attached to `window`
-- **Protocol** (`frontend/js/lib/protocol-utils.js`): Pure V3 BLE protocol helpers, shared between browser and Node tests
-- **Tests** (`backend/tests/`): Node `--test` runner, pure helpers + sandbox-evaluated modules
+- **Frontend** (`frontend/js/`): ES modules. Entry point `main.js` imports every module in init order; bundled by esbuild into a single IIFE for `frontend/index.html`. No more `window.X` globals.
+- **Protocol** (`frontend/js/lib/protocol-utils.js`): Pure V3 BLE protocol helpers, shared between frontend bundle and Node tests via direct `import`.
+- **Tests** (`backend/tests/`): Node `--test`, ESM. Browser globals (document/Audio/localStorage/…) provided by `backend/tests/helpers/dom-mock.js`. AppState is a singleton — tests mutate it directly instead of using a vm sandbox.
 
 ### V3 BLE Protocol (DG-LAB Coyote 3.0)
 - **0xB0** (20 bytes): `B0 + ((seq&0xf)<<4)|(mode&0xf) + strA + strB + freqA[4] + intA[4] + freqB[4] + intB[4]`
@@ -43,9 +44,10 @@ npm run version:major    # Bump major version (2.2.0 → 3.0.0)
 ### Conventions
 - No TypeScript — plain JS with JSDoc annotations
 - 2-space indent, 100-char width, double quotes, semicolons (Prettier)
-- All globals declared in `backend/.eslintrc.js`
-- Frontend scripts loaded in order defined in `backend/scripts/build-frontend.js`
-- Tests run with `node --test`, no external test framework
+- ES modules everywhere (`sourceType: "module"` in `.eslintrc.js`); no `window.X = X` global coupling
+- All globals declared in `backend/.eslintrc.js` (now minimal — just browser APIs)
+- Frontend entry: `frontend/js/main.js` (import order); bundled by `backend/scripts/build-frontend.js` (esbuild)
+- Tests run with `node --test` (ESM); `backend/tests/package.json` declares `{"type": "module"}`
 
 ### Release Flow
 1. Bump version: `npm run version:patch` (or minor/major)
@@ -56,11 +58,14 @@ npm run version:major    # Bump major version (2.2.0 → 3.0.0)
 6. GitHub Actions builds Windows + macOS + Linux releases automatically
 
 ### Key Files
-- `frontend/js/state.js` — AppState (central mutable state) + DOM cache
+- `frontend/js/main.js` — Entry point; imports all modules in initialization order
+- `frontend/js/state.js` — AppState (central mutable state) + DOM cache + `log`; re-exports CONSTANTS
 - `frontend/js/constants.js` — All constants (BLE UUIDs, limits, intervals)
 - `frontend/js/lib/protocol-utils.js` — Pure protocol helpers (tested)
 - `frontend/js/modules/bluetooth.js` — BLE connection + V3 protocol implementation
 - `frontend/js/control-deck.js` — Wave loop + pattern engine + slider handlers
+- `frontend/js/modules/ai-state.js` — Shared mutable chat state (AbortController/streaming bubble) consumed by `llm-service.js` + `safety.js`
 - `frontend/js/modules/remote.js` — WebSocket remote command handler
 - `frontend/js/modules/recorder.js` — Session recording & replay
-- `backend/src/remote-server.js` — WebSocket server for external control
+- `backend/scripts/build-frontend.js` — esbuild bundler (dev + prod output)
+- `backend/tests/helpers/dom-mock.js` — Browser-API shims for Node test runner

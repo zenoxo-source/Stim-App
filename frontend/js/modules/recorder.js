@@ -1,5 +1,8 @@
 // recorder.js - Session recording & replay
 // Records waveform output data and saves/loads as JSON.
+import { AppState, DOM, log } from "../state.js";
+import { sendSoftStop, sendWaveformCommand } from "./bluetooth.js";
+import { trackStat } from "./stats.js";
 
 const RECORDER = {
   recording: false,
@@ -58,7 +61,7 @@ const RECORDER = {
     a.download = `stim-recording-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    if (typeof trackStat === "function") trackStat("recording_created");
+    trackStat("recording_created");
     log(`Aufnahme gespeichert (${this.frames.length} Frames).`, "success");
   },
 
@@ -131,7 +134,7 @@ const RECORDER = {
       clearTimeout(this.replayTimer);
       this.replayTimer = null;
     }
-    if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
+    sendSoftStop({ keepStrength: true });
     log("Replay gestoppt.", "info");
     this.updateUI();
   },
@@ -200,4 +203,4 @@ document.addEventListener("DOMContentLoaded", () => {
   RECORDER.updateUI();
 });
 
-window.RECORDER = RECORDER;
+export { RECORDER };

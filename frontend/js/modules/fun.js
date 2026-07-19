@@ -1,5 +1,11 @@
 // fun.js - SFX, achievements, pattern roulette, chance pulse, daily challenge
 
+import { AppState, log } from "../state.js";
+import { SESSION_STATE } from "./sessions.js";
+import { sendSoftStop, sendWaveformCommand } from "./bluetooth.js";
+import { updateAIDashboard } from "../control-deck.js";
+import { ensureGameStrength } from "./games-extra.js";
+
 const ACHIEVEMENTS_KEY = "stim_app_achievements_v1";
 const DAILY_KEY = "stim_app_daily_v1";
 const STATS_KEY = "stim_app_stats_v1";
@@ -62,7 +68,7 @@ function getSfxCtx() {
  * Lightweight UI beeps (no external assets).
  * @param {"hit"|"fail"|"win"|"click"|"unlock"} kind
  */
-function playGameSfx(kind) {
+export function playGameSfx(kind) {
   const ctx = getSfxCtx();
   if (!ctx) return;
   if (ctx.state === "suspended") ctx.resume().catch(() => {});
@@ -109,7 +115,7 @@ function saveAchievements(data) {
   }
 }
 
-function showFunToast(title, subtitle) {
+export function showFunToast(title, subtitle) {
   let host = document.getElementById("fun-toast-host");
   if (!host) {
     host = document.createElement("div");
@@ -128,7 +134,7 @@ function showFunToast(title, subtitle) {
   }, 3200);
 }
 
-function unlockAchievement(id) {
+export function unlockAchievement(id) {
   const def = ACHIEVEMENT_DEFS[id];
   if (!def) return false;
   const all = loadAchievements();
@@ -175,34 +181,33 @@ const ROULETTE_PATTERNS = [
   "duet",
 ];
 
-function startPatternRoulette() {
+export function startPatternRoulette() {
   if (!AppState.isConnected) {
     log("Roulette braucht eine Verbindung.", "error");
     return;
   }
-  if (typeof SESSION_STATE !== "undefined" && SESSION_STATE.activeSession) {
+  if (SESSION_STATE.activeSession) {
     SESSION_STATE.stop();
   }
-  if (typeof ensureGameStrength === "function") ensureGameStrength(45);
+  ensureGameStrength(45);
   const pick = ROULETTE_PATTERNS[Math.floor(Math.random() * ROULETTE_PATTERNS.length)];
   document.querySelectorAll(".pattern-card").forEach((c) => {
     c.classList.toggle("active", c.getAttribute("data-pattern") === pick);
   });
   AppState.activePattern = pick;
-  if (typeof updateAIDashboard === "function") updateAIDashboard();
+  updateAIDashboard();
   playGameSfx("win");
   showFunToast("🎲 Pattern-Roulette", pick);
   unlockAchievement("roulette");
   log(`Roulette: „${pick}“ gestartet.`, "info");
 }
 
-function fireChancePulse() {
+export function fireChancePulse() {
   if (!AppState.isConnected) {
     log("Zufallsimpuls braucht eine Verbindung.", "error");
     return;
   }
-  if (typeof ensureGameStrength === "function")
-    ensureGameStrength(30 + Math.floor(Math.random() * 20));
+  ensureGameStrength(30 + Math.floor(Math.random() * 20));
   const roll = 1 + Math.floor(Math.random() * 6);
   const amp = 12 + roll * 10;
   const ms = 180 + roll * 40;
@@ -217,8 +222,7 @@ function fireChancePulse() {
       AppState.survivalState !== "RUNNING" &&
       !AppState.activePattern
     ) {
-      if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
-      else sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+      sendSoftStop({ keepStrength: true });
     }
   }, ms);
   log(`Zufallsimpuls: Würfel ${roll}, Amp ${amp}.`, "info");
@@ -242,7 +246,7 @@ function saveStats(s) {
   }
 }
 
-function trackStat(kind) {
+export function trackStat(kind) {
   const s = loadStats();
   if (kind === "gameStarted") {
     s.gamesStarted = (s.gamesStarted || 0) + 1;
@@ -305,7 +309,7 @@ function saveDailyState(state) {
   }
 }
 
-function noteDailyProgress(gameId, score) {
+export function noteDailyProgress(gameId, score) {
   const challenge = getDailyChallenge();
   if (gameId !== challenge.game) return;
   const state = loadDailyState();
@@ -340,7 +344,7 @@ function refreshDailyUI() {
   if (card) card.classList.toggle("done", !!state.done);
 }
 
-function startDailyChallenge() {
+export function startDailyChallenge() {
   const challenge = getDailyChallenge();
   const btn = document.getElementById(challenge.startBtn);
   if (btn) {
@@ -351,7 +355,7 @@ function startDailyChallenge() {
   }
 }
 
-function startQuickPlay() {
+export function startQuickPlay() {
   const pick = QUICK_PLAY_BTNS[Math.floor(Math.random() * QUICK_PLAY_BTNS.length)];
   const btn = document.getElementById(pick);
   if (!btn) return;
@@ -367,20 +371,10 @@ document.addEventListener("DOMContentLoaded", () => {
   refreshDailyUI();
   refreshStatsUI();
   document.getElementById("btn-pattern-roulette")?.addEventListener("click", () => {
-    if (typeof ensureGameStrength === "function") ensureGameStrength(45);
+    ensureGameStrength(45);
     startPatternRoulette();
   });
   document.getElementById("btn-chance-pulse")?.addEventListener("click", fireChancePulse);
   document.getElementById("btn-daily-start")?.addEventListener("click", startDailyChallenge);
   document.getElementById("btn-quick-play")?.addEventListener("click", startQuickPlay);
 });
-
-window.playGameSfx = playGameSfx;
-window.unlockAchievement = unlockAchievement;
-window.showFunToast = showFunToast;
-window.startPatternRoulette = startPatternRoulette;
-window.fireChancePulse = fireChancePulse;
-window.noteDailyProgress = noteDailyProgress;
-window.trackStat = trackStat;
-window.startDailyChallenge = startDailyChallenge;
-window.startQuickPlay = startQuickPlay;

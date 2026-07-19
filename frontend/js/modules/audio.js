@@ -1,4 +1,9 @@
 // audio.js - STIM Audio extraction player with playlist
+import { AppState, DOM, CONSTANTS, log } from "../state.js";
+import * as ProtocolUtils from "../lib/protocol-utils.js";
+import { sendSoftStop } from "./bluetooth.js";
+import { updateOutputStatus } from "./status-ui.js";
+import { ensureGameStrength } from "./games-extra.js";
 
 function handleAudioFile(file) {
   const extension = file.name.split(".").pop().toLowerCase();
@@ -44,9 +49,7 @@ function renderPlaylist() {
   el.innerHTML = list
     .map((t, i) => {
       const active = i === AppState.playlistIndex ? "active" : "";
-      const safe = ProtocolUtils?.escapeHtml
-        ? ProtocolUtils.escapeHtml(t.name)
-        : t.name.replace(/</g, "&lt;");
+      const safe = ProtocolUtils.escapeHtml(t.name);
       return `<div class="stim-playlist-item ${active}" data-index="${i}">
         <span class="pl-name">${i + 1}. ${safe}</span>
         <button type="button" class="pl-remove" data-remove="${i}" title="Entfernen">×</button>
@@ -143,15 +146,14 @@ function loadPlaylistIndex(idx, autoplay = false) {
     } else {
       AppState.isAudioPlaying = false;
       if (DOM["btn-play-audio"]) DOM["btn-play-audio"].textContent = "▶️ Play";
-      if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
-      else sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+      sendSoftStop({ keepStrength: true });
       log("STIM Wiedergabe beendet.", "info");
-      if (typeof updateOutputStatus === "function") updateOutputStatus();
+      updateOutputStatus();
     }
   };
 }
 
-function applyAudioMasterLink() {
+export function applyAudioMasterLink() {
   if (!AppState.audioGainNode) return;
   const hear = AppState.audioHearSound;
   const link = document.getElementById("check-audio-master-link")?.checked ?? true;
@@ -159,8 +161,6 @@ function applyAudioMasterLink() {
   const scale = link ? AppState.masterScale || 0 : 1;
   AppState.audioGainNode.gain.value = hear ? base * scale : 0;
 }
-
-window.applyAudioMasterLink = applyAudioMasterLink;
 
 function playSTIMAudio() {
   if (!AppState.audioCtx || !AppState.audioElement?.src) return;
@@ -193,7 +193,7 @@ function playSTIMAudio() {
   applyAudioMasterLink();
 
   // V3: wave amps alone are not enough – need channel strength
-  if (typeof ensureGameStrength === "function") ensureGameStrength(40);
+  ensureGameStrength(40);
 
   AppState.audioElement.play();
   AppState.isAudioPlaying = true;
@@ -205,7 +205,7 @@ function playSTIMAudio() {
   AppState.audioTimer = setInterval(updateSTIMTimeline, 250);
 
   drawVisualizerLoop();
-  if (typeof updateOutputStatus === "function") updateOutputStatus();
+  updateOutputStatus();
 }
 
 function pauseSTIMAudio() {
@@ -216,10 +216,9 @@ function pauseSTIMAudio() {
   if (DOM["btn-play-audio"]) DOM["btn-play-audio"].textContent = "▶️ Play";
   clearInterval(AppState.audioTimer);
 
-  if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
-  else sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+  sendSoftStop({ keepStrength: true });
   log("STIM Wiedergabe pausiert.", "info");
-  if (typeof updateOutputStatus === "function") updateOutputStatus();
+  updateOutputStatus();
 }
 
 function updateSTIMTimeline() {
@@ -244,8 +243,7 @@ function formatTime(secs) {
   return `${m}:${s}`;
 }
 
-// eslint-disable-next-line no-unused-vars
-function initCanvasVisualizers() {
+export function initCanvasVisualizers() {
   const canvasA = document.getElementById("canvas-vis-a");
   const canvasB = document.getElementById("canvas-vis-b");
   if (canvasA && canvasB) {

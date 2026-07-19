@@ -2,14 +2,9 @@
  * Node built-in test runner (node --test)
  * Pure protocol helpers without Electron/hardware.
  */
-const { describe, it } = require("node:test");
-const assert = require("node:assert/strict");
-const path = require("node:path");
-
-const ProtocolUtils = require(path.resolve(
-  __dirname,
-  "../../frontend/js/lib/protocol-utils.js"
-));
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import * as ProtocolUtils from "../../frontend/js/lib/protocol-utils.js";
 
 describe("getDeviceStrength", () => {
   it("keeps logical value at master 100%", () => {

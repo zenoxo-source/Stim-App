@@ -1,5 +1,11 @@
 // bluetooth.js - BLE connection and V3 protocol for DG-LAB Coyote 3.0
 // Based on DG-Kit reference implementation (github.com/0xNullAI/DG-Kit)
+import { AppState, DOM, log, CONSTANTS } from "../state.js";
+import * as ProtocolUtils from "../lib/protocol-utils.js";
+import { updateAIDashboard, startWaveLoop, stopWaveLoop } from "../control-deck.js";
+import { updateOutputStatus } from "./status-ui.js";
+import { trackStat } from "./stats.js";
+import { unlockAchievement } from "./fun.js";
 
 // V3 Protocol overview:
 //   0xB0 packet (20 bytes): combined strength + waveform, sent every 100ms
@@ -32,7 +38,7 @@ function debugHex(label, data) {
 // ---------------------------------------------------------------------------
 // Core BLE write (Fix 6: error logging)
 // ---------------------------------------------------------------------------
-function sendBluetoothCommand(data) {
+export function sendBluetoothCommand(data) {
   return new Promise((resolve) => {
     if (!AppState.writeChar) {
       resolve();
@@ -82,7 +88,7 @@ async function drainBluetoothQueue() {
 // V3 PROTOCOL FUNCTIONS
 // ==========================================
 
-function sendV3Init() {
+export function sendV3Init() {
   if (!AppState.writeChar) return;
   const limitA = Math.min(200, Math.max(0, AppState.softLimitA));
   const limitB = Math.min(200, Math.max(0, AppState.softLimitB));
@@ -128,7 +134,7 @@ function getDeviceStrength(val, softLimit) {
  * @param {object} [opts] - Options
  * @param {boolean} [opts.keepStrength=false] - Don't include pending strength change
  */
-function sendB0Now(freqA, ampA, freqB, ampB, opts) {
+export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
   if (!AppState.writeChar) return;
   const o = opts || {};
 
@@ -248,7 +254,7 @@ function sendB0Now(freqA, ampA, freqB, ampB, opts) {
   drainBluetoothQueue();
 }
 
-function sendStrengthCommand(valA, valB) {
+export function sendStrengthCommand(valA, valB) {
   if (!AppState.writeChar) return;
 
   // Keep AppState as logical (UI) values; do not bake masterScale into state.
@@ -268,7 +274,7 @@ function sendStrengthCommand(valA, valB) {
   sendB0Now(fA, aA, fB, aB);
 }
 
-function sendWaveformCommand(freqA, ampA, freqB, ampB) {
+export function sendWaveformCommand(freqA, ampA, freqB, ampB) {
   // Delegate to unified B0 sender
   sendB0Now(freqA, ampA, freqB, ampB);
 }
@@ -279,7 +285,7 @@ function sendWaveformCommand(freqA, ampA, freqB, ampB) {
  *   keepStrength: leave channel strength as-is (for short gaps between pulses)
  *   zeroUiStrength: also set AppState/UI strength to 0 (pattern stop etc.)
  */
-function sendSoftStop(opts = {}) {
+export function sendSoftStop(opts = {}) {
   if (!AppState.writeChar) return;
   const keepStrength = !!opts.keepStrength;
   const zeroUi = !!opts.zeroUiStrength;
@@ -334,7 +340,7 @@ function sendSoftStop(opts = {}) {
   drainBluetoothQueue();
 }
 
-function sendV3EmergencyStop() {
+export function sendV3EmergencyStop() {
   if (!AppState.writeChar) return;
 
   AppState.strengthA = 0;
@@ -372,7 +378,7 @@ function sendV3EmergencyStop() {
 // ---------------------------------------------------------------------------
 // Fix 7: Heartbeat / connection monitoring
 // ---------------------------------------------------------------------------
-function updateHeartbeat() {
+export function updateHeartbeat() {
   if (!AppState.isConnected) return;
   const now = Date.now();
   // If we haven't received a B1 in B1_STALE_WARNING_MS and we have strength > 0, warn
@@ -426,7 +432,7 @@ function handleDeviceNotification(event) {
   }
 }
 
-function updateBatteryUI(level) {
+export function updateBatteryUI(level) {
   if (DOM["battery-level-bar"]) DOM["battery-level-bar"].style.height = `${level}%`;
   if (DOM["battery-text"]) DOM["battery-text"].textContent = `${level}%`;
 }
@@ -519,7 +525,7 @@ function scheduleReconnect() {
   }, delay);
 }
 
-function clearReconnect() {
+export function clearReconnect() {
   if (AppState.reconnectTimer) {
     clearTimeout(AppState.reconnectTimer);
     AppState.reconnectTimer = null;
@@ -560,7 +566,7 @@ function onDisconnected() {
   if (DOM["battery-text"]) DOM["battery-text"].textContent = "--%";
   if (DOM["battery-level-bar"]) DOM["battery-level-bar"].style.height = "0%";
   setDeviceListHint([]);
-  if (typeof updateOutputStatus === "function") updateOutputStatus();
+  updateOutputStatus();
 
   if (DOM["info-device-name"]) DOM["info-device-name"].textContent = "Nicht verbunden";
   if (DOM["info-manufacturer"]) DOM["info-manufacturer"].textContent = "--";
@@ -574,7 +580,7 @@ function onDisconnected() {
   scheduleReconnect();
 }
 
-function resetUIOnDisconnect() {
+export function resetUIOnDisconnect() {
   AppState.isConnected = false;
   AppState.writeChar = null;
   AppState.notifyChar = null;
@@ -593,7 +599,7 @@ function resetUIOnDisconnect() {
 // ---------------------------------------------------------------------------
 // Fix 3: Module registry validation
 // ---------------------------------------------------------------------------
-function validateModules() {
+export function validateModules() {
   const required = [
     "AppState",
     "DOM",
@@ -786,9 +792,9 @@ document.addEventListener("DOMContentLoaded", () => {
       AppState.isConnected = true;
       AppState.reconnectAttempts = 0;
       AppState.lastB1Time = Date.now();
-      if (typeof trackStat === "function") trackStat("connection");
+      trackStat("connection");
       log("Erfolgreich mit Coyote 3.0 verbunden!", "success");
-      if (typeof unlockAchievement === "function") unlockAchievement("first_connect");
+      unlockAchievement("first_connect");
       setReconnectStatus("");
       setDeviceListHint([AppState.device?.name || "Coyote 3.0 · verbunden"]);
 
@@ -809,7 +815,7 @@ document.addEventListener("DOMContentLoaded", () => {
       AppState.btPendingMode = CONSTANTS.V3_MODE_ABSOLUTE_BOTH;
 
       startWaveLoop();
-      if (typeof updateOutputStatus === "function") updateOutputStatus();
+      updateOutputStatus();
     } catch (err) {
       const friendly = friendlyBtError(err);
       log(friendly, "error");
@@ -827,16 +833,3 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
-
-window.sendBluetoothCommand = sendBluetoothCommand;
-window.sendStrengthCommand = sendStrengthCommand;
-window.sendWaveformCommand = sendWaveformCommand;
-window.sendB0Now = sendB0Now;
-window.sendSoftStop = sendSoftStop;
-window.sendV3Init = sendV3Init;
-window.sendV3EmergencyStop = sendV3EmergencyStop;
-window.updateBatteryUI = updateBatteryUI;
-window.resetUIOnDisconnect = resetUIOnDisconnect;
-window.clearReconnect = clearReconnect;
-window.updateHeartbeat = updateHeartbeat;
-window.validateModules = validateModules;

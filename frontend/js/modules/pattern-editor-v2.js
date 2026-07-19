@@ -1,7 +1,12 @@
 // pattern-editor-v2.js - Enhanced standalone Pattern Editor with oscilloscope
 // Features: waveform presets, channel operations, live preview, export, phase shift, fade, variable steps
 
-const PATTERN_EDITOR2 = {
+import { AppState, CONSTANTS, log } from "../state.js";
+import { sendSoftStop } from "./bluetooth.js";
+import { updateAIDashboard } from "../control-deck.js";
+import { ensureGameStrength } from "./games-extra.js";
+
+export const PATTERN_EDITOR2 = {
   steps: 16,
   channelA: [],
   channelB: [],
@@ -309,19 +314,16 @@ const PATTERN_EDITOR2 = {
     document.querySelectorAll(".pattern-card").forEach(function (c) {
       c.classList.remove("active");
     });
-    if (typeof ensureGameStrength === "function") ensureGameStrength(40);
+    ensureGameStrength(40);
     log("Custom Pattern wird abgespielt.", "success");
-    if (typeof updateAIDashboard === "function") updateAIDashboard();
+    updateAIDashboard();
     this.startLivePreview();
   },
 
   stopPattern() {
     AppState.activePattern = null;
-    if (typeof updateAIDashboard === "function") updateAIDashboard();
-    if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
-    else if (typeof sendWaveformCommand === "function") {
-      sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
-    }
+    updateAIDashboard();
+    sendSoftStop({ keepStrength: true });
     this.stopLivePreview();
     log("Pattern gestoppt.", "info");
   },
@@ -509,7 +511,7 @@ const PATTERN_EDITOR2 = {
 };
 
 // Editor oscilloscope renderer
-function startEditorVisualizers() {
+export function startEditorVisualizers() {
   if (PATTERN_EDITOR2.editorVisRunning) return;
   PATTERN_EDITOR2.editorVisRunning = true;
 
@@ -605,7 +607,7 @@ function startEditorVisualizers() {
   editorVisLoop();
 }
 
-function stopEditorVisualizers() {
+export function stopEditorVisualizers() {
   PATTERN_EDITOR2.editorVisRunning = false;
   if (PATTERN_EDITOR2.editorVisAnimId) {
     cancelAnimationFrame(PATTERN_EDITOR2.editorVisAnimId);
@@ -712,7 +714,3 @@ document.addEventListener("DOMContentLoaded", function () {
   PATTERN_EDITOR2.updateUI();
   PATTERN_EDITOR2.renderSavedList();
 });
-
-window.PATTERN_EDITOR2 = PATTERN_EDITOR2;
-window.startEditorVisualizers = startEditorVisualizers;
-window.stopEditorVisualizers = stopEditorVisualizers;

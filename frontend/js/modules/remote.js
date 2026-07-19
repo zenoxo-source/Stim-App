@@ -1,5 +1,15 @@
 // remote.js - WebSocket remote command handler
 // Receives commands from the backend WebSocket server and executes them.
+import { AppState, CONSTANTS, log } from "../state.js";
+import {
+  updateSlidersA,
+  updateSlidersB,
+  updateAIDashboard,
+  setChannelFreq,
+} from "../control-deck.js";
+import { ensureGameStrength } from "./games-extra.js";
+import { killAllOutput } from "./safety.js";
+import { trackStat } from "./stats.js";
 
 const REMOTE_COMMANDS = {
   set_intensity: (msg) => {
@@ -67,8 +77,8 @@ const REMOTE_COMMANDS = {
     document.querySelectorAll(".pattern-card").forEach(function (c) {
       c.classList.remove("active");
     });
-    if (typeof ensureGameStrength === "function") ensureGameStrength(40);
-    if (typeof updateAIDashboard === "function") updateAIDashboard();
+    ensureGameStrength(40);
+    updateAIDashboard();
     return { ok: true };
   },
 
@@ -261,7 +271,7 @@ function handleRemoteCommand(msg) {
   }
   try {
     var result = handler(msg);
-    if (typeof trackStat === "function") trackStat("remote_command");
+    trackStat("remote_command");
     if (result && result.ok !== false) {
       remoteStats.okCmds++;
       log("Remote: " + type + " ausgef\u00fchrt", "info");
@@ -463,9 +473,11 @@ document.addEventListener("DOMContentLoaded", function () {
   renderRemoteCmdLog();
 });
 
-window.handleRemoteCommand = handleRemoteCommand;
-window.updateRemoteUI = updateRemoteUI;
-window.updateEditorRemoteUI = updateEditorRemoteUI;
-window.addRemoteCmdLog = addRemoteCmdLog;
-window.updateRemoteCodeSnippet = updateRemoteCodeSnippet;
-window.remoteStats = remoteStats;
+export {
+  handleRemoteCommand,
+  updateRemoteUI,
+  updateEditorRemoteUI,
+  addRemoteCmdLog,
+  updateRemoteCodeSnippet,
+  remoteStats,
+};

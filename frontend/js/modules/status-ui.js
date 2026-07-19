@@ -1,6 +1,8 @@
 // status-ui.js - Output / safety indicators
+import { AppState, log } from "../state.js";
+import { killAllOutput } from "./safety.js";
 
-function isOutputActive() {
+export function isOutputActive() {
   if (!AppState.isConnected) return false;
   if (AppState.activePattern) return true;
   if (AppState.isAudioPlaying) return true;
@@ -27,7 +29,7 @@ function activeOutputModeLabel() {
   return "Direkt";
 }
 
-function updateOutputStatus(opts = {}) {
+export function updateOutputStatus(opts = {}) {
   const panic = !!opts.panic;
   const el = document.getElementById("output-status");
   const text = document.getElementById("output-status-text");
@@ -79,12 +81,9 @@ function updateOutputStatus(opts = {}) {
   }
 }
 
-window.updateOutputStatus = updateOutputStatus;
-window.isOutputActive = isOutputActive;
-
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-panic")?.addEventListener("click", () => {
-    if (typeof killAllOutput === "function") killAllOutput();
+    killAllOutput();
     updateOutputStatus({ panic: true });
     log("PANIC STOP aktiviert (STOPP-Taste).", "error");
     setTimeout(() => updateOutputStatus(), 2500);

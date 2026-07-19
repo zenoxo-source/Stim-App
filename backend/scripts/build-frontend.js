@@ -1,102 +1,85 @@
-const fs = require('fs');
-const path = require('path');
-const { minify } = require('terser');
+/**
+ * Build frontend bundle using esbuild.
+ *
+ * - Entry:  frontend/js/main.js
+ * - Output: frontend/dist/bundle.js       (development, readable)
+ *          frontend/dist/bundle.min.js   (production, minified)
+ *
+ * Replaces the previous terser concatenation pipeline. esbuild resolves the
+ * full ES module import graph starting at main.js, so the jsOrder array and
+ * mangle.reserved list are no longer needed.
+ *
+ * Usage: node scripts/build-frontend.js [--watch]
+ */
+const esbuild = require("esbuild");
+const fs = require("fs");
+const path = require("path");
 
-const rootDir = path.resolve(__dirname, '..', '..');
-const frontendDir = path.join(rootDir, 'frontend');
-const outputDir = path.join(frontendDir, 'dist');
+const rootDir = path.resolve(__dirname, "..", "..");
+const frontendDir = path.join(rootDir, "frontend");
+const entryPoint = path.join(frontendDir, "js", "main.js");
+const outputDir = path.join(frontendDir, "dist");
+const rawOut = path.join(outputDir, "bundle.js");
+const minOut = path.join(outputDir, "bundle.min.js");
 
-// Must match the exact load order in frontend/index.html <script> tags
-const jsOrder = [
-  'js/state.js',
-  'js/modules/i18n.js',
-  'js/constants.js',
-  'js/lib/protocol-utils.js',
-  'js/control-deck.js',
-  'js/modules/bluetooth.js',
-  'js/modules/audio.js',
-  'js/modules/highscores.js',
-  'js/modules/games.js',
-  'js/modules/games-extra.js',
-  'js/modules/fun.js',
-  'js/modules/presets.js',
-  'js/modules/ai-bridge.js',
-  'js/modules/settings.js',
-  'js/modules/safety.js',
-  'js/modules/status-ui.js',
-  'js/modules/onboarding.js',
-  'js/modules/sessions.js',
-  'js/modules/updater-ui.js',
-  'js/modules/remote.js',
-  'js/modules/recorder.js',
-  'js/modules/stats.js',
-  'js/modules/pattern-editor.js',
-  'js/modules/pattern-editor-v2.js',
-  'js/modules/game-config.js',
-  'js/llm-service.js',
-];
+const watch = process.argv.includes("--watch");
 
-async function buildFrontend() {
-  console.log('Gathering frontend JS in load order...');
-
-  let combined = '';
-  for (const relPath of jsOrder) {
-    const fullPath = path.join(frontendDir, relPath);
-    if (!fs.existsSync(fullPath)) {
-      console.error(`Missing file: ${fullPath}`);
-      process.exit(1);
-    }
-    const content = fs.readFileSync(fullPath, 'utf-8');
-    combined += `\n/* --- ${relPath} --- */\n`;
-    combined += content;
-    combined += '\n';
-  }
-
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
-
-  const rawOut = path.join(outputDir, 'bundle.js');
-  fs.writeFileSync(rawOut, combined);
-  console.log(`Raw bundle written: ${rawOut} (${combined.length} bytes)`);
-
-  console.log('Minifying with terser...');
-  const result = await minify(combined, {
-    compress: {
-      drop_console: false,
-      drop_debugger: true,
-      passes: 2,
-    },
-    mangle: {
-      reserved: [
-        'AppState',
-        'DOM',
-        'CONSTANTS',
-        'SESSIONS',
-        'SESSION_STATE',
-        'ProtocolUtils',
-      ],
-    },
-    format: {
-      comments: /^(?!.*---)/,
-      max_line_len: 120,
-    },
-  });
-
-  if (result.error) {
-    console.error('Terser minification failed:', result.error);
-    process.exit(1);
-  }
-
-  const minOut = path.join(outputDir, 'bundle.min.js');
-  fs.writeFileSync(minOut, result.code);
-  console.log(`Minified bundle written: ${minOut} (${result.code.length} bytes)`);
-  console.log(
-    `Size reduction: ${((1 - result.code.length / combined.length) * 100).toFixed(1)}%`
-  );
+if (!fs.existsSync(outputDir)) {
+  fs.mkdirSync(outputDir, { recursive: true });
 }
 
-buildFrontend().catch((err) => {
-  console.error('Build failed:', err);
-  process.exit(1);
-});
+/** @type {import('esbuild').BuildOptions} */
+const baseOptions = {
+  entryPoints: [entryPoint],
+  bundle: true,
+  format: "iife",
+  target: ["chrome130"],
+  platform: "browser",
+  sourcemap: false,
+  logLevel: "info",
+  absWorkingDir: frontendDir,
+};
+
+async function build() {
+  // Raw dev bundle (readable, with source map)
+  console.log("esbuild: dev bundle...");
+  await esbuild.build({
+    ...baseOptions,
+    outfile: rawOut,
+    minify: false,
+    sourcemap: "linked",
+  });
+  const rawSize = fs.statSync(rawOut).size;
+  console.log(`esbuild: wrote ${rawOut} (${rawSize} bytes)`);
+
+  // Minified production bundle
+  console.log("esbuild: production bundle...");
+  await esbuild.build({
+    ...baseOptions,
+    outfile: minOut,
+    minify: true,
+    sourcemap: false,
+    legalComments: "none",
+  });
+  const minSize = fs.statSync(minOut).size;
+  const reduction = ((1 - minSize / rawSize) * 100).toFixed(1);
+  console.log(`esbuild: wrote ${minOut} (${minSize} bytes, -${reduction}% vs dev)`);
+}
+
+if (watch) {
+  (async () => {
+    const ctx = await esbuild.context({
+      ...baseOptions,
+      outfile: minOut,
+      minify: false,
+      sourcemap: "linked",
+    });
+    await ctx.watch();
+    console.log("esbuild: watching for changes...");
+  })();
+} else {
+  build().catch((err) => {
+    console.error("esbuild build failed:", err);
+    process.exit(1);
+  });
+}

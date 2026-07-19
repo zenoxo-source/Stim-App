@@ -1,4 +1,5 @@
 // stats.js - Usage statistics dashboard
+import { AppState, log } from "../state.js";
 
 const STATS_DASHBOARD_KEY = "stim_app_stats_v2";
 
@@ -35,7 +36,7 @@ function saveStats(stats) {
   }
 }
 
-function trackStat(key, value) {
+export function trackStat(key, value) {
   const stats = loadStats();
   if (key === "pattern_used") {
     stats.patternsUsed[value] = (stats.patternsUsed[value] || 0) + 1;
@@ -73,7 +74,7 @@ function topEntries(obj, n) {
     .slice(0, n);
 }
 
-function renderStats() {
+export function renderStats() {
   const stats = loadStats();
   const container = document.getElementById("stats-content");
   if (!container) return;
@@ -196,6 +197,3 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }, 2000);
 });
-
-window.trackStat = trackStat;
-window.renderStats = renderStats;

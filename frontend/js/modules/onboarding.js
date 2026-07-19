@@ -1,4 +1,5 @@
 // onboarding.js - First-run guided intro
+import { AppState } from "../state.js";
 
 const ONBOARDING_KEY = "stim_app_onboarding_done_v1";
 
@@ -18,7 +19,7 @@ function markOnboardingDone() {
   }
 }
 
-function showOnboarding(force = false) {
+export function showOnboarding(force = false) {
   if (!force && isOnboardingDone()) return;
   const overlay = document.getElementById("onboarding-overlay");
   if (!overlay) return;
@@ -74,5 +75,3 @@ document.addEventListener("DOMContentLoaded", () => {
   // First run
   setTimeout(() => showOnboarding(false), 400);
 });
-
-window.showOnboarding = showOnboarding;

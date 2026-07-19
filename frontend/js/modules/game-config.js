@@ -1,6 +1,7 @@
 // game-config.js - Centralized game configuration for hardware tuning
 // All hardcoded game values are replaced with configurable options.
 // Persisted in localStorage so users can tune to their hardware/pain tolerance.
+import { AppState, log } from "../state.js";
 
 const GAME_CONFIG_KEY = "stim_game_config_v1";
 
@@ -76,7 +77,7 @@ const GAME_CONFIG_DEFAULTS = {
   },
 };
 
-const GAME_CONFIG = {
+export const GAME_CONFIG = {
   data: JSON.parse(JSON.stringify(GAME_CONFIG_DEFAULTS)),
 
   load() {
@@ -187,7 +188,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-function renderGameConfig() {
+export function renderGameConfig() {
   const panel = document.getElementById("game-config-panel");
   if (!panel) return;
   const c = GAME_CONFIG.data;
@@ -282,6 +283,3 @@ function checkbox(label, path, value, hint) {
     </div>
   `;
 }
-
-window.GAME_CONFIG = GAME_CONFIG;
-window.renderGameConfig = renderGameConfig;

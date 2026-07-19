@@ -1,6 +1,6 @@
 // constants.js - Application constants
 
-const CONSTANTS = {
+export const CONSTANTS = {
   // BLE UUIDs
   SERVICE_UUID: "0000180c-0000-1000-8000-00805f9b34fb",
   WRITE_UUID: "0000150a-0000-1000-8000-00805f9b34fb",
@@ -82,5 +82,3 @@ const CONSTANTS = {
   B1_ACK_TIMEOUT_MS: 300,
   B1_STALE_WARNING_MS: 5000,
 };
-
-window.CONSTANTS = CONSTANTS;

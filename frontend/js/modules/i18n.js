@@ -1,4 +1,5 @@
 // i18n.js - Lightweight internationalization (DE/EN)
+import { log } from "../state.js";
 
 const I18N_TRANSLATIONS_DE = {
   nav_deck: "Control Deck",
@@ -76,7 +77,7 @@ const I18N_TRANSLATIONS_EN = {
   language: "Language",
 };
 
-const I18N = {
+export const I18N = {
   currentLang: "de",
   translations: {
     de: I18N_TRANSLATIONS_DE,
@@ -127,5 +128,3 @@ document.addEventListener("DOMContentLoaded", () => {
   I18N.init();
   document.getElementById("btn-lang-toggle")?.addEventListener("click", () => I18N.toggle());
 });
-
-window.I18N = I18N;

@@ -1,13 +1,19 @@
 // ai-bridge.js - AI service integration proxies and AI visualizer
 
-window.aiStopAll = () => {
+import { AppState, DOM, CONSTANTS, log } from "../state.js";
+import { SESSION_STATE, SESSIONS } from "./sessions.js";
+import { sendStrengthCommand, sendV3EmergencyStop } from "./bluetooth.js";
+import { updateSlidersA, updateSlidersB, updateAIDashboard } from "../control-deck.js";
+import { ensureGameStrength } from "./games-extra.js";
+
+export const aiStopAll = () => {
   if (!AppState.isConnected) return "Fehler: Nicht mit Ger\u00e4t verbunden.";
 
   AppState.activePattern = null;
   updateAIDashboard();
 
-  if (typeof updateSlidersA === "function") updateSlidersA(0);
-  if (typeof updateSlidersB === "function") updateSlidersB(0);
+  updateSlidersA(0);
+  updateSlidersB(0);
 
   sendV3EmergencyStop();
 
@@ -32,7 +38,7 @@ function clampAIValue(channel, val) {
   return val;
 }
 
-window.aiSetIntensity = (levelA, levelB) => {
+export const aiSetIntensity = (levelA, levelB) => {
   if (!AppState.isConnected) return "Fehler: Nicht mit Ger\u00e4t verbunden.";
 
   const mode = DOM["ai-channel-mode"]?.value || "sync";
@@ -60,42 +66,26 @@ window.aiSetIntensity = (levelA, levelB) => {
 
   if (valA !== undefined) {
     valA = clampAIValue("A", valA);
-    if (typeof updateSlidersA === "function") {
-      updateSlidersA(valA);
-    } else {
-      AppState.strengthA = valA;
-      if (DOM["slider-intensity-a"]) DOM["slider-intensity-a"].value = valA;
-      if (DOM["label-intensity-a"]) DOM["label-intensity-a"].textContent = valA;
-      if (DOM["intensity-circle-a"]) DOM["intensity-circle-a"].textContent = valA;
-    }
+    updateSlidersA(valA);
     msg.push(`Channel A set to ${valA}`);
   }
 
   if (valB !== undefined) {
     valB = clampAIValue("B", valB);
-    if (typeof updateSlidersB === "function") {
-      updateSlidersB(valB);
-    } else {
-      AppState.strengthB = valB;
-      if (DOM["slider-intensity-b"]) DOM["slider-intensity-b"].value = valB;
-      if (DOM["label-intensity-b"]) DOM["label-intensity-b"].textContent = valB;
-      if (DOM["intensity-circle-b"]) DOM["intensity-circle-b"].textContent = valB;
-    }
+    updateSlidersB(valB);
     msg.push(`Channel B set to ${valB}`);
   }
 
   if (msg.length > 0) {
     updateAIDashboard();
-    if (typeof sendStrengthCommand === "function") {
-      sendStrengthCommand(AppState.strengthA, AppState.strengthB);
-    }
+    sendStrengthCommand(AppState.strengthA, AppState.strengthB);
     return msg.join(", ") + " successfully.";
   }
 
   return "Fehler: Keine g\u00fcltigen Level \u00fcbergeben.";
 };
 
-window.aiPlayPattern = (patternName) => {
+export const aiPlayPattern = (patternName) => {
   if (!AppState.isConnected) return "Fehler: Nicht mit Ger\u00e4t verbunden.";
 
   if (AppState.activePattern === patternName) {
@@ -107,7 +97,7 @@ window.aiPlayPattern = (patternName) => {
     document.querySelectorAll(".pattern-card").forEach((c) => c.classList.remove("active"));
     AppState.activePattern = patternName;
     btn.classList.add("active");
-    if (typeof ensureGameStrength === "function") ensureGameStrength(40);
+    ensureGameStrength(40);
 
     updateAIDashboard();
 
@@ -117,7 +107,7 @@ window.aiPlayPattern = (patternName) => {
   return `Fehler: Muster ${patternName} nicht gefunden.`;
 };
 
-window.aiCreateCustomPattern = (name, patternA, patternB, intervalMs) => {
+export const aiCreateCustomPattern = (name, patternA, patternB, intervalMs) => {
   if (!AppState.isConnected) return "Fehler: Nicht mit Ger\u00e4t verbunden.";
 
   AppState.aiCustomPatternA = Array.isArray(patternA) ? patternA : [patternA || 0];
@@ -126,7 +116,7 @@ window.aiCreateCustomPattern = (name, patternA, patternB, intervalMs) => {
 
   document.querySelectorAll(".pattern-card").forEach((c) => c.classList.remove("active"));
   AppState.activePattern = CONSTANTS.PATTERNS.AI_CUSTOM;
-  if (typeof ensureGameStrength === "function") ensureGameStrength(40);
+  ensureGameStrength(40);
 
   const nameDisp = name || "KI Spezial";
   if (DOM["ai-dash-pattern"]) DOM["ai-dash-pattern"].textContent = nameDisp;
@@ -135,7 +125,7 @@ window.aiCreateCustomPattern = (name, patternA, patternB, intervalMs) => {
   return `Erfolg: Custom Muster '${nameDisp}' l\u00e4uft.`;
 };
 
-window.aiStartSession = (sessionId) => {
+export const aiStartSession = (sessionId) => {
   if (!AppState.isConnected) return "Fehler: Nicht mit Ger\u00e4t verbunden.";
 
   const available = Object.values(SESSIONS).map((s) => s.id);
@@ -154,7 +144,7 @@ window.aiStartSession = (sessionId) => {
 };
 
 // eslint-disable-next-line no-unused-vars
-function renderAIVisualizer() {
+export function renderAIVisualizer() {
   requestAnimationFrame(renderAIVisualizer);
 
   const drawWave = (canvas, color, strength, frequency) => {

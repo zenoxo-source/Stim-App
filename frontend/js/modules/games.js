@@ -1,8 +1,13 @@
 // games.js - Reflex Trainer and Rhythm Pulse Tapper for DG-LAB Coyote 3.0
+import { AppState, DOM, log, CONSTANTS } from "../state.js";
+import { GAME_CONFIG } from "./game-config.js";
+import { sendSoftStop, sendWaveformCommand } from "./bluetooth.js";
+import { recordHighscore, refreshHighscoreUI } from "./highscores.js";
+import { playGameSfx, unlockAchievement } from "./fun.js";
+import { beginMiniGame, ensureGameStrength, showGameSelectors } from "./games-extra.js";
 
 function gameWaveOff() {
-  if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
-  else sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+  sendSoftStop({ keepStrength: true });
 }
 
 // Helper to read reflex config with fallback
@@ -14,15 +19,7 @@ function reflexCfg() {
 
 document.addEventListener("DOMContentLoaded", () => {
   DOM["btn-start-reflex"]?.addEventListener("click", () => {
-    if (typeof beginMiniGame === "function") {
-      if (!beginMiniGame("arena-reflex")) return;
-    } else if (!AppState.isConnected) {
-      log("Fehler: DG-LAB Controller ist nicht verbunden.", "error");
-      return;
-    } else {
-      if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "none";
-      if (DOM["arena-reflex"]) DOM["arena-reflex"].style.display = "flex";
-    }
+    if (!beginMiniGame("arena-reflex")) return;
 
     AppState.reflexLevel = 1;
     const cfg = reflexCfg();
@@ -45,11 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
     AppState.reflexState = "IDLE";
     gameWaveOff();
 
-    if (typeof showGameSelectors === "function") showGameSelectors();
-    else {
-      if (DOM["arena-reflex"]) DOM["arena-reflex"].style.display = "none";
-      if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "grid";
-    }
+    showGameSelectors();
   });
 
   DOM["reflex-tap-box"]?.addEventListener("click", () => {
@@ -130,13 +123,13 @@ function triggerReflexSuccess() {
     DOM["reflex-subtext"].textContent = "Klicke das Feld f\u00fcr das n\u00e4chste Level";
 
   log(`Reflex Level ${AppState.reflexLevel - 1} bestanden: ${reactionTime} ms`, "success");
-  if (typeof playGameSfx === "function") playGameSfx("hit");
+  playGameSfx("hit");
   const hs = recordHighscore("reflex", AppState.reflexLevel - 1);
   if (hs.isNew && DOM["reflex-feedback-message"]) {
     DOM["reflex-feedback-message"].textContent += " · Highscore!";
   }
-  if (hs.isNew && typeof unlockAchievement === "function") unlockAchievement("first_hs");
-  if (typeof refreshHighscoreUI === "function") refreshHighscoreUI();
+  if (hs.isNew) unlockAchievement("first_hs");
+  refreshHighscoreUI();
 }
 
 function triggerReflexFalseStart() {
@@ -153,7 +146,7 @@ function triggerReflexFalseStart() {
   if (DOM["reflex-subtext"]) DOM["reflex-subtext"].textContent = "Sp\u00fcre die Warnung...";
 
   log("Reflex Trainer: Fehlstart! Strafe gesendet.", "warning");
-  if (typeof playGameSfx === "function") playGameSfx("fail");
+  playGameSfx("fail");
 
   setTimeout(() => {
     AppState.reflexState = "IDLE";
@@ -178,7 +171,7 @@ function triggerReflexTooSlow() {
     `Reflex Trainer: Zu langsam! ${AppState.reflexTargetTime} ms \u00fcberschritten. Strafe gesendet.`,
     "error"
   );
-  if (typeof playGameSfx === "function") playGameSfx("fail");
+  playGameSfx("fail");
 
   setTimeout(() => {
     AppState.reflexState = "IDLE";
@@ -191,15 +184,7 @@ function triggerReflexTooSlow() {
 
 document.addEventListener("DOMContentLoaded", () => {
   DOM["btn-start-rhythm"]?.addEventListener("click", () => {
-    if (typeof beginMiniGame === "function") {
-      if (!beginMiniGame("arena-rhythm")) return;
-    } else if (!AppState.isConnected) {
-      log("Fehler: DG-LAB Controller ist nicht verbunden.", "error");
-      return;
-    } else {
-      if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "none";
-      if (DOM["arena-rhythm"]) DOM["arena-rhythm"].style.display = "flex";
-    }
+    if (!beginMiniGame("arena-rhythm")) return;
 
     AppState.rhythmState = "IDLE";
     AppState.rhythmScore = 0;
@@ -221,11 +206,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   DOM["btn-exit-rhythm"]?.addEventListener("click", () => {
     stopRhythmGame();
-    if (typeof showGameSelectors === "function") showGameSelectors();
-    else {
-      if (DOM["arena-rhythm"]) DOM["arena-rhythm"].style.display = "none";
-      if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "grid";
-    }
+    showGameSelectors();
   });
 
   DOM["rhythm-tap-area"]?.addEventListener("click", () => {
@@ -332,9 +313,9 @@ function handleRhythmTap() {
     AppState.rhythmMultiplier = Math.min(maxMult, Math.floor(AppState.rhythmCombo / 5) + 1);
     AppState.rhythmScore += 10 * AppState.rhythmMultiplier;
     const rhythmHs = recordHighscore("rhythm", AppState.rhythmScore);
-    if (typeof refreshHighscoreUI === "function") refreshHighscoreUI();
-    if (typeof playGameSfx === "function") playGameSfx("hit");
-    if (rhythmHs.isNew && typeof unlockAchievement === "function") unlockAchievement("first_hs");
+    refreshHighscoreUI();
+    playGameSfx("hit");
+    if (rhythmHs.isNew) unlockAchievement("first_hs");
 
     if (DOM["rhythm-score"]) DOM["rhythm-score"].textContent = AppState.rhythmScore;
     if (DOM["rhythm-combo"])
@@ -371,7 +352,7 @@ function handleRhythmTap() {
     const scaledMissAmp =
       typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.clampAmp(missAmp) : missAmp;
     sendWaveformCommand(shockFreq, scaledMissAmp, shockFreq, scaledMissAmp);
-    if (typeof playGameSfx === "function") playGameSfx("fail");
+    playGameSfx("fail");
     log("Rhythm: Beat verpasst! Strafe gesendet.", "warning");
 
     setTimeout(() => {

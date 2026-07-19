@@ -1,30 +1,34 @@
 // games-extra.js - Hold the Edge, Hot Potato, Survival + shared game helpers
+import { AppState, DOM, log } from "../state.js";
+import { GAME_CONFIG } from "./game-config.js";
+import { sendSoftStop, sendWaveformCommand, sendStrengthCommand } from "./bluetooth.js";
+import { updateSlidersA, updateSlidersB } from "../control-deck.js";
+import { updateOutputStatus } from "./status-ui.js";
+import { trackStat } from "./stats.js";
+import { recordHighscore, refreshHighscoreUI } from "./highscores.js";
+import { playGameSfx, unlockAchievement } from "./fun.js";
 
 /**
  * V3 needs channel strength > 0 for wave amps to be felt. Games only set wave amps.
  * Raise strength gently to min if user left sliders at 0.
  * Uses GAME_CONFIG.baseStrength if available.
  */
-function ensureGameStrength(minLevel) {
+export function ensureGameStrength(minLevel) {
   const cfgBase = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.effectiveBaseStrength() : 40;
   const min = minLevel != null ? Math.max(10, Math.min(80, Number(minLevel) || 40)) : cfgBase;
   const targetA = Math.min(AppState.softLimitA, Math.max(AppState.strengthA || 0, min));
   const targetB = Math.min(AppState.softLimitB, Math.max(AppState.strengthB || 0, min));
   let raised = false;
   if ((AppState.strengthA || 0) < min) {
-    if (typeof updateSlidersA === "function") updateSlidersA(targetA);
-    else AppState.strengthA = targetA;
+    updateSlidersA(targetA);
     raised = true;
   }
   if ((AppState.strengthB || 0) < min) {
-    if (typeof updateSlidersB === "function") updateSlidersB(targetB);
-    else AppState.strengthB = targetB;
+    updateSlidersB(targetB);
     raised = true;
   }
   if (raised) {
-    if (typeof sendStrengthCommand === "function") {
-      sendStrengthCommand(AppState.strengthA, AppState.strengthB);
-    }
+    sendStrengthCommand(AppState.strengthA, AppState.strengthB);
     log(
       `Spiel-Basisstärke ${min} gesetzt (Soft-Limits: ${AppState.softLimitA}/${AppState.softLimitB}).`,
       "info"
@@ -32,7 +36,7 @@ function ensureGameStrength(minLevel) {
   }
 }
 
-function stopAllMiniGames() {
+export function stopAllMiniGames() {
   clearTimeout(AppState.reflexTimeoutId);
   AppState.reflexState = "IDLE";
   if (AppState.rhythmIntervalId) {
@@ -40,12 +44,12 @@ function stopAllMiniGames() {
     AppState.rhythmIntervalId = null;
   }
   AppState.rhythmState = "IDLE";
-  if (typeof stopEdgeGame === "function") stopEdgeGame();
-  if (typeof stopPotatoGame === "function") stopPotatoGame();
-  if (typeof stopSurvivalGame === "function") stopSurvivalGame(false);
+  stopEdgeGame();
+  stopPotatoGame();
+  stopSurvivalGame(false);
 }
 
-function hideGameSelectors() {
+export function hideGameSelectors() {
   stopAllMiniGames();
   if (DOM["game-selectors"]) DOM["game-selectors"].style.display = "none";
   ["arena-reflex", "arena-rhythm", "arena-edge", "arena-potato", "arena-survival"].forEach((id) => {
@@ -54,7 +58,7 @@ function hideGameSelectors() {
   });
 }
 
-function showGameSelectors() {
+export function showGameSelectors() {
   ["arena-reflex", "arena-rhythm", "arena-edge", "arena-potato", "arena-survival"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
@@ -70,20 +74,19 @@ function requireConnectedForGame() {
   return true;
 }
 
-function beginMiniGame(arenaId) {
+export function beginMiniGame(arenaId) {
   if (!requireConnectedForGame()) return false;
   hideGameSelectors();
   const baseStr = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.effectiveBaseStrength() : 40;
   ensureGameStrength(baseStr);
   const arena = document.getElementById(arenaId);
   if (arena) arena.style.display = "flex";
-  if (typeof trackStat === "function") trackStat("gamesStarted");
+  trackStat("gamesStarted");
   return true;
 }
 
 function gameWaveOff() {
-  if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
-  else sendWaveformCommand(CONSTANTS.DEFAULT_FREQUENCY, 0, CONSTANTS.DEFAULT_FREQUENCY, 0);
+  sendSoftStop({ keepStrength: true });
 }
 
 function gameShock(amp, ms = 280) {
@@ -108,7 +111,7 @@ function gameTickle(amp = 12, ms = 100) {
 
 // ========== HOLD THE EDGE ==========
 
-function stopEdgeGame() {
+export function stopEdgeGame() {
   if (AppState.edgeRaf) {
     cancelAnimationFrame(AppState.edgeRaf);
     AppState.edgeRaf = null;
@@ -116,7 +119,7 @@ function stopEdgeGame() {
   AppState.edgeState = "IDLE";
   AppState.edgeHolding = false;
   gameWaveOff();
-  if (typeof updateOutputStatus === "function") updateOutputStatus();
+  updateOutputStatus();
 }
 
 function startEdgeRound() {
@@ -187,7 +190,7 @@ function edgeLoop() {
     const failPerScore = failCfg.failShockPerScore != null ? failCfg.failShockPerScore : 1;
     const failMax = failCfg.failShockMax != null ? failCfg.failShockMax : 70;
     gameShock(Math.min(failMax, failShock + (AppState.edgeScore * failPerScore) / 10), 400);
-    if (typeof playGameSfx === "function") playGameSfx("fail");
+    playGameSfx("fail");
     const res = recordHighscore("edge", AppState.edgeScore);
     if (DOM["edge-feedback"]) {
       DOM["edge-feedback"].textContent = res.isNew
@@ -195,13 +198,11 @@ function edgeLoop() {
         : `Über der Kante! Score ${AppState.edgeScore} (Best: ${res.best})`;
       DOM["edge-feedback"].style.color = "#a80000";
     }
-    if (typeof unlockAchievement === "function") {
-      if (AppState.edgeScore >= 50) unlockAchievement("edge_50");
-      if (res.isNew) unlockAchievement("first_hs");
-    }
+    if (AppState.edgeScore >= 50) unlockAchievement("edge_50");
+    if (res.isNew) unlockAchievement("first_hs");
     stopEdgeGame();
     AppState.edgeState = "IDLE";
-    if (typeof refreshHighscoreUI === "function") refreshHighscoreUI();
+    refreshHighscoreUI();
     updateEdgeUI();
     return;
   }
@@ -233,7 +234,7 @@ function updateEdgeUI() {
 
 // ========== HOT POTATO ==========
 
-function stopPotatoGame() {
+export function stopPotatoGame() {
   if (AppState.potatoTimeout) {
     clearTimeout(AppState.potatoTimeout);
     AppState.potatoTimeout = null;
@@ -244,7 +245,7 @@ function stopPotatoGame() {
   }
   AppState.potatoState = "IDLE";
   gameWaveOff();
-  if (typeof updateOutputStatus === "function") updateOutputStatus();
+  updateOutputStatus();
 }
 
 function startPotatoRound() {
@@ -295,7 +296,7 @@ function potatoPass() {
   const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.potato : null;
   const tickleAmp = cfg ? cfg.tickleAmp : 18;
   gameTickle(tickleAmp, 90);
-  if (typeof playGameSfx === "function") playGameSfx("hit");
+  playGameSfx("hit");
   if (AppState.potatoTick) {
     clearInterval(AppState.potatoTick);
     AppState.potatoTick = null;
@@ -305,7 +306,7 @@ function potatoPass() {
     DOM["potato-feedback"].textContent = "Weitergegeben!";
     DOM["potato-feedback"].style.color = "#107c41";
   }
-  if (typeof unlockAchievement === "function" && AppState.potatoScore >= 15) {
+  if (AppState.potatoScore >= 15) {
     unlockAchievement("potato_15");
   }
   AppState.potatoTimeout = setTimeout(() => {
@@ -328,7 +329,7 @@ function potatoExplode() {
     AppState.potatoTick = null;
   }
   gameShock(Math.min(explodeMax, explodeBase + AppState.potatoRound * explodePerRound), 500);
-  if (typeof playGameSfx === "function") playGameSfx("fail");
+  playGameSfx("fail");
   const res = recordHighscore("potato", AppState.potatoScore);
   if (DOM["potato-feedback"]) {
     DOM["potato-feedback"].textContent = res.isNew
@@ -336,8 +337,8 @@ function potatoExplode() {
       : `Zu spät! Score ${AppState.potatoScore} (Best: ${res.best})`;
     DOM["potato-feedback"].style.color = "#a80000";
   }
-  if (typeof unlockAchievement === "function" && res.isNew) unlockAchievement("first_hs");
-  if (typeof refreshHighscoreUI === "function") refreshHighscoreUI();
+  if (res.isNew) unlockAchievement("first_hs");
+  refreshHighscoreUI();
   AppState.potatoTimeout = setTimeout(() => {
     AppState.potatoState = "IDLE";
     AppState.potatoScore = 0;
@@ -356,7 +357,7 @@ function handlePotatoKey(channel) {
     const cfg = typeof GAME_CONFIG !== "undefined" ? GAME_CONFIG.data.potato : null;
     const wrongAmp = cfg ? cfg.wrongChannelAmp : 35;
     gameShock(wrongAmp, 200);
-    if (typeof playGameSfx === "function") playGameSfx("fail");
+    playGameSfx("fail");
     if (DOM["potato-feedback"]) {
       DOM["potato-feedback"].textContent = "Falscher Kanal!";
       DOM["potato-feedback"].style.color = "#fd971f";
@@ -366,7 +367,7 @@ function handlePotatoKey(channel) {
 
 // ========== SURVIVAL ==========
 
-function stopSurvivalGame(record = false) {
+export function stopSurvivalGame(record = false) {
   if (AppState.survivalRaf) {
     cancelAnimationFrame(AppState.survivalRaf);
     AppState.survivalRaf = null;
@@ -382,14 +383,12 @@ function stopSurvivalGame(record = false) {
         : `Ende! ${AppState.survivalScore}s (Best: ${res.best}s)`;
       DOM["survival-feedback"].style.color = res.isNew ? "#107c41" : "#fd971f";
     }
-    if (typeof playGameSfx === "function") playGameSfx(res.isNew ? "win" : "hit");
-    if (typeof unlockAchievement === "function") {
-      if (AppState.survivalScore >= 30) unlockAchievement("survive_30");
-      if (res.isNew) unlockAchievement("first_hs");
-    }
-    if (typeof refreshHighscoreUI === "function") refreshHighscoreUI();
+    playGameSfx(res.isNew ? "win" : "hit");
+    if (AppState.survivalScore >= 30) unlockAchievement("survive_30");
+    if (res.isNew) unlockAchievement("first_hs");
+    refreshHighscoreUI();
   }
-  if (typeof updateOutputStatus === "function") updateOutputStatus();
+  updateOutputStatus();
 }
 
 function survivalLoop() {
@@ -551,12 +550,3 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
-
-window.stopEdgeGame = stopEdgeGame;
-window.stopPotatoGame = stopPotatoGame;
-window.stopSurvivalGame = stopSurvivalGame;
-window.stopAllMiniGames = stopAllMiniGames;
-window.ensureGameStrength = ensureGameStrength;
-window.beginMiniGame = beginMiniGame;
-window.showGameSelectors = showGameSelectors;
-window.hideGameSelectors = hideGameSelectors;

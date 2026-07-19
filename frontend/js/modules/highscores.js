@@ -1,4 +1,6 @@
 // highscores.js - local high scores for mini-games
+import { noteDailyProgress } from "./fun.js";
+import { trackStat } from "./stats.js";
 
 const HIGHSCORE_KEY = "stim_app_highscores_v1";
 
@@ -22,12 +24,12 @@ function saveHighscores(data) {
 /**
  * @returns {{ isNew: boolean, best: number }}
  */
-function recordHighscore(gameId, score) {
+export function recordHighscore(gameId, score) {
   const all = loadHighscores();
   const prev = Number(all[gameId] || 0);
   const n = Number(score) || 0;
-  if (typeof noteDailyProgress === "function") noteDailyProgress(gameId, n);
-  if (typeof trackStat === "function") trackStat("scoreEvent");
+  noteDailyProgress(gameId, n);
+  trackStat("scoreEvent");
   if (n > prev) {
     all[gameId] = n;
     saveHighscores(all);
@@ -36,12 +38,12 @@ function recordHighscore(gameId, score) {
   return { isNew: false, best: prev };
 }
 
-function getHighscore(gameId) {
+export function getHighscore(gameId) {
   const all = loadHighscores();
   return Number(all[gameId] || 0);
 }
 
-function refreshHighscoreUI() {
+export function refreshHighscoreUI() {
   const map = {
     "hs-reflex": "reflex",
     "hs-rhythm": "rhythm",
@@ -54,10 +56,6 @@ function refreshHighscoreUI() {
     if (el) el.textContent = String(getHighscore(map[elId]));
   });
 }
-
-window.recordHighscore = recordHighscore;
-window.getHighscore = getHighscore;
-window.refreshHighscoreUI = refreshHighscoreUI;
 
 document.addEventListener("DOMContentLoaded", () => {
   refreshHighscoreUI();

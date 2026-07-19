@@ -1,6 +1,6 @@
 {
   "name": "stim-app",
-  "version": "2.5.4",
+  "version": "3.0.0",
   "description": "Stim App – DG-LAB Coyote 3.0 Control Deck (Electron)",
   "author": "zenoxo-source",
   "main": "src/main.js",
@@ -10,8 +10,9 @@
   },
   "scripts": {
     "start:app": "electron .",
-    "dev": "electron . --enable-logging",
+    "dev": "node scripts/build-frontend.js && electron . --enable-logging",
     "build:frontend": "node scripts/build-frontend.js",
+    "build:frontend:watch": "node scripts/build-frontend.js --watch",
     "build:app": "node scripts/build-app.js",
     "build:app:publish": "node scripts/build-app.js --publish",
     "dist": "npm run build:app",
@@ -34,11 +35,11 @@
   "devDependencies": {
     "electron": "^42.4.0",
     "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.1",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",
-    "prettier": "^3.2.5",
-    "terser": "^5.48.0"
+    "prettier": "^3.2.5"
   },
   "build": {
     "appId": "com.zenoxo.stimapp",

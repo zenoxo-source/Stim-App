@@ -1,143 +1,86 @@
 /**
- * Tests for remote.js and recorder.js — sandbox approach like bluetooth.test.js
+ * Tests for remote.js and recorder.js.
+ *
+ * Pre-migration: each module was evaluated in a separate vm sandbox with
+ * mocked globals. With ES modules we import the real implementations and
+ * drive them via the singleton AppState (mutating it before each test).
  */
-const { describe, it, beforeEach } = require("node:test");
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const path = require("node:path");
-const vm = require("node:vm");
+import { describe, it, beforeEach } from "node:test";
+import assert from "node:assert/strict";
 
-function loadInSandbox(filePath, extraGlobals = {}) {
-  const src = fs.readFileSync(path.resolve(__dirname, filePath), "utf-8");
-  const writes = [];
-  const sandbox = {
-    console,
-    setTimeout,
-    clearTimeout,
-    setInterval: (fn, ms) => {
-      // Don't actually run intervals in tests
-      return null;
-    },
-    clearInterval: () => {},
-    Uint8Array,
-    Math,
-    Number,
-    Date,
-    parseInt,
-    parseFloat,
-    String,
-    Boolean,
-    Array,
-    Object,
-    JSON,
-    Promise,
-    Blob: function (parts, opts) {
-      this.parts = parts;
-      this.opts = opts;
-    },
-    URL: { createObjectURL: () => "blob:test", revokeObjectURL: () => {} },
-    document: {
-      addEventListener: () => {},
-      getElementById: () => null,
-      querySelector: () => null,
-      querySelectorAll: () => [],
-      createElement: () => ({ click: () => {}, href: "", download: "" }),
-    },
-    navigator: { bluetooth: {} },
-    localStorage: {
-      store: {},
-      getItem(k) {
-        return this.store[k] || null;
-      },
-      setItem(k, v) {
-        this.store[k] = v;
-      },
-      removeItem(k) {
-        delete this.store[k];
-      },
-    },
-    window: {},
-    AppState: {
-      isConnected: false,
-      strengthA: 0,
-      strengthB: 0,
-      frequencyA: 45,
-      frequencyB: 45,
-      activePattern: null,
-      masterScale: 1.0,
-      softLimitA: 150,
-      softLimitB: 150,
-      batteryLevel: 0,
-      swapChannels: false,
-      lastWaveFreqA: 45,
-      lastWaveFreqB: 45,
-      lastWaveAmpA: 0,
-      lastWaveAmpB: 0,
-    },
-    DOM: {},
-    CONSTANTS: {
-      WAVE_LOOP_INTERVAL_MS: 100,
-    },
-    log: () => {},
-    ProtocolUtils: require(path.resolve(__dirname, "../../frontend/js/lib/protocol-utils.js")),
-    updateSlidersA: () => {},
-    updateSlidersB: () => {},
-    updateOutputStatus: () => {},
-    updateAIDashboard: () => {},
-    killAllOutput: () => {},
-    sendWaveformCommand: () => {},
-    sendSoftStop: () => {},
-    ...extraGlobals,
-  };
+import "./helpers/dom-mock.js";
+import { AppState } from "../../frontend/js/state.js";
+import { RECORDER } from "../../frontend/js/modules/recorder.js";
+import { handleRemoteCommand, remoteStats } from "../../frontend/js/modules/remote.js";
 
-  vm.createContext(sandbox);
-  vm.runInContext(src, sandbox);
-  return sandbox;
+function resetAppState() {
+  AppState.isConnected = false;
+  AppState.strengthA = 0;
+  AppState.strengthB = 0;
+  AppState.frequencyA = 45;
+  AppState.frequencyB = 45;
+  AppState.activePattern = null;
+  AppState.masterScale = 1.0;
+  AppState.softLimitA = 150;
+  AppState.softLimitB = 150;
+  AppState.batteryLevel = 0;
+  AppState.swapChannels = false;
+  AppState.lastWaveFreqA = 45;
+  AppState.lastWaveFreqB = 45;
+  AppState.lastWaveAmpA = 0;
+  AppState.lastWaveAmpB = 0;
+  AppState.writeChar = null;
 }
 
 describe("recorder.js", () => {
-  let sandbox;
-
   beforeEach(() => {
-    sandbox = loadInSandbox("../../frontend/js/modules/recorder.js");
+    resetAppState();
+    // Reset RECORDER state
+    RECORDER.recording = false;
+    RECORDER.replaying = false;
+    RECORDER.frames = [];
+    RECORDER.startTime = 0;
+    RECORDER.replayIndex = 0;
+    if (RECORDER.replayTimer) {
+      clearTimeout(RECORDER.replayTimer);
+      RECORDER.replayTimer = null;
+    }
   });
-
-  const R = () => sandbox.window.RECORDER;
 
   describe("RECORDER state", () => {
     it("starts in idle state", () => {
-      assert.equal(R().recording, false);
-      assert.equal(R().replaying, false);
-      assert.equal(R().frames.length, 0);
+      assert.equal(RECORDER.recording, false);
+      assert.equal(RECORDER.replaying, false);
+      assert.equal(RECORDER.frames.length, 0);
     });
   });
 
   describe("start/stop recording", () => {
     it("starts recording and sets startTime", () => {
-      R().start();
-      assert.equal(R().recording, true);
-      assert.ok(R().startTime > 0);
+      RECORDER.start();
+      assert.equal(RECORDER.recording, true);
+      assert.ok(RECORDER.startTime > 0);
     });
 
     it("stops recording and keeps frames", () => {
-      R().start();
-      R().captureTick(45, 50, 45, 50);
-      R().captureTick(50, 60, 50, 60);
-      R().stop();
+      RECORDER.start();
+      RECORDER.captureTick(45, 50, 45, 50);
+      RECORDER.captureTick(50, 60, 50, 60);
+      RECORDER.stop();
 
-      assert.equal(R().recording, false);
-      assert.equal(R().frames.length, 2);
+      assert.equal(RECORDER.recording, false);
+      assert.equal(RECORDER.frames.length, 2);
     });
 
     it("captureTick does nothing when not recording", () => {
-      R().captureTick(45, 50, 45, 50);
-      assert.equal(R().frames.length, 0);
+      RECORDER.captureTick(45, 50, 45, 50);
+      assert.equal(RECORDER.frames.length, 0);
     });
 
     it("captureTick stores frame with timestamp and values", () => {
-      R().start();
-      R().captureTick(45, 50, 45, 50);
-      const frame = R().frames[0];
+      RECORDER.start();
+      RECORDER.captureTick(45, 50, 45, 50);
+      const frame = RECORDER.frames[0];
       assert.equal(typeof frame.t, "number");
       assert.equal(frame.fA, 45);
       assert.equal(frame.aA, 50);
@@ -160,99 +103,88 @@ describe("recorder.js", () => {
             ],
           }),
       };
-      await R().load(file);
-      assert.equal(R().frames.length, 2);
-      assert.equal(R().frames[0].fA, 45);
+      await RECORDER.load(file);
+      assert.equal(RECORDER.frames.length, 2);
+      assert.equal(RECORDER.frames[0].fA, 45);
     });
 
     it("rejects invalid format", async () => {
       const file = {
         text: async () => JSON.stringify({ format: "wrong", frames: [] }),
       };
-      await R().load(file);
-      assert.equal(R().frames.length, 0);
+      await RECORDER.load(file);
+      assert.equal(RECORDER.frames.length, 0);
     });
 
     it("rejects malformed JSON", async () => {
       const file = { text: async () => "not-json" };
-      await R().load(file);
-      assert.equal(R().frames.length, 0);
+      await RECORDER.load(file);
+      assert.equal(RECORDER.frames.length, 0);
     });
   });
 
   describe("stopReplay", () => {
     it("stops replay and clears timer", () => {
-      R().replaying = true;
-      R().replayTimer = 12345;
-      R().stopReplay();
-      assert.equal(R().replaying, false);
-      assert.equal(R().replayTimer, null);
+      RECORDER.replaying = true;
+      RECORDER.replayTimer = 12345;
+      RECORDER.stopReplay();
+      assert.equal(RECORDER.replaying, false);
+      assert.equal(RECORDER.replayTimer, null);
     });
   });
 });
 
 describe("remote.js", () => {
-  let sandbox;
-  let lastSliderCall;
-
   beforeEach(() => {
-    lastSliderCall = null;
-    sandbox = loadInSandbox("../../frontend/js/modules/remote.js", {
-      updateSlidersA: (v) => {
-        lastSliderCall = { channel: "A", value: v };
-      },
-      updateSlidersB: (v) => {
-        lastSliderCall = { channel: "B", value: v };
-      },
-      killAllOutput: () => {
-        lastSliderCall = { killed: true };
-      },
-    });
+    resetAppState();
+    // Reset remote stats so assertions are stable
+    remoteStats.totalCmds = 0;
+    remoteStats.okCmds = 0;
+    remoteStats.errCmds = 0;
   });
 
   describe("handleRemoteCommand", () => {
     it("handles set_intensity for channel A", () => {
-      sandbox.window.handleRemoteCommand({ type: "set_intensity", channel: "A", value: 75 });
-      assert.deepEqual(lastSliderCall, { channel: "A", value: 75 });
+      handleRemoteCommand({ type: "set_intensity", channel: "A", value: 75 });
+      assert.equal(AppState.strengthA, 75);
     });
 
     it("handles set_intensity for channel B", () => {
-      sandbox.window.handleRemoteCommand({ type: "set_intensity", channel: "B", value: 60 });
-      assert.deepEqual(lastSliderCall, { channel: "B", value: 60 });
+      handleRemoteCommand({ type: "set_intensity", channel: "B", value: 60 });
+      assert.equal(AppState.strengthB, 60);
     });
 
     it("handles set_intensity for both channels when channel is missing", () => {
-      sandbox.window.handleRemoteCommand({ type: "set_intensity", value: 50 });
-      // Both A and B are called; last call is B
-      assert.deepEqual(lastSliderCall, { channel: "B", value: 50 });
+      handleRemoteCommand({ type: "set_intensity", value: 50 });
+      assert.equal(AppState.strengthA, 50);
+      assert.equal(AppState.strengthB, 50);
     });
 
     it("clamps intensity to 0-200", () => {
-      sandbox.window.handleRemoteCommand({ type: "set_intensity", channel: "A", value: 999 });
-      assert.equal(lastSliderCall.value, 200);
+      handleRemoteCommand({ type: "set_intensity", channel: "A", value: 999 });
+      assert.equal(AppState.strengthA, 200);
     });
 
-    it("handles stop_all", () => {
-      sandbox.window.handleRemoteCommand({ type: "stop_all" });
-      assert.equal(lastSliderCall.killed, true);
+    it("handles stop_all (zeros strength via killAllOutput)", () => {
+      AppState.strengthA = 80;
+      AppState.strengthB = 80;
+      handleRemoteCommand({ type: "stop_all" });
+      assert.equal(AppState.strengthA, 0);
+      assert.equal(AppState.strengthB, 0);
     });
 
     it("handles get_state without crashing", () => {
-      sandbox.AppState.isConnected = true;
-      sandbox.AppState.strengthA = 50;
-      assert.doesNotThrow(() =>
-        sandbox.window.handleRemoteCommand({ type: "get_state" })
-      );
+      AppState.isConnected = true;
+      AppState.strengthA = 50;
+      assert.doesNotThrow(() => handleRemoteCommand({ type: "get_state" }));
     });
 
     it("ignores unknown commands without crashing", () => {
-      sandbox.window.handleRemoteCommand({ type: "unknown_command" });
-      assert.equal(lastSliderCall, null);
+      assert.doesNotThrow(() => handleRemoteCommand({ type: "unknown_command" }));
     });
 
     it("handles missing type field", () => {
-      sandbox.window.handleRemoteCommand({});
-      assert.equal(lastSliderCall, null);
+      assert.doesNotThrow(() => handleRemoteCommand({}));
     });
   });
 });

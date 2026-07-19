@@ -1,6 +1,10 @@
 // state.js - Central application state and DOM cache
 
-const AppState = {
+// Re-export CONSTANTS so legacy consumers can `import { CONSTANTS } from "./state.js"`.
+// CONSTANTS itself lives in constants.js.
+export { CONSTANTS } from "./constants.js";
+
+export const AppState = {
   device: null,
   server: null,
   writeChar: null,
@@ -162,9 +166,30 @@ const AppState = {
   },
 };
 
-const DOM = {};
+export const DOM = {};
 
-document.addEventListener("DOMContentLoaded", () => {
+export function log(msg, type = "info") {
+  const terminal = DOM["terminal-log"];
+  if (!terminal) return;
+  const time = new Date().toLocaleTimeString();
+  const colors = {
+    info: "#a6e22e",
+    error: "#f92672",
+    warning: "#fd971f",
+    success: "#a6e22e",
+  };
+
+  const line = document.createElement("span");
+  line.className = "log-line";
+  line.style.color = colors[type] || colors.info;
+  line.textContent = `[${time}] [${type.toUpperCase()}] ${msg}`;
+
+  terminal.appendChild(document.createTextNode("\n"));
+  terminal.appendChild(line);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+export function initDOMCache() {
   const ids = [
     // Header / Status
     "connection-text",
@@ -324,29 +349,4 @@ document.addEventListener("DOMContentLoaded", () => {
     const el = document.getElementById(id);
     if (el) DOM[id] = el;
   });
-});
-
-function log(msg, type = "info") {
-  const terminal = DOM["terminal-log"];
-  if (!terminal) return;
-  const time = new Date().toLocaleTimeString();
-  const colors = {
-    info: "#a6e22e",
-    error: "#f92672",
-    warning: "#fd971f",
-    success: "#a6e22e",
-  };
-
-  const line = document.createElement("span");
-  line.className = "log-line";
-  line.style.color = colors[type] || colors.info;
-  line.textContent = `[${time}] [${type.toUpperCase()}] ${msg}`;
-
-  terminal.appendChild(document.createTextNode("\n"));
-  terminal.appendChild(line);
-  terminal.scrollTop = terminal.scrollHeight;
 }
-
-window.AppState = AppState;
-window.DOM = DOM;
-window.log = log;

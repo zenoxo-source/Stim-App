@@ -1,7 +1,11 @@
 // pattern-editor.js - Visual pattern editor for custom waveforms
 // Users can draw amplitude curves for channels A and B across 16 steps.
 
-const PATTERN_EDITOR = {
+import { AppState, CONSTANTS, log } from "../state.js";
+import { updateAIDashboard } from "../control-deck.js";
+import { ensureGameStrength } from "./games-extra.js";
+
+export const PATTERN_EDITOR = {
   steps: 16,
   channelA: [],
   channelB: [],
@@ -121,9 +125,9 @@ const PATTERN_EDITOR = {
     AppState.aiCustomInterval = CONSTANTS.WAVE_LOOP_INTERVAL_MS || 100;
     AppState.activePattern = CONSTANTS.PATTERNS.AI_CUSTOM;
     document.querySelectorAll(".pattern-card").forEach((c) => c.classList.remove("active"));
-    if (typeof ensureGameStrength === "function") ensureGameStrength(40);
+    ensureGameStrength(40);
     log("Custom Pattern wird abgespielt.", "success");
-    if (typeof updateAIDashboard === "function") updateAIDashboard();
+    updateAIDashboard();
   },
 
   updateUI() {
@@ -265,5 +269,3 @@ document.addEventListener("DOMContentLoaded", () => {
   PATTERN_EDITOR.updateUI();
   PATTERN_EDITOR.renderSavedList();
 });
-
-window.PATTERN_EDITOR = PATTERN_EDITOR;

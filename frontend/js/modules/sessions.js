@@ -1,4 +1,9 @@
 // sessions.js - Multi-phase session engines for DG-LAB Coyote 3.0
+import { AppState, log } from "../state.js";
+import { ensureGameStrength } from "./games-extra.js";
+import { updateAIDashboard } from "../control-deck.js";
+import { sendSoftStop } from "./bluetooth.js";
+import { trackStat } from "./stats.js";
 
 const SESSIONS = {
   SLOW_BURN: {
@@ -372,7 +377,7 @@ const SESSION_STATE = {
     this.sessionPauseAccum = 0;
     this.sessionPaused = false;
     AppState.activePattern = "session";
-    if (typeof ensureGameStrength === "function") ensureGameStrength(40);
+    ensureGameStrength(40);
     updateAIDashboard();
     updateSessionUI();
     log(`Session "${session.name}" gestartet (${session.durationSec}s)`, "success");
@@ -384,10 +389,10 @@ const SESSION_STATE = {
     this.activeSession = null;
     this.sessionPaused = false;
     AppState.activePattern = null;
-    if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
+    sendSoftStop({ keepStrength: true });
     updateAIDashboard();
     updateSessionUI();
-    if (typeof trackStat === "function") trackStat("session_completed");
+    trackStat("session_completed");
     log(`Session "${name}" beendet.`, "info");
   },
 
@@ -395,7 +400,7 @@ const SESSION_STATE = {
     if (!this.activeSession || this.sessionPaused) return;
     this.sessionPaused = true;
     this.sessionPauseStart = Date.now();
-    if (typeof sendSoftStop === "function") sendSoftStop({ keepStrength: true });
+    sendSoftStop({ keepStrength: true });
     updateSessionUI();
     log("Session pausiert.", "warning");
   },
@@ -478,6 +483,5 @@ function updateSessionUI() {
   });
 }
 
-window.SESSIONS = SESSIONS;
-window.SESSION_STATE = SESSION_STATE;
-window.updateSessionUI = updateSessionUI;
+export { SESSIONS, SESSION_STATE };
+export { updateSessionUI };
