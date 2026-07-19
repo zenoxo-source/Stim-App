@@ -81,6 +81,13 @@ import "./modules/keyboard-bindings.js";
 import "./modules/profiles.js";
 import "./modules/ui-bindings-pr2.js";
 
+// PR3 / v3.3.0 content & sharing
+import "./modules/pattern-import.js";
+import "./modules/search.js";
+import "./modules/scheduler.js";
+import "./modules/recording-editor.js";
+import "./modules/ui-bindings-pr3.js";
+
 // LLM service (chat completion + tool dispatch)
 import "./llm-service.js";
 

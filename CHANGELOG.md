@@ -1,5 +1,44 @@
 # Changelog
 
+## 3.3.0 — PR3: Content & Sharing
+
+### Neue Features
+- **📤 Pattern-Import mit Live-Vorschau** — Modal zeigt Name, Step-Anzahl, Avg/Max-Werte, Kanal-Spitzenschritte. Validiert jeden Entry (Steps 1–256, Channel-Längen müssen passen, Werte werden auf 0–100 geclampt). Kollisionen beim Merge erhalten Suffix `_imported_N`. Datei-Format identisch mit Export.
+- **🔍 Volltext-Suche (Ctrl+K)** — Overlay durchsucht Sessions, Custom-Patterns, Stats-Patterns/Spiele, Tabs. Score-basiertes Ranking (exact > prefix > substring). Tastatur-Navigation ↑↓ + Enter, ESC schließt.
+- **⏰ Session-Scheduler** — Startet Sessions automatisch zu festen Zeiten. Format: HH:MM + Wochentage (Komma-Liste 0=So … 6=Sa, leer = einmalig). Tick alle 30s, persistiert in `localStorage`. `computeNextFire()` springt zum nächsten passenden Wochentag. `fireEntry()` disabled einmög-Shots nach Start.
+- **🎬 Recording-Editor** — Trim (Zeit-/Index-basiert), Loop (1–50 Iterationen, Section wird mit kontinuierlichen Timestamps wiederholt), Fade-In/Out (lineare Amplituden-Skalierung), Normalize (Peak→Target). Pure Functions, nicht-destruktiv.
+
+### Dateien
+- Neu: `frontend/js/modules/pattern-import.js` (4 Pure Helpers)
+- Neu: `frontend/js/modules/search.js` (Index + Score-Filter)
+- Neu: `frontend/js/modules/scheduler.js` (CRUD + Tick + Feuerroutine)
+- Neu: `frontend/js/modules/recording-editor.js` (8 Pure Functions)
+- Neu: `frontend/js/modules/ui-bindings-pr3.js` (DOM-Verdrahtung für alle 4 Features)
+- Neu: `backend/tests/pattern-import.test.js` (15 Tests)
+- Neu: `backend/tests/search.test.js` (12 Tests)
+- Neu: `backend/tests/scheduler.test.js` (18 Tests)
+- Neu: `backend/tests/recording-editor.test.js` (19 Tests)
+- Geändert: `index.html` (+Scheduler-Card, +Recording-Editor-Details, +Pattern-Import-Button), `main.js` (+5 Imports)
+
+### Tests
+- **207/207 grün** (+64 neu)
+- Lint clean
+- Bundle: 196.7 KB (-40.2% vs Dev)
+- Electron-Smoke: 3/3 sauber
+
+### Cross-Platform
+- Alle Pure Functions sind JS-only, keine Plattform-Abhängigkeiten
+- Scheduler nutzt `Date` + `setInterval` (gleich auf Win/macOS/Linux)
+- Search-Overlay: reine DOM/CSS, kein matchMedia oder Plattform-Erkennung nötig
+- Pattern-Import: File-API + FileReader funktioniert in Electron-Renderer überall
+
+### Bewusst NICHT in PR3 enthalten
+- Online Pattern-Library (braucht Backend)
+- Multi-Device-Support, Coyote 2.0, Voice-Control, Multi-Modal AI
+- Twitch/Discord (explizit ausgeschlossen)
+
+→ Siehe PR4 (Dice / Music-Sync / Trigger / AI-Memory), PR5 (MIDI / Session-PIN)
+
 ## 3.2.0 — PR2: UX Polish
 
 ### Neue Features

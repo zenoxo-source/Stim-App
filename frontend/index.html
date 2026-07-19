@@ -794,6 +794,7 @@
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
                   <h4 style="font-size:13px;margin:0;">Gespeicherte Patterns</h4>
                   <button type="button" id="btn-editor-export-all" class="btn btn-secondary btn-sm" style="font-size:10px;padding:2px 6px;">Export</button>
+                  <button type="button" id="btn-pattern-import" class="btn btn-secondary btn-sm" style="font-size:10px;padding:2px 6px;">Import (Preview)</button>
                 </div>
                 <div id="editor-saved"></div>
               </div>
@@ -1260,6 +1261,43 @@
                   <button type="button" id="btn-recorder-load" class="btn btn-secondary btn-sm">Laden</button>
                   <input type="file" id="input-recorder-load" accept="application/json,.json" style="display:none;">
                 </div>
+                <details style="margin-top: 8px;">
+                  <summary style="font-size: 12px; cursor: pointer; color: var(--text-muted);">Aufnahme bearbeiten (PR3)</summary>
+                  <div style="margin-top: 8px; padding: 8px; background: var(--bg-input); border-radius: 4px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 12px;">
+                      <label>Start (ms)<input type="number" id="rec-edit-start" min="0" value="0" class="input" style="width:100%;"></label>
+                      <label>Ende (ms)<input type="number" id="rec-edit-end" min="0" value="0" class="input" style="width:100%;"></label>
+                      <label>Loop-Iterationen<input type="number" id="rec-edit-loops" min="1" max="50" value="2" class="input" style="width:100%;"></label>
+                      <label>Fade-Dauer (ms)<input type="number" id="rec-edit-fade" min="0" step="500" value="2000" class="input" style="width:100%;"></label>
+                    </div>
+                    <div class="btn-row" style="flex-wrap: wrap; gap: 4px; margin-top: 6px;">
+                      <button type="button" id="btn-rec-trim" class="btn btn-secondary btn-sm">Trim</button>
+                      <button type="button" id="btn-rec-loop" class="btn btn-secondary btn-sm">Loop</button>
+                      <button type="button" id="btn-rec-fade-in" class="btn btn-secondary btn-sm">Fade In</button>
+                      <button type="button" id="btn-rec-fade-out" class="btn btn-secondary btn-sm">Fade Out</button>
+                      <button type="button" id="btn-rec-normalize" class="btn btn-secondary btn-sm">Normalize</button>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            </div>
+
+            <!-- PR3 / v3.3.0 Session Scheduler -->
+            <div class="card">
+              <div class="card-title">Session-Scheduler</div>
+              <div class="channel-box" style="gap: 10px;">
+                <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
+                  Startet Sessions automatisch. Tage als Komma-Liste (0=So, 1=Mo, …, 6=Sa). Leer = einmalig.
+                </p>
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 6px;">
+                  <select id="scheduler-session" aria-label="Session wählen"></select>
+                  <input type="time" id="scheduler-time" value="20:00" class="input">
+                  <input type="text" id="scheduler-days" placeholder="z.B. 1,3,5" class="input">
+                </div>
+                <div class="btn-row">
+                  <button type="button" id="btn-scheduler-add" class="btn btn-sm">Planen</button>
+                </div>
+                <div id="scheduler-list"></div>
               </div>
             </div>
 
