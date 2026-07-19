@@ -6,6 +6,8 @@ import { updateOutputStatus } from "./status-ui.js";
 import { sendV3EmergencyStop } from "./bluetooth.js";
 import { stopAllMiniGames } from "./games-extra.js";
 import { stopSafetyTimer } from "./presets.js";
+import { armPanicCooldown } from "./safety-extras.js";
+import { stopRamp } from "./ramp.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   // Register beforeunload to stop all output on accidental close
@@ -147,7 +149,7 @@ function isTyping(element) {
   );
 }
 
-export function killAllOutput() {
+export function killAllOutput(opts = {}) {
   try {
     // Abort any in-flight AI chat request
     if (AIChatState.currentController !== null) {
@@ -162,6 +164,13 @@ export function killAllOutput() {
         AIChatState.streamingBubbleEl.remove();
         AIChatState.streamingBubbleEl = null;
       }
+    }
+
+    // Cancel any active strength ramp
+    try {
+      stopRamp("panic");
+    } catch {
+      /* ramp module optional at load time */
     }
 
     AppState.activePattern = null;
@@ -192,6 +201,16 @@ export function killAllOutput() {
     updateAIDashboard();
     sendV3EmergencyStop();
     updateOutputStatus({ panic: true });
+
+    // Arm the cooldown so the user can't immediately restart output. Skipped
+    // when explicitly requested (e.g. clean shutdown via beforeunload).
+    if (!opts || opts.skipCooldown !== true) {
+      try {
+        armPanicCooldown();
+      } catch {
+        /* safety-extras optional at load time */
+      }
+    }
     // Do not call setConnected(false): panic stops output but keeps BLE link.
   } catch (err) {
     console.error("killAllOutput error:", err);

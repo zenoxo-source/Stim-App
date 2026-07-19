@@ -135,6 +135,19 @@ export const AppState = {
   btAwaitingAck: false,
   btPendingMode: 0,
 
+  // ----- PR1 / v3.1.0 safety extras -----
+  /** Timestamp (ms) until which strength changes are blocked after a panic. */
+  panicCooldownUntil: 0,
+  /** Currently enforced absolute strength ceiling (0 = disabled). Set by
+   *  active pattern or ramp; sendStrengthCommand clamps to this. */
+  patternCeiling: 0,
+  /** Watchdog: timestamp of last GATT activity, used to detect signal loss. */
+  lastGattActivity: 0,
+  /** True while the BLE signal-loss watchdog has triggered a soft-stop. */
+  signalLossArmed: false,
+  /** Active strength ramp; populated by modules/ramp.js. */
+  rampState: null,
+
   reset() {
     this.strengthA = 0;
     this.strengthB = 0;

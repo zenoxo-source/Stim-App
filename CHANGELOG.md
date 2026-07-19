@@ -1,5 +1,39 @@
 # Changelog
 
+## 3.1.0 — PR1: Safety Bundle + Strength Ramp
+
+### Neue Sicherheits-Features
+- **Panic-Cooldown** — nach `killAllOutput()` werden Strength-Änderungen für 30 s blockiert. Sliders, Remote-Befehle, AI-Tool-Calls, Ramps — alle konsumentiert `blockDuringPanicCooldown()`. Countdown zählt in `safety-chip` herunter.
+- **Per-Pattern Strength-Ceiling** — `setPatternCeiling()` installiert eine absolute Obergrenze, die `clampStrengthWithCeiling()` in `sendStrengthCommand` + `updateSlidersA/B` respektiert. Wird von Ramp automatisch als Hard-Cap gesetzt.
+- **BLE-Signalverlust-Auto-Stop** — Watchdog (`armSignalLossWatcher`) prüft alle 500 ms `lastGattActivity`. Bei > 2 s ohne GATT/B1-Aktivität während `isConnected` → `sendSoftStop` + `updateOutputStatus({panic:true})`. GATT-Disconnect disarmt den Watchdog sauber.
+- **Strength-Ramp / Trainingsmodus** — neues Modul `modules/ramp.js` mit `startRamp({targetA, targetB, durationMin})`. Lineare Interpolation in 1-s-Ticks. UI-Kontrolle im Control-Deck (Ziel A/B, Dauer, Start/Stop, Fortschrittsbalken). Respektiert Soft-Limits, Panic-Cooldown, Ceiling. Stopt automatisch bei Disconnect oder Panic.
+
+### Dateien
+- Neu: `frontend/js/modules/safety-extras.js` (Cooldown, Ceiling, Watchdog)
+- Neu: `frontend/js/modules/ramp.js` (Ramp-Engine + UI-Binding)
+- Neu: `backend/tests/safety-extras.test.js` (22 Tests)
+- Neu: `backend/tests/ramp.test.js` (12 Tests)
+- Geändert: `state.js` (+5 neue AppState-Felder), `safety.js` (Cooldown-Arm in `killAllOutput`, Ramp-Stop bei Panic), `bluetooth.js` (Cooldown-Block + Ceiling-Clamp in `sendStrengthCommand`, GATT-Activity-Notes + Watchdog-Hooks), `control-deck.js` (updateSliders mit Cooldown+Ceiling), `status-ui.js` (Cooldown-Countdown in 400ms-Refresh), `index.html` (+Ramp-UI), `main.js` (+2 Imports)
+
+### Tests
+- **97/97 grün** (vorher 65/65 — +32 neue Tests für Safety+Ramp)
+- Lint clean
+- Bundle: 169.2 KB (-39,8% vs Dev)
+
+### Cross-Platform
+- Reines JS, keine Plattform-spezifischen Aufrufe
+- `setInterval`, `Date.now`, `localStorage` funktionieren auf Win/macOS/Linux identisch
+- Bestehende `tray.displayBalloon`-Plattform-Weiche bleibt unberührt
+
+### Bewusst NICHT in PR1 enthalten
+- Multi-Device-Support (eigenes Meta-Refactor)
+- Coyote 2.0 Protokoll (braucht Hardware-Specs)
+- Online Pattern-Library (braucht Backend)
+- Voice-Control / Multi-Modal AI (eigene Stränge)
+- Twitch/Discord (explizit ausgeschlossen)
+
+→ Siehe PR2/PR3/PR4/PR5 (theme/profile, scheduler, music-sync, MIDI etc.)
+
 ## 3.0.1
 
 ### Security-Hardening

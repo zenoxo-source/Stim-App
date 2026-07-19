@@ -162,7 +162,9 @@ describe("remote.js", () => {
 
     it("clamps intensity to 0-200", () => {
       handleRemoteCommand({ type: "set_intensity", channel: "A", value: 999 });
-      assert.equal(AppState.strengthA, 200);
+      // softLimitA is 150 in resetAppState(); sendStrengthCommand (and
+      // updateSlidersA via clampStrengthWithCeiling) clamp to that.
+      assert.equal(AppState.strengthA, 150);
     });
 
     it("handles stop_all (zeros strength via killAllOutput)", () => {

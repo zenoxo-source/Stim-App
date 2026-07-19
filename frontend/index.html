@@ -366,6 +366,37 @@
         </div>
 
         <div class="card" style="margin-top: 24px;">
+          <div class="card-title">Strength Ramp (Trainingsmodus)</div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+            Linear hochfahren auf Ziel-Strength über X Minuten. Respektiert Soft-Limits, Panic-Cooldown und ist jederzeit abbrechbar.
+          </p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; align-items: end;">
+            <div>
+              <label for="ramp-target-a" style="font-size: 12px; color: var(--text-muted);">Ziel A</label>
+              <input type="number" id="ramp-target-a" min="0" max="200" value="50" class="input" />
+            </div>
+            <div>
+              <label for="ramp-target-b" style="font-size: 12px; color: var(--text-muted);">Ziel B</label>
+              <input type="number" id="ramp-target-b" min="0" max="200" value="50" class="input" />
+            </div>
+            <div>
+              <label for="ramp-duration" style="font-size: 12px; color: var(--text-muted);">Dauer (Min)</label>
+              <input type="number" id="ramp-duration" min="0.1" max="180" step="0.1" value="5" class="input" />
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button type="button" id="btn-ramp-start" class="btn">▶ Start</button>
+              <button type="button" id="btn-ramp-cancel" class="btn btn-secondary" style="display: none;">⏹ Stop</button>
+            </div>
+          </div>
+          <div style="margin-top: 12px;">
+            <div id="ramp-label" style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Keine aktive Ramp</div>
+            <div style="background: var(--bg-darker); border-radius: 4px; overflow: hidden; height: 6px;">
+              <div id="ramp-progress" style="background: var(--accent-primary); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 24px;">
           <div class="card-title">Multi-Phase Sessions</div>
           <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Choreografierte Verläufe mit mehreren Phasen – wie ein Stim-Track.</p>
           <div class="pattern-grid">

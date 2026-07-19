@@ -69,6 +69,10 @@ import "./modules/pattern-editor-v2.js";
 // Game config panel (tunable parameters)
 import "./modules/game-config.js";
 
+// PR1 / v3.1.0 safety extras
+import "./modules/safety-extras.js";
+import "./modules/ramp.js";
+
 // LLM service (chat completion + tool dispatch)
 import "./llm-service.js";
 

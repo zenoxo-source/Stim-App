@@ -10,6 +10,7 @@ import { ensureGameStrength } from "./modules/games-extra.js";
 import { applyAudioMasterLink, initCanvasVisualizers } from "./modules/audio.js";
 import { updateEditorRemoteUI } from "./modules/remote.js";
 import { renderAIVisualizer } from "./modules/ai-bridge.js";
+import { blockDuringPanicCooldown, clampStrengthWithCeiling } from "./modules/safety-extras.js";
 import {
   sendWaveformCommand,
   sendStrengthCommand,
@@ -346,7 +347,8 @@ export function updateAIDashboard() {
 // ==========================================
 
 export function updateSlidersA(val) {
-  AppState.strengthA = parseInt(val);
+  if (blockDuringPanicCooldown("Slider A")) return;
+  AppState.strengthA = clampStrengthWithCeiling(parseInt(val), "A");
   if (DOM["slider-intensity-a"]) DOM["slider-intensity-a"].value = AppState.strengthA;
   if (DOM["intensity-circle-a"]) DOM["intensity-circle-a"].textContent = AppState.strengthA;
   if (DOM["label-intensity-a"]) DOM["label-intensity-a"].textContent = AppState.strengthA;
@@ -363,7 +365,8 @@ export function updateSlidersA(val) {
 }
 
 export function updateSlidersB(val) {
-  AppState.strengthB = parseInt(val);
+  if (blockDuringPanicCooldown("Slider B")) return;
+  AppState.strengthB = clampStrengthWithCeiling(parseInt(val), "B");
   if (DOM["slider-intensity-b"]) DOM["slider-intensity-b"].value = AppState.strengthB;
   if (DOM["intensity-circle-b"]) DOM["intensity-circle-b"].textContent = AppState.strengthB;
   if (DOM["label-intensity-b"]) DOM["label-intensity-b"].textContent = AppState.strengthB;

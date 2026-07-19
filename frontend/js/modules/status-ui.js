@@ -1,6 +1,7 @@
 // status-ui.js - Output / safety indicators
 import { AppState, log } from "../state.js";
 import { killAllOutput } from "./safety.js";
+import { isPanicCooldownActive, panicCooldownRemaining } from "./safety-extras.js";
 
 export function isOutputActive() {
   if (!AppState.isConnected) return false;
@@ -89,7 +90,15 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => updateOutputStatus(), 2500);
   });
 
-  // Periodic refresh for patterns / audio
-  setInterval(() => updateOutputStatus(), 400);
+  // Periodic refresh for patterns / audio / panic-cooldown countdown
+  setInterval(() => {
+    updateOutputStatus();
+    if (isPanicCooldownActive()) {
+      const chipText = document.getElementById("safety-chip-text");
+      if (chipText) {
+        chipText.textContent = `PANIC-COOLDOWN ${Math.ceil(panicCooldownRemaining() / 1000)}s`;
+      }
+    }
+  }, 400);
   updateOutputStatus();
 });

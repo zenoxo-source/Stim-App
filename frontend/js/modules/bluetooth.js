@@ -6,6 +6,14 @@ import { updateAIDashboard, startWaveLoop, stopWaveLoop } from "../control-deck.
 import { updateOutputStatus } from "./status-ui.js";
 import { trackStat } from "./stats.js";
 import { unlockAchievement } from "./fun.js";
+import {
+  blockDuringPanicCooldown,
+  clampStrengthWithCeiling,
+  noteGattActivity,
+  armSignalLossWatcher,
+  disarmSignalLossWatcher,
+  resetSignalLossFlag,
+} from "./safety-extras.js";
 
 // V3 Protocol overview:
 //   0xB0 packet (20 bytes): combined strength + waveform, sent every 100ms
@@ -51,7 +59,10 @@ export function sendBluetoothCommand(data) {
         : AppState.writeChar.writeValue(data);
       if (writeOp && writeOp.then) {
         writeOp
-          .then(() => resolve())
+          .then(() => {
+            noteGattActivity();
+            resolve();
+          })
           .catch((err) => {
             if (err && err.message && !err.message.includes("GATT operation already in progress")) {
               console.warn("BT Write Error:", err);
@@ -59,6 +70,7 @@ export function sendBluetoothCommand(data) {
             resolve();
           });
       } else {
+        noteGattActivity();
         resolve();
       }
     } catch (err) {
@@ -224,10 +236,12 @@ export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
 
 export function sendStrengthCommand(valA, valB) {
   if (!AppState.writeChar) return;
+  if (blockDuringPanicCooldown("Strength-Befehl")) return;
 
   // Keep AppState as logical (UI) values; do not bake masterScale into state.
-  AppState.strengthA = Math.min(AppState.softLimitA, Math.max(0, Math.round(valA)));
-  AppState.strengthB = Math.min(AppState.softLimitB, Math.max(0, Math.round(valB)));
+  // Apply panic-cooldown + active pattern/ramp ceiling.
+  AppState.strengthA = clampStrengthWithCeiling(valA, "A");
+  AppState.strengthB = clampStrengthWithCeiling(valB, "B");
   AppState.btPendingMode = CONSTANTS.V3_MODE_ABSOLUTE_BOTH;
 
   // Immediately send combined B0 with current waveform values
@@ -341,6 +355,7 @@ function handleDeviceNotification(event) {
 
   if (data[0] === 0xb1 && data.length >= 4) {
     AppState.lastB1Time = Date.now();
+    noteGattActivity();
     const ackSeq = data[1];
     const deviceStrA = data[2];
     const deviceStrB = data[3];
@@ -483,6 +498,7 @@ function onDisconnected() {
   AppState.btAwaitingAck = false;
   AppState.btPendingMode = 0;
   AppState.lastB1Time = 0;
+  AppState.lastGattActivity = 0;
   AppState._lastSentStrA = undefined;
   AppState._lastSentStrB = undefined;
   AppState._lastSentFreqA = undefined;
@@ -491,6 +507,7 @@ function onDisconnected() {
   AppState._lastSentAmpB = undefined;
   clearBatteryPolling();
   stopWaveLoop();
+  disarmSignalLossWatcher();
 
   log("Bluetooth-Verbindung zum Coyote verloren.", "warning");
   if (DOM["connection-text"]) DOM["connection-text"].textContent = "Getrennt";
@@ -681,6 +698,8 @@ document.addEventListener("DOMContentLoaded", () => {
       AppState.isConnected = true;
       AppState.reconnectAttempts = 0;
       AppState.lastB1Time = Date.now();
+      resetSignalLossFlag();
+      armSignalLossWatcher();
       trackStat("connection");
       log("Erfolgreich mit Coyote 3.0 verbunden!", "success");
       unlockAchievement("first_connect");
