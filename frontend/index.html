@@ -362,6 +362,9 @@
           <div style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
             <button type="button" id="btn-pattern-roulette" class="btn" title="Zufälliges Pattern">🎲 Roulette</button>
             <button type="button" id="btn-chance-pulse" class="btn btn-secondary" title="Würfel-Impuls">🎲 Zufallsimpuls</button>
+            <button type="button" id="btn-dice-toggle" class="btn btn-secondary" title="Dice-Modus (PR4)">🎲 Dice</button>
+            <button type="button" id="btn-music-sync" class="btn btn-secondary" title="Music-Sync (Mikrofon BPM)">🎵 Music-Sync</button>
+            <span id="music-bpm" style="font-size: 12px; color: var(--text-muted); align-self: center;"></span>
             <button id="btn-stop-pattern" class="btn btn-secondary">⏹️ Pattern stoppen</button>
           </div>
         </div>
@@ -1301,7 +1304,66 @@
               </div>
             </div>
 
-            <!-- AI -->
+            <!-- PR4 / v3.4.0 Trigger System -->
+            <div class="card">
+              <div class="card-title">Trigger-System</div>
+              <div class="channel-box" style="gap: 10px;">
+                <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
+                  Event-getriebene Regeln: „Wenn Stärke A &gt; 100 → Soft-Stop"".
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px;">
+                  <select id="trigger-cond-type" class="input">
+                    <option value="strength-above">Strength über</option>
+                    <option value="strength-below">Strength unter</option>
+                    <option value="time-elapsed">Zeit vergangen (s)</option>
+                    <option value="pattern-active">Pattern aktiv</option>
+                    <option value="audio-playing">Audio läuft</option>
+                  </select>
+                  <input type="text" id="trigger-cond-value" placeholder="Wert" class="input">
+                  <select id="trigger-action-type" class="input">
+                    <option value="set-strength">Set Strength</option>
+                    <option value="soft-stop">Soft-Stop</option>
+                    <option value="log">Log</option>
+                    <option value="start-pattern">Start Pattern</option>
+                    <option value="toast">Toast</option>
+                  </select>
+                  <input type="text" id="trigger-action-value" placeholder="Wert" class="input">
+                </div>
+                <div class="btn-row">
+                  <button type="button" id="btn-trigger-add" class="btn btn-sm">Hinzufügen</button>
+                  <button type="button" id="btn-trigger-arm" class="btn btn-secondary btn-sm">Scharfstellen</button>
+                </div>
+                <div id="trigger-list"></div>
+              </div>
+            </div>
+
+            <!-- PR4 / v3.4.0 AI Memory -->
+            <div class="card">
+              <div class="card-title">AI-Memory <span id="ai-memory-count" style="font-weight: normal; color: var(--text-muted);">(0)</span></div>
+              <div class="channel-box" style="gap: 10px;">
+                <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
+                  Was sich die AI merkt. Wird in den System-Prompt injiziert.
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 3fr; gap: 6px;">
+                  <select id="memory-category" class="input">
+                    <option value="like">Mag</option>
+                    <option value="dislike">Mag nicht</option>
+                    <option value="preference" selected>Präferenz</option>
+                    <option value="fact">Fakt</option>
+                    <option value="note">Notiz</option>
+                  </select>
+                  <input type="text" id="memory-content" placeholder="Inhalt (max 500 Zeichen)" maxlength="500" class="input">
+                </div>
+                <div class="btn-row">
+                  <button type="button" id="btn-memory-add" class="btn btn-sm">Hinzufügen</button>
+                  <button type="button" id="btn-memory-clear-unpinned" class="btn btn-secondary btn-sm">Unpinned löschen</button>
+                  <button type="button" id="btn-memory-clear-all" class="btn btn-secondary btn-sm">Alle löschen</button>
+                </div>
+                <div id="ai-memory-list"></div>
+              </div>
+            </div>
+
+            <!-- Session Recorder -->
             <div class="card" style="grid-column: 1 / -1;">
               <div class="card-title">AI (LLM)</div>
               <div class="channel-box ai-settings-grid">

@@ -88,6 +88,13 @@ import "./modules/scheduler.js";
 import "./modules/recording-editor.js";
 import "./modules/ui-bindings-pr3.js";
 
+// PR4 / v3.4.0 fun + AI
+import "./modules/dice.js";
+import "./modules/music-sync.js";
+import "./modules/triggers.js";
+import "./modules/ai-memory.js";
+import "./modules/ui-bindings-pr4.js";
+
 // LLM service (chat completion + tool dispatch)
 import "./llm-service.js";
 

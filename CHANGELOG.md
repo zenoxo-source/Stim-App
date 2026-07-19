@@ -1,5 +1,36 @@
 # Changelog
 
+## 3.4.0 — PR4: Fun & AI
+
+### Neue Features
+- **🎲 Dice-Modus** — periodische zufällige Strength-Spikes mit konfigurierbarem Interval (≥500ms), Min/Max-Bereich, Kanal-Auswahl (A/B/both), Spike-Dauer + Relax-Wert. Pause durch Panic-Cooldown.
+- **🎵 Music-Sync** — BPM-Erkennung via Mikrofon (`getUserMedia` + `AnalyserNode`). Energiebasierte Beat-Detection mit laufendem RMS-Durchschnitt × Sensitivity-Faktor. BPM-Schätzung aus bis zu 8 letzten Intervallen mit Outlier-Filter. Bei jedem Beat → konfigurierbarer Pulse. Mic-Permission wird auf Win/macOS nativ, auf Linux via PulseAudio/PipeWire angefordert.
+- **⚡ Trigger-System** — Event-getriebene Regeln. 5 Condition-Typen (strength-above/below, time-elapsed, pattern-active, audio-playing) × 5 Action-Typen (set-strength, soft-stop, log, start-pattern, toast). 500ms Watchdog, einmaliges Feuern pro Arm-Cycle (vermeidet Loops). UI im Settings-Tab mit Scharfstellen-Button.
+- **🧠 AI-Memory** — persistente Präferenzen über Sessions. 5 Kategorien (like/dislike/preference/fact/note), Pinning, Dedup, Max 200 Einträge. Auto-Injection in System-Prompt via `getMemorySnapshot()`. Zwei neue AI-Tools: `remember(category, content, pinned?)` + `forget(id)`. UI-Viewer im Settings-Tab.
+
+### Dateien
+- Neu: `frontend/js/modules/dice.js`
+- Neu: `frontend/js/modules/music-sync.js`
+- Neu: `frontend/js/modules/triggers.js`
+- Neu: `frontend/js/modules/ai-memory.js`
+- Neu: `frontend/js/modules/ui-bindings-pr4.js`
+- Neu: `backend/tests/dice.test.js` (12 Tests)
+- Neu: `backend/tests/music-sync.test.js` (18 Tests)
+- Neu: `backend/tests/triggers.test.js` (19 Tests)
+- Neu: `backend/tests/ai-memory.test.js` (20 Tests)
+- Geändert: `llm-service.js` (+2 AI-Tools: remember/forget, +Memory-Injection ins System-Prompt), `index.html` (+Dice/Music-Sync-Buttons im Control Deck, +Trigger-Card, +AI-Memory-Card), `main.js` (+5 Imports)
+
+### Tests
+- **276/276 grün** (+69 neu)
+- Lint clean
+- Bundle: 211.4 KB (-40.5% vs Dev)
+- Electron-Smoke: 3/3 sauber
+
+### Cross-Platform
+- Music-Sync nutzt Web Audio + getUserMedia (Cross-Platform in Electron)
+- Mic-Permission: native Prompts auf Win/macOS, PulseAudio/PipeWire auf Linux
+- Andere Module: reines JS, keine Plattform-Abhängigkeiten
+
 ## 3.3.0 — PR3: Content & Sharing
 
 ### Neue Features

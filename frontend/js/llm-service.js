@@ -11,6 +11,7 @@ import {
   aiStartSession,
   aiStopAll,
 } from "./modules/ai-bridge.js";
+import { getMemorySnapshot, addMemory, forgetMemory } from "./modules/ai-memory.js";
 
 let chatHistory = [];
 
@@ -142,6 +143,48 @@ const toolsDefinition = [
           },
         },
         required: ["session_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "remember",
+      description:
+        "Speichere eine Präferenz / einen Fakt über den User, damit du dich in zukünftigen Sessions daran erinnerst.",
+      parameters: {
+        type: "object",
+        properties: {
+          category: {
+            type: "string",
+            enum: ["like", "dislike", "preference", "fact", "note"],
+            description:
+              "Kategorie: like (mag er), dislike (mag er nicht), preference (Vorliebe), fact (Fakt), note (Notiz)",
+          },
+          content: {
+            type: "string",
+            description: "Kurzer Text (max 500 Zeichen).",
+          },
+          pinned: {
+            type: "boolean",
+            description: "Wenn true, wird der Eintrag nicht durch 'forget unpinned' gelöscht.",
+          },
+        },
+        required: ["category", "content"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "forget",
+      description: "Lösche einen gespeicherten Memory-Eintrag anhand seiner ID.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "ID des Memory-Eintrags" },
+        },
+        required: ["id"],
       },
     },
   },
@@ -456,8 +499,20 @@ async function triggerLLM() {
   const model = document.getElementById("ai-model").value;
   const systemPrompt = document.getElementById("ai-system-prompt").value;
 
+  // PR4 / v3.4.0 — inject AI-Memory snapshot into system prompt so the model
+  // has persistent context across sessions. No-op if memory is empty.
+  let augmentedPrompt = systemPrompt;
+  try {
+    const snapshot = getMemorySnapshot();
+    if (snapshot) {
+      augmentedPrompt = `${systemPrompt}\n\n[Bekannte User-Präferenzen / Erinnerungen]\n${snapshot}`;
+    }
+  } catch (err) {
+    console.warn("Failed to inject AI memory:", err);
+  }
+
   // Rebuild messages with current system prompt
-  const messages = [{ role: "system", content: systemPrompt }, ...chatHistory];
+  const messages = [{ role: "system", content: augmentedPrompt }, ...chatHistory];
 
   try {
     const headers = {
@@ -729,6 +784,14 @@ async function triggerLLM() {
               toolResult = aiStopAll();
             } else if (fnName === "start_session") {
               toolResult = aiStartSession(args.session_id);
+            } else if (fnName === "remember") {
+              const r = addMemory(args.category || "preference", args.content, !!args.pinned);
+              toolResult = r.ok
+                ? `Gespeichert (${r.entry.category}): ${r.entry.content}`
+                : `Nicht gespeichert: ${r.error}`;
+            } else if (fnName === "forget") {
+              const ok = forgetMemory(args.id);
+              toolResult = ok ? "Vergessen." : "Eintrag nicht gefunden.";
             } else {
               toolResult = `Unknown function: ${fnName}`;
             }
