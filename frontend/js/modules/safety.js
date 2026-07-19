@@ -1,7 +1,7 @@
 // safety.js - Global safety layer: panic handler, close handler, kill switch
-import { AppState, DOM, CONSTANTS, log } from "../state.js";
+import { AppState, DOM, log } from "../state.js";
 import { AIChatState } from "./ai-state.js";
-import { updateSlidersA, updateSlidersB, updateAIDashboard } from "../control-deck.js";
+import { updateAIDashboard } from "../control-deck.js";
 import { updateOutputStatus } from "./status-ui.js";
 import { sendV3EmergencyStop } from "./bluetooth.js";
 import { stopAllMiniGames } from "./games-extra.js";
@@ -43,66 +43,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts — only life-critical panic handlers live here now.
+  // Tab navigation, audio play/pause, intensity arrows are registered via
+  // hotkeys.js (see modules/keyboard-bindings.js) and are user-customizable.
   window.addEventListener("keydown", (e) => {
-    // ESC long-press detection is separate at bottom
-
-    // Number keys 1-7 for tabs
-    if (!e.ctrlKey && !e.altKey && !e.metaKey && !isTyping(e.target)) {
-      const gameBlocksKeys =
-        AppState.edgeState === "RUNNING" ||
-        AppState.potatoState === "LIVE" ||
-        AppState.potatoState === "BOOM" ||
-        AppState.survivalState === "RUNNING" ||
-        AppState.rhythmState === "PLAYING" ||
-        AppState.reflexState === "WAITING" ||
-        AppState.reflexState === "TRIGGERED";
-
-      const tabMap = {
-        1: "deck",
-        2: "stim",
-        3: "games",
-        4: "editor",
-        5: "remote",
-        6: "ai",
-        7: "settings",
-      };
-      if (tabMap[e.key] && !gameBlocksKeys) {
-        e.preventDefault();
-        document.querySelector(`.nav-item[data-tab="${tabMap[e.key]}"]`)?.click();
-      }
-
-      // P: toggle audio play/pause when on stim tab
-      if (
-        e.key.toLowerCase() === "p" &&
-        document.getElementById("view-stim")?.classList.contains("active") &&
-        !gameBlocksKeys
-      ) {
-        e.preventDefault();
-        DOM["btn-play-audio"]?.click();
-      }
-
-      // Arrow keys for intensity (disabled during mini-games that use keys)
-      if (!gameBlocksKeys) {
-        if (e.key === "ArrowUp") {
-          e.preventDefault();
-          updateSlidersA(Math.min(AppState.softLimitA, AppState.strengthA + 5));
-        }
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          updateSlidersA(Math.max(CONSTANTS.MIN_INTENSITY, AppState.strengthA - 5));
-        }
-        if (e.key === "ArrowRight") {
-          e.preventDefault();
-          updateSlidersB(Math.min(AppState.softLimitB, AppState.strengthB + 5));
-        }
-        if (e.key === "ArrowLeft") {
-          e.preventDefault();
-          updateSlidersB(Math.max(CONSTANTS.MIN_INTENSITY, AppState.strengthB - 5));
-        }
-      }
-    }
-
     // Ctrl+Space = global Panic Stop
     if ((e.ctrlKey || e.metaKey) && e.code === "Space") {
       e.preventDefault();
@@ -115,7 +59,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ESC long-press Panic
+  // ESC long-press Panic (separate listener — long-press logic needs both
+  // keydown and keyup).
   let escTimer = null;
   window.addEventListener("keydown", (e) => {
     if (e.code === "Escape" && !isTyping(e.target)) {

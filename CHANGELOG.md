@@ -1,5 +1,46 @@
 # Changelog
 
+## 3.2.0 — PR2: UX Polish
+
+### Neue Features
+- **🌙 Theme-Switcher** (Dark/Light/Auto) — Button in der Sidebar. Auto folgt `prefers-color-scheme`. Light-Theme überschreibt alle CSS-Variablen. Cross-Platform: pure CSS + `matchMedia`, kein Plattform-Code.
+- **🗂️ Tab-Persistenz** — letzte aktive Tab wird in `localStorage` gespeichert und beim App-Start wiederhergestellt.
+- **⌨️ Anpassbare Tastatur-Shortcuts** — Hotkey-System mit UI-Editor in den Einstellungen. Alle Tabs (1-7), Audio P, Intensität-Pfeile, Pattern-Stop sind jetzt rebindbar. „Mod""-Abstraktion = Strg auf Win/Linux, Cmd auf macOS. Panic-Shortcuts (Ctrl+Space, ESC lang) bleiben in `safety.js` (life-critical, nicht rebindbar). Live-Capture: Taste drücken → Combo gesetzt. Kollisionsschutz + Reset-All.
+- **👤 Profil-System** — mehrere Konfigurationen (z. B. pro Partner). Speichert Soft-Limits, Master-Scale, Frequenzen, Pulse Widths, Balances, Audio, Sensitivität, AI-Settings. Create / Load / Update / Rename / Delete über Settings-UI. Wechsel wendet `applySettings()` an.
+
+### Dateien
+- Neu: `frontend/js/modules/theme.js` (Theme-Manager)
+- Neu: `frontend/js/modules/tab-persistence.js` (Tab-Storage)
+- Neu: `frontend/js/modules/hotkeys.js` (Registry + Combo-Parser + Matching)
+- Neu: `frontend/js/modules/keyboard-bindings.js` (Default-Bindings)
+- Neu: `frontend/js/modules/profiles.js` (CRUD + Apply)
+- Neu: `frontend/js/modules/ui-bindings-pr2.js` (DOM-Verdrahtung)
+- Neu: `backend/tests/theme.test.js` (8 Tests)
+- Neu: `backend/tests/tab-persistence.test.js` (4 Tests)
+- Neu: `backend/tests/hotkeys.test.js` (22 Tests)
+- Neu: `backend/tests/profiles.test.js` (12 Tests)
+- Geändert: `safety.js` (Tab/Arrow/P-Logik ausgelagert, nur noch Panic), `control-deck.js` (Tab-Click persistiert), `main.js` (+6 Imports), `index.html` (+Theme-Button, +Profile-Manager, +Hotkey-Editor in Settings), `style.css` (+Light-Theme-Overrides, +Hotkey/Profile-CSS)
+
+### Tests
+- **143/143 grün** (+46 neu)
+- Lint clean
+- Bundle: 180.1 KB (-40.2% vs Dev)
+- Electron-Smoke: 3/3 saubere Starts
+
+### Cross-Platform
+- Hotkeys: „Mod"" mapt auf Ctrl (Win/Linux) bzw. Meta (macOS) via `navigator.platform`
+- Theme: matchMedia funktioniert auf allen 3 Plattten identisch
+- Profile/Tab-Persistenz: reines `localStorage`, plattformunabhängig
+- Keine nativen Aufrufe, keine neuen Dependencies
+
+### Bewusst NICHT in PR2 enthalten
+- Multi-Device-Support (PR6 — eigene Architektur)
+- Online Pattern-Library (Backend nötig)
+- Voice-Control / Multi-Modal AI (eigene Stränge)
+- Twitch/Discord (explizit ausgeschlossen)
+
+→ Siehe PR3 (Content & Sharing), PR4 (Fun & AI), PR5 (Hardware)
+
 ## 3.1.0 — PR1: Safety Bundle + Strength Ramp
 
 ### Neue Sicherheits-Features

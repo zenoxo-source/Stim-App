@@ -11,6 +11,7 @@ import { applyAudioMasterLink, initCanvasVisualizers } from "./modules/audio.js"
 import { updateEditorRemoteUI } from "./modules/remote.js";
 import { renderAIVisualizer } from "./modules/ai-bridge.js";
 import { blockDuringPanicCooldown, clampStrengthWithCeiling } from "./modules/safety-extras.js";
+import { saveActiveTab } from "./modules/tab-persistence.js";
 import {
   sendWaveformCommand,
   sendStrengthCommand,
@@ -468,6 +469,9 @@ document.addEventListener("DOMContentLoaded", () => {
       tabViews.forEach((view) => view.classList.remove("active"));
       const targetView = document.getElementById(`view-${tabName}`);
       if (targetView) targetView.classList.add("active");
+
+      // PR2 / v3.2.0 — persist last-open tab
+      saveActiveTab(tabName);
 
       const headerTitle = DOM["view-title"];
       const headerSub = DOM["view-subtitle"];

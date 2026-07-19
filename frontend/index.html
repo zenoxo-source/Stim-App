@@ -94,6 +94,7 @@
       <div class="sidebar-footer">
         <div style="display:flex; gap:6px; justify-content:center; margin-bottom: 4px;">
           <button type="button" id="btn-lang-toggle" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 11px;" aria-label="Switch language" title="Sprache wechseln">EN</button>
+          <button type="button" id="btn-theme-toggle" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 11px;" aria-label="Theme wechseln" title="Theme wechseln">🌙</button>
         </div>
         <div id="update-banner" class="update-banner" style="display:none;" data-kind="info"></div>
         <div id="output-status" class="output-status idle" title="Geräte-Ausgabe" role="status" aria-live="polite">
@@ -1197,6 +1198,43 @@
                   <button type="button" id="btn-show-onboarding" class="btn btn-secondary btn-sm">Einführung</button>
                 </div>
                 <p class="settings-hint">Export ohne API-Keys. Import überschreibt Soft-Limits, Wave-Freq, Balance und AI-Endpoint.</p>
+              </div>
+            </div>
+
+            <!-- PR2 / v3.2.0 Profile Manager -->
+            <div class="card">
+              <div class="card-title">Profile</div>
+              <div class="channel-box" style="gap: 12px;">
+                <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 8px 0;">
+                  Mehrere Konfigurationen (z. B. für verschiedene Partner/Stimmungen). Speichert Soft-Limits, Master-Scale, Frequenzen, AI-Settings.
+                </p>
+                <div class="profile-row">
+                  <select id="profile-select" aria-label="Profil wählen" style="flex: 1; min-width: 180px;"></select>
+                  <button type="button" id="btn-profile-load" class="btn btn-secondary btn-sm">Laden</button>
+                  <button type="button" id="btn-profile-save" class="btn btn-secondary btn-sm">Aktualisieren</button>
+                  <button type="button" id="btn-profile-new" class="btn btn-sm">Neu</button>
+                  <button type="button" id="btn-profile-rename" class="btn btn-secondary btn-sm">Umbenennen</button>
+                  <button type="button" id="btn-profile-delete" class="btn btn-secondary btn-sm">Löschen</button>
+                </div>
+                <div class="profile-row" id="profile-new-row" style="display: none;">
+                  <input type="text" id="profile-new-name" placeholder="Profil-Name" style="flex: 1; min-width: 180px;">
+                  <button type="button" id="btn-profile-create" class="btn btn-sm">Erstellen</button>
+                  <button type="button" id="btn-profile-cancel" class="btn btn-secondary btn-sm">Abbrechen</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- PR2 / v3.2.0 Customizable Hotkeys -->
+            <div class="card">
+              <div class="card-title">Tastatur-Shortcuts</div>
+              <div class="channel-box" style="padding: 0;">
+                <p style="font-size: 13px; color: var(--text-muted); margin: 8px 12px;">
+                  Klicke auf eine Kombination und drücke die neue Tasten. „Mod"" ist Strg auf Win/Linux, Cmd auf macOS.
+                </p>
+                <div id="hotkey-list"></div>
+                <div class="btn-row" style="padding: 8px 12px;">
+                  <button type="button" id="btn-hotkey-reset" class="btn btn-secondary btn-sm">Alle zurücksetzen</button>
+                </div>
               </div>
             </div>
 

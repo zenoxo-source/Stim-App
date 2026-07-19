@@ -73,6 +73,14 @@ import "./modules/game-config.js";
 import "./modules/safety-extras.js";
 import "./modules/ramp.js";
 
+// PR2 / v3.2.0 UX polish
+import "./modules/theme.js";
+import "./modules/tab-persistence.js";
+import "./modules/hotkeys.js";
+import "./modules/keyboard-bindings.js";
+import "./modules/profiles.js";
+import "./modules/ui-bindings-pr2.js";
+
 // LLM service (chat completion + tool dispatch)
 import "./llm-service.js";
 
