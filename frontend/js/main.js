@@ -100,6 +100,11 @@ import "./modules/midi-controller.js";
 import "./modules/session-pin.js";
 import "./modules/ui-bindings-pr5.js";
 
+// PR6 / v3.6.0 vision + story
+import "./modules/webcam-vision.js";
+import "./modules/story-mode.js";
+import "./modules/ui-bindings-pr6.js";
+
 // LLM service (chat completion + tool dispatch)
 import "./llm-service.js";
 

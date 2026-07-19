@@ -1,5 +1,44 @@
 # Changelog
 
+## 3.6.0 — PR6: Vision AI + Story Modus
+
+### Neue Features
+- **👁️ Webcam-Vision** — periodische Webcam-Bildanalyse durch multimodale AI (Ollama-Vision / OpenRouter-Vision). 6 hart-kodierte Datenschutz-Regeln: nie auto-enable, kein Frame-Persist, Consent-Dialog mit Opt-In-Warnung, Provider-Check nur für Vision-fähige Provider, Frame sofort verworfen nach Analyse, Indikator während aktiv.
+  - Webcam-Frame als `data:image/jpeg;base64` → OpenAI-Vision-API-Format
+  - JPEG 512×512, 10s Interval (konfigurierbar)
+  - Vision-Response wird in AI-Chat als `👁️ Webcam-Vision:` Zeile dargestellt
+- **📖 Story-Modus** — verzweigte Narrative mit Stim-Integration. Engine: State-Machine mit Szenen, Choices (nutzer-getriggert), Auto-Advance (Timer-basiert). 3 eingebaute Starter-Stories: *The Captive* (10 Min, 8 Szenen), *Interrogation* (8 Min, 6 Szenen), *Edge Rush* (6 Min, 6 Szenen).
+  - Story-Format: `{id, title, startScene, scenes: {[id]: {narrative, stimCommand, choices, autoAdvance, isEnd}}}`
+  - `stimCommand`-Engine: `set-strength` / `set-frequency` / `soft-stop` — validiert + ausgeführt
+  - Fortschritt-Speicherung (Story kann über Sessions hinweg resumed werden)
+  - AI-Szenen-Generator: `buildSceneGenPrompt()` + `parseAiScene()` — LLM generiert neue Szene
+
+### Dateien
+- Neu: `frontend/js/modules/webcam-vision.js` (Capturing + Vision-API + Privacy)
+- Neu: `frontend/js/modules/story-mode.js` (State-Machine + 3 Stories + AI-Generator)
+- Neu: `frontend/js/modules/ui-bindings-pr6.js` (DOM-Verdrahtung)
+- Neu: `backend/tests/webcam-vision.test.js` (18 Tests)
+- Neu: `backend/tests/story-mode.test.js` (35 Tests)
+- Geändert: `main.js` (+3 Imports)
+
+### Tests
+- **382/382 grün** (+53 neu)
+- Lint clean
+- Bundle: 236.8 KB (-40.7% vs Dev)
+- Electron-Smoke: 3/3 sauber
+
+### Cross-Platform
+- Webcam: `getUserMedia({video:true})` funktioniert auf Win/macOS/Linux
+- Consent-Dialog: reines DOM, keine Plattform-Abhängigkeit
+- Story-Modus: pure JS State-Machine, kein Plattform-Code
+
+### Bewusst nicht implementiert
+- Multi-Device-Support (braucht AppState-Split — eigenes Meta-Refactor)
+- Coyote 2.0 Protokoll (braucht Hardware-Specs)
+- Online Pattern-Library (braucht Backend)
+- Voice-Control / Whisper (große Dependency)
+- Twitch/Discord (explizit ausgeschlossen)
+
 ## 3.5.0 — PR5: Hardware + Lock
 
 ### Neue Features
