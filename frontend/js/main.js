@@ -105,6 +105,9 @@ import "./modules/webcam-vision.js";
 import "./modules/story-mode.js";
 import "./modules/ui-bindings-pr6.js";
 
+// AI Director (autonomous conductor: LLM + ai-bridge + safety)
+import "./modules/ai-director.js";
+
 // LLM service (chat completion + tool dispatch)
 import "./llm-service.js";
 

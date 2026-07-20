@@ -157,6 +157,13 @@ export function killAllOutput(opts = {}) {
       }
     }
     // Do not call setConnected(false): panic stops output but keeps BLE link.
+
+    // Notify autonomous subsystems (e.g. AI Director) so they can self-stop.
+    try {
+      window.dispatchEvent(new CustomEvent("stim:kill-all", { detail: { reason: "panic" } }));
+    } catch {
+      /* window optional in tests */
+    }
   } catch (err) {
     console.error("killAllOutput error:", err);
   }

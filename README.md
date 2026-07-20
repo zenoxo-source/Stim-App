@@ -3,7 +3,7 @@
 Electron-Desktop-App zur Bluetooth-Steuerung eines DG-LAB Coyote 3.0.
 
 **Repository:** [github.com/zenoxo-source/Stim-App](https://github.com/zenoxo-source/Stim-App)  
-**Version:** 1.9.0
+**Version:** 3.7.0
 
 ## Features
 
@@ -11,8 +11,11 @@ Electron-Desktop-App zur Bluetooth-Steuerung eines DG-LAB Coyote 3.0.
 - **STIM Player** – Playlist, Echtzeit-Amplituden → Stim  
 - **Mini-Spiele** – Reflex, Rhythm, Edge, Potato, Survival, Tages-Challenge, Quick Play  
 - **Erfolge & Stats** – lokale Achievements, Highscores, Tagesziele  
-- **AI Chat** – Ollama / OpenRouter, Tool-Calling  
-- **Safety** – Panic/STOPP, Soft-Limits, Safety-Timer, Close-Handler  
+- **AI Chat** – Ollama / OpenRouter, Tool-Calling, Persona-Wahl (Mistress / Nurse Joy / The Master)  
+- **🎬 AI Director** – autonomer Regisseur, der von selbst eine Session führt: generiert im Rhythmus (15–180s, mit Jitter) Narrative + 0–3 Stim-Befehle und führt sie aus. Baubar auf LLM + ai-bridge + ai-memory. State-Machine (IDLE/RUNNING/PAUSED), Safety-Integration (Panic-Cooldown, Auto-Stop, Hard-Clamp an `maxIntensity`), toleranter JSON-Parser, eigener Log-Feed im AI-Tab.  
+- **👁️ Webcam-Vision** – multimodale AI analysiert Webcam-Frames (Privacy-by-Design, Consent-gated)  
+- **📖 Story-Modus** – verzweigte Narrative mit Stim-Integration, AI-Szenen-Generator  
+- **Safety** – Panic/STOPP, Soft-Limits, Safety-Timer, Close-Handler, Panic-Cooldown, Signal-Loss-Watchdog  
 - **Updates** – electron-updater über öffentliche GitHub Releases  
 
 ## Setup

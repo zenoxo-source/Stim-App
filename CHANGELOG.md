@@ -1,5 +1,40 @@
 # Changelog
 
+## 3.7.0 — AI Director + i18n Fix
+
+### Neue Features
+- **🎬 AI Director (Flagship)** — autonomer KI-Regisseur, der eigenständig eine komplette E-Stim-Session führt. Ruft im Rhythmus (15–180s, mit konfigurierbarem Jitter) das LLM auf, erhält eine Narrative + 0–3 Stim-Befehle, führt sie aus und plant den nächsten Beat. Baut nahtlos auf der bestehenden Infrastruktur auf (LLM-Endpoint-Config, ai-bridge, ai-memory, safety-extras) — keine neuen Abhängigkeiten.
+  - **State-Machine**: `IDLE → RUNNING ↔ PAUSED → IDLE` mit Start / Pause / Weiter / Stop
+  - **Persona-Wahl**: Mistress / Nurse Joy / The Master (wiederverwendet bestehende Prompts)
+  - **Konfiguration**: Theme/Stimmung (Freitext), Beat-Intervall (15–180s), Max. Intensität (10–150), Auto-Stop (5–60 Min), Start-Intensität
+  - **Reiches JSON-Schema** vom LLM: `narrative`, `commands[]` (`set_intensity` / `play_pattern` / `create_custom_pattern` / `stop_all`), `memory` (Auto-Save in ai-memory), `mood` (`neutral|tease|punish|reward|build|cool`)
+  - **Toleranter Parser**: stripping von ` ```json `-Fences, Extraktion bei Prosa drumherum, Filter unbekannter Commands, Legacy-Single-`command`-Kompatibilität
+  - **Mehrlagige Safety**: (1) Connection-Check pro Beat → sonst Pause, (2) Panic-Cooldown → Beat überspringen + Retry, (3) keine Parallelität mit manuellem Chat (`AIChatState.isProcessing`), (4) Hard-Clamp an `min(softLimit, maxIntensity)`, (5) Auto-Stop-Timer, (6) **Panic-Hook** — `safety.js` dispatcht `stim:kill-all` Event → Director stoppt sich selbst + `aiStopAll()`
+  - **UI**: eigenes Panel im AI-Tab (immer sichtbar, ein-/ausklappbar), Status-Pill, Live-Slider-Labels, eigenes Log-Feed für Narrativen + Commands
+  - **Privacy**: nutzt nur konfigurierten LLM-Endpoint, keine zusätzliche Datenerfassung
+- **🌐 i18n Fix** (bereits in `99ee62d` enthalten, hier nachgetragen) — DE↔EN-Übersetzung funktioniert jetzt tatsächlich. Leerer `data-i18n`-Scan ersetzt durch DOM-Text-Node-Walker, Übersetzungs-Map von 20 → 150+ Strings erweitert, neues `i18nText()`-Helper für JS-Code.
+
+### Dateien
+- Neu: `frontend/js/modules/ai-director.js` (Engine + UI-Bindings + Styles, ~870 Zeilen)
+- Neu: `backend/tests/ai-director.test.js` (37 Tests — Config, clampIntensity, computeNextBeatMs, buildDirectorMessages, parseDirectorResponse, State-Machine)
+- Geändert: `frontend/index.html` (+Director-Panel in `view-ai`: Header, Config-Grid, Log-Feed, Collapse-Button)
+- Geändert: `frontend/js/main.js` (+1 Import für ai-director.js)
+- Geändert: `frontend/js/modules/safety.js` (`killAllOutput()` dispatcht `stim:kill-all` CustomEvent — allows Director + künftige Module, auf Panic zu reagieren, ohne Circular Imports)
+- Geändert: `README.md` (Version 1.9.0 → 3.7.0, AI Director + Webcam-Vision + Story-Modus in Feature-Liste)
+
+### Tests
+- **419/419 grün** (+37 neu)
+- Lint clean (0 errors, 0 warnings)
+- Bundle: 260.5 KB prod (-40.4% vs Dev)
+
+### Safety-Design
+Der Director ist **defensiv** gebaut: Jeder Beat prüft Device-Verbindung, Panic-Cooldown und laufende Chat-Verarbeitung. Auf Panic (Tastatur, Button, Close-Handler) stoppt er sich selbst + führt `aiStopAll()` aus. `maxIntensity` ist ein Hard-Limit, das auch dann greift, wenn das LLM höhere Werte emittiert (Clamp vor `updateSlidersA/B`).
+
+### Bewusst nicht implementiert
+- Webcam-Integration in den Director (Varianten dokumentiert, siehe PR-Gespräch — einfach nachrüstbar via `getLastAnalysis()` aus `webcam-vision.js`)
+- Director-Preset-Sharing (JSON-Export/Import — eigenes Folge-PR)
+- Voice-Aktivierung (Whisper-Dependency zu schwer für v1)
+
 ## 3.6.0 — PR6: Vision AI + Story Modus
 
 ### Neue Features
