@@ -21,6 +21,7 @@ import {
   updateHeartbeat,
 } from "./modules/bluetooth.js";
 import { updateOutputStatus } from "./modules/status-ui.js";
+import { i18nText } from "./modules/i18n.js";
 
 // ==========================================
 // WAVE LOOP - Central playback engine
@@ -480,13 +481,34 @@ document.addEventListener("DOMContentLoaded", () => {
       const headerSub = DOM["view-subtitle"];
 
       const titles = {
-        deck: ["Control Deck", "Stim App · DG-LAB Coyote 3.0"],
-        stim: ["STIM Player", "Audio · Playlist · Amplituden → A/B"],
-        games: ["Mini-Spiele", "Interaktives Feedback-Training"],
-        editor: ["Pattern Editor", "Eigene Wellenformen zeichnen & testen"],
-        remote: ["Remote", "WebSocket-Steuerung & API"],
-        ai: ["AI Steuerungs-Assistent", "Tool-Calls & Streaming"],
-        settings: ["Einstellungen", "Sicherheit, Updates & Diagnose"],
+        deck: [
+          i18nText("nav_deck", "Control Deck"),
+          i18nText("view_subtitle_deck", "Stim App · DG-LAB Coyote 3.0"),
+        ],
+        stim: [
+          i18nText("nav_stim", "STIM Player"),
+          i18nText("view_stim_subtitle", "Audio · Playlist · Amplituden → A/B"),
+        ],
+        games: [
+          i18nText("nav_games", "Mini-Spiele"),
+          i18nText("view_stim_title_alt", "Interaktives Feedback-Training"),
+        ],
+        editor: [
+          i18nText("nav_editor", "Pattern Editor"),
+          i18nText("view_editor_subtitle", "Eigene Wellenformen zeichnen & testen"),
+        ],
+        remote: [
+          i18nText("nav_remote", "Remote"),
+          i18nText("view_remote_subtitle", "WebSocket-Steuerung & API"),
+        ],
+        ai: [
+          i18nText("view_ai_title", "AI Steuerungs-Assistent"),
+          i18nText("view_ai_subtitle", "Tool-Calls & Streaming"),
+        ],
+        settings: [
+          i18nText("nav_settings", "Einstellungen"),
+          i18nText("view_settings_subtitle", "Sicherheit, Updates & Diagnose"),
+        ],
       };
 
       if (tabName === "editor") {

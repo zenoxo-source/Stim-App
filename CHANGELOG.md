@@ -1,5 +1,33 @@
 # Changelog
 
+## 3.8.0 — Vollständige EN-Übersetzung
+
+### Verbesserungen
+- **🌐 i18n massiv ausgebaut** — die Übersetzungs-Map wurde von ~150 auf **~360 Einträge** erweitert. Die EN-Umschaltung übersetzt jetzt nahezu die gesamte UI statt nur weniger Strings. Abdeckung:
+  - **Onboarding** (alle 5 Steps + Welcome/Intro-Texte)
+  - **Sidebar/Header** (Aria-Labels, Titles, Tooltips)
+  - **Channel-Karten** (Kanal A/B, Intensität, Wave-Freq/Amp, Oszilloskop, freq-select-Optionen)
+  - **STIM Player** (Import, Playlist, Visualizer, Sensitivity)
+  - **Mini-Games** (Reflex/Rhythm/Edge/Potato/Survival: alle Beschreibungen, Labels, Status)
+  - **Pattern Editor** (Presets, Ops, Import/Preview)
+  - **Remote** (Server-Status, Command-Tester, API-Referenz-Labels)
+  - **AI Director Panel** (komplett: Status-Pills, Theme/Interval/Max-Intensität/Auto-Stop Labels, Hints)
+  - **AI Chat Onboarding** (Persona-Beschreibungen, Kanal-Routing-Optionen, Dashboard-Labels)
+  - **Settings** (Soft-Limits, Balance, Profile, Hotkeys, Recorder, Scheduler, Trigger, Memory, MIDI, PIN, AI-Endpoint, Updates, About — alle Beschreibungen + Labels + Placeholder)
+  - **Hotkey-Help-Overlay** (alle Tastenkombinationen)
+  - **View-Titel + Untertitel** (werden jetzt via `i18nText()` gesetzt, nicht mehr hartkodiert)
+  - **Stats-Dashboard, Updater-UI, Achievements** (alle statischen Texte)
+- **🔄 Periodischer i18n-Refresh** — alle 2 Sekunden wird bei aktivierter EN-Sprache die DOM-Walk-Translation erneut angewendet. Dadurch werden auch dynamisch eingefügte Inhalte (Log-Nachrichten, AI-Chat, Director-Narrative) automatisch übersetzt. Im DE-Standardmodus entsteht kein Overhead.
+- **🎯 control-deck.js View-Titel** verwenden jetzt `i18nText()` statt hartkodierte Strings — Tab-Wechsel zeigt sofort die korrekte Sprache.
+
+### Technische Details
+- Template-Literals (Backticks) verwendet für Einträge mit typografischen Anführungszeichen (`„..."`), um Unicode-Quoting-Konflikte mit dem JS-Parser zu vermeiden.
+- Vorhandene Einträge wurden nicht geändert (kein Breaking Change für bestehendes Matching).
+- Lint clean · 419/419 Tests grün · Bundle 286.6 KB prod (-39.1%)
+
+### Bekannte Grenzen
+- JS-Log-Nachrichten mit Variablen-Interpolation (z.B. `Muster ${patternName} gestartet.`) werden nur übersetzt, wenn die exakte Zeichenkette im MAP steht. Vollständige Abdeckung aller interpolierten Nachrichten erfordert ein Folge-Refactoring auf `i18nText()`-Aufrufe in den Modulen.
+
 ## 3.7.0 — AI Director + i18n Fix
 
 ### Neue Features
