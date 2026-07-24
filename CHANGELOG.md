@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.9.2 — Connect-Button reagiert wieder
+
+### Bugfix
+- **Root cause:** `initDOMCache()` registrierte sich erst *nach* allen Modul-Imports auf `DOMContentLoaded`. Bluetooth band `DOM["btn-connect"]?.addEventListener` davor — Cache war noch leer, Listener fiel still aus.
+- **Fix:** DOM-Cache wird in `state.js` als erstes Modul registriert; Connect/Disconnect werden per `getElementById`-Fallback verdrahtet und sind gegen Doppel-Bindung geschützt.
+- Klick meldet sofort „Connect angeklickt…“ im Log (Feedback, dass der Handler lebt).
+
 ## 3.9.1 — Coyote-Verbindung repariert
 
 ### Bluetooth / Electron

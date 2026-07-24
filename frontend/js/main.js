@@ -111,11 +111,10 @@ import "./modules/ai-director.js";
 // LLM service (chat completion + tool dispatch)
 import "./llm-service.js";
 
-// Populate DOM cache as soon as DOM is ready.
-// Module scripts are deferred, so DOMContentLoaded fires *after* this module
-// executes — we still register the listener so the cache fills correctly.
+// DOM cache is registered early in state.js (first import). Re-run here as a
+// safety net once the full module graph has loaded (handles late-added IDs).
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initDOMCache);
+  document.addEventListener("DOMContentLoaded", initDOMCache, { once: true });
 } else {
   initDOMCache();
 }

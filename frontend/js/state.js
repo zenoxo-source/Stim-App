@@ -363,3 +363,16 @@ export function initDOMCache() {
     if (el) DOM[id] = el;
   });
 }
+
+// Register as early as possible: this module is imported first from main.js.
+// Other modules also register DOMContentLoaded handlers during import; if this
+// runs first, DOM[...] is populated before they attach button listeners.
+// Without this order, e.g. bluetooth's `DOM["btn-connect"]?.addEventListener`
+// silently no-ops and Connect appears dead.
+if (typeof document !== "undefined") {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initDOMCache, { once: true });
+  } else {
+    initDOMCache();
+  }
+}

@@ -1,6 +1,6 @@
 // bluetooth.js - BLE connection and V3 protocol for DG-LAB Coyote 3.0
 // Based on DG-Kit reference implementation (github.com/0xNullAI/DG-Kit)
-import { AppState, DOM, log, CONSTANTS } from "../state.js";
+import { AppState, DOM, log, CONSTANTS, initDOMCache } from "../state.js";
 import * as ProtocolUtils from "../lib/protocol-utils.js";
 import { updateAIDashboard, startWaveLoop, stopWaveLoop } from "../control-deck.js";
 import { updateOutputStatus } from "./status-ui.js";
@@ -464,9 +464,7 @@ function friendlyBtError(err) {
     return "Web Bluetooth wird hier nicht unterstützt (Electron/OS).";
   }
   if (/getPrimaryService|Service not found|UUID/i.test(msg)) {
-    return (
-      "Coyote verbunden, aber V3-Service nicht gefunden. Gerät neu starten und erneut koppeln."
-    );
+    return "Coyote verbunden, aber V3-Service nicht gefunden. Gerät neu starten und erneut koppeln.";
   }
   return `Verbindungsfehler: ${msg}`;
 }
@@ -570,21 +568,34 @@ export function resetUIOnDisconnect() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  DOM["check-swap-channels"]?.addEventListener("change", (e) => {
-    AppState.swapChannels = e.target.checked;
-    log(`Kan\u00e4le tauschen: ${AppState.swapChannels ? "Aktiv" : "Inaktiv"}`, "info");
-  });
+function el(id) {
+  return DOM[id] || document.getElementById(id);
+}
 
-  // Fix 8: Debug mode toggle
-  DOM["check-debug-mode"]?.addEventListener("change", (e) => {
-    AppState.debugMode = e.target.checked;
-    log(`Debug-Mode (BLE Hex-Dump): ${AppState.debugMode ? "Aktiv" : "Inaktiv"}`, "info");
-  });
+function wireConnectButton() {
+  const btnConnect = el("btn-connect");
+  if (!btnConnect) {
+    // In Node tests there is no full HTML; in the app this is a real error.
+    if (typeof document !== "undefined" && document.getElementById("app-container")) {
+      console.error("[bluetooth] #btn-connect not found in DOM");
+    }
+    return;
+  }
+  // Avoid double-binding if init runs twice
+  if (btnConnect.dataset.btWired === "1") return;
+  btnConnect.dataset.btWired = "1";
 
-  DOM["btn-connect"]?.addEventListener("click", async () => {
+  btnConnect.addEventListener("click", async () => {
+    // Immediate visual feedback even if bluetooth API is missing
+    try {
+      log("Connect angeklickt…", "info");
+    } catch {
+      /* log needs terminal */
+    }
+
     if (!navigator.bluetooth) {
       log("Web Bluetooth wird von diesem System/Browser nicht unterst\u00fctzt.", "error");
+      setReconnectStatus("Web Bluetooth nicht verfügbar");
       return;
     }
     if (connectInProgress) {
@@ -605,9 +616,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (DOM["connection-indicator"])
       DOM["connection-indicator"].className = "status-indicator connecting";
     setReconnectStatus("Bluetooth-Suche läuft…");
-    setDeviceListHint([
-      `Filter: ${CONSTANTS.COYOTE_NAME_PREFIX}* / Coyote / Service 0x180C`,
-    ]);
+    setDeviceListHint([`Filter: ${CONSTANTS.COYOTE_NAME_PREFIX}* / Coyote / Service 0x180C`]);
 
     try {
       // Multiple filters are OR'd — catch name variants + devices advertising V3 service.
@@ -800,14 +809,51 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  DOM["btn-disconnect"]?.addEventListener("click", () => {
-    if (AppState.device && AppState.device.gatt && AppState.device.gatt.connected) {
-      log("Trenne Verbindung manuell...", "info");
-      clearReconnect();
-      AppState.device.gatt.disconnect();
-    } else {
-      resetUIOnDisconnect();
-      log("Kein aktives Gerät zum Trennen.", "info");
-    }
+  const btnDisconnect = el("btn-disconnect");
+  if (btnDisconnect && btnDisconnect.dataset.btWired !== "1") {
+    btnDisconnect.dataset.btWired = "1";
+    btnDisconnect.addEventListener("click", () => {
+      if (AppState.device && AppState.device.gatt && AppState.device.gatt.connected) {
+        log("Trenne Verbindung manuell...", "info");
+        clearReconnect();
+        AppState.device.gatt.disconnect();
+      } else {
+        resetUIOnDisconnect();
+        log("Kein aktives Gerät zum Trennen.", "info");
+      }
+    });
+  }
+}
+
+function wireBluetoothUi() {
+  // Ensure cache is warm (order-safe even if other handlers race)
+  try {
+    if (!DOM["btn-connect"]) initDOMCache();
+  } catch {
+    /* ignore */
+  }
+
+  el("check-swap-channels")?.addEventListener("change", (e) => {
+    AppState.swapChannels = e.target.checked;
+    log(`Kanäle tauschen: ${AppState.swapChannels ? "Aktiv" : "Inaktiv"}`, "info");
   });
-});
+
+  el("check-debug-mode")?.addEventListener("change", (e) => {
+    AppState.debugMode = e.target.checked;
+    log(`Debug-Mode (BLE Hex-Dump): ${AppState.debugMode ? "Aktiv" : "Inaktiv"}`, "info");
+  });
+
+  wireConnectButton();
+  console.info("[bluetooth] Connect/Disconnect buttons wired");
+}
+
+// Module scripts are deferred: if DOM is already ready, wire immediately.
+// Otherwise wait for DOMContentLoaded. Prefer getElementById so we don't
+// depend on DOM-cache order (initDOMCache must run first or we fall back).
+if (typeof document !== "undefined") {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wireBluetoothUi, { once: true });
+  } else {
+    wireBluetoothUi();
+  }
+}
