@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.9.3 — Layout stabil beim Fensterziehen
+
+### UI
+- **Kein Layout-Shift mehr** beim Verschieben/Resizen: `100vw`/`100vh` durch `%`-Höhen ersetzt
+- `scrollbar-gutter: stable` verhindert Sprung wenn die vertikale Scrollbar erscheint
+- Grid: `minmax(0, 1fr)` + feste Sidebar 260px
+- Header ohne `backdrop-filter` (Blur flackerte beim Drag), sticky + solid background
+- Cards/Grid robuster bei schmalen Breiten (`auto-fit`)
+- Electron: `backgroundColor`, `minWidth`/`minHeight`, `show` erst nach `ready-to-show`
+
 ## 3.9.2 — Connect-Button reagiert wieder
 
 ### Bugfix

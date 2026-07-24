@@ -41,22 +41,37 @@
   padding: 0;
 }
 
+/* Layout root: % heights avoid 100vw/100vh jump while dragging Electron windows.
+   100vw includes scrollbar width on some systems and shifts content horizontally. */
+html {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
 body {
   font-family: var(--font-family);
   background-color: var(--bg-app);
   color: var(--text-primary);
-  height: 100vh;
+  height: 100%;
+  width: 100%;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  /* Reserve scrollbar space so content doesn't jump when overflow appears */
+  scrollbar-gutter: stable;
 }
 
 /* App Container Layout */
 .app-container {
   display: grid;
-  grid-template-columns: 260px 1fr;
-  height: 100vh;
-  width: 100vw;
+  grid-template-columns: 260px minmax(0, 1fr);
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 /* Sidebar Styling */
@@ -67,6 +82,13 @@ body {
   flex-direction: column;
   padding: 24px;
   justify-content: space-between;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* Fixed column — do not shrink when main scrollbar appears */
+  width: 260px;
+  max-width: 260px;
 }
 
 .brand {
@@ -175,19 +197,30 @@ body {
 .main-content {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   background-color: var(--bg-app);
+  /* Prevent horizontal jump when vertical scrollbar shows/hides */
+  scrollbar-gutter: stable;
 }
 
 .app-header {
-  padding: 24px 32px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: rgba(18, 18, 22, 0.4);
-  backdrop-filter: blur(10px);
+  gap: 16px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  /* Solid background: backdrop-filter blur shifts/repaints during window drag */
+  background-color: rgba(18, 18, 22, 0.96);
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .header-title h1 {
@@ -204,7 +237,16 @@ body {
 .header-controls {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.header-title {
+  flex: 0 1 auto;
+  min-width: 140px;
 }
 
 .battery-badge {
@@ -267,13 +309,15 @@ body {
 /* View Sections */
 .tab-view {
   display: none;
-  padding: 32px;
+  padding: 24px 32px 40px;
   flex-grow: 1;
+  min-width: 0;
 }
 
 .tab-view.active {
   display: block;
-  animation: fadeIn 0.3s ease-out;
+  /* Avoid layout thrash on tab switch during resize */
+  animation: none;
 }
 
 /* Buttons */
@@ -333,8 +377,9 @@ body {
 /* Cards & Grid */
 .grid-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: 24px;
+  min-width: 0;
 }
 
 .card {
@@ -343,6 +388,7 @@ body {
   border-radius: var(--radius-lg);
   padding: 24px;
   box-shadow: var(--shadow-elevation);
+  min-width: 0;
   backdrop-filter: blur(20px);
 }
 

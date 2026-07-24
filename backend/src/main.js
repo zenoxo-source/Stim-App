@@ -121,7 +121,12 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
+    minWidth: 960,
+    minHeight: 640,
     title: "Stim App",
+    // Match app chrome so resize/drag does not flash a different color
+    backgroundColor: "#09090b",
+    show: false,
     webPreferences: {
       // Security defaults — explicit even though most are Electron defaults,
       // so a future Electron version changing defaults can't silently weaken us.
@@ -293,6 +298,9 @@ function createWindow() {
   }
 
   console.log(`Loading frontend from: ${frontendPath}`);
+  mainWindow.once("ready-to-show", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show();
+  });
   mainWindow.loadFile(frontendPath);
 
   mainWindow.on("close", (event) => {
