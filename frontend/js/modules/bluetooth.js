@@ -36,6 +36,11 @@ import { blockIfLocked as blockIfPinLocked } from "./session-pin.js";
 //   0xB1 notification: device ACK + strength feedback
 //     byte 0: 0xB1, byte 1: ackSeq, byte 2: strengthA, byte 3: strengthB
 
+/** Prevent overlapping connect attempts (double-click / auto-reconnect). */
+let connectInProgress = false;
+/** Stable disconnect handler so we don't stack gattserverdisconnected listeners. */
+let onGattDisconnected = null;
+
 // ---------------------------------------------------------------------------
 // Debug hex-dump (Fix 8: Debug-Mode)
 // ---------------------------------------------------------------------------
@@ -443,17 +448,25 @@ function escapeBtHtml(value) {
 
 function friendlyBtError(err) {
   const msg = err?.message || String(err || "Unbekannter Fehler");
-  if (/User cancelled|NotFoundError|canceled/i.test(msg)) {
-    return "Verbindung abgebrochen – kein Gerät ausgewählt.";
+  if (/User cancelled|NotFoundError|canceled|No device selected|chooser/i.test(msg)) {
+    return (
+      "Kein Coyote gefunden oder abgebrochen. Gerät einschalten, nah am PC halten, " +
+      "Bluetooth am PC an, und Name beginnt typisch mit 47L121. Erneut verbinden."
+    );
   }
   if (/NetworkError|GATT Server is disconnected/i.test(msg)) {
     return "Bluetooth-Verbindung unterbrochen (GATT). Bitte erneut verbinden.";
   }
   if (/SecurityError|NotAllowedError/i.test(msg)) {
-    return "Bluetooth-Zugriff verweigert. Berechtigung prüfen und erneut versuchen.";
+    return "Bluetooth-Zugriff verweigert. Windows-Bluetooth-Berechtigung prüfen und erneut versuchen.";
   }
   if (/Unsupported|NotSupportedError/i.test(msg)) {
-    return "Web Bluetooth wird hier nicht unterstützt.";
+    return "Web Bluetooth wird hier nicht unterstützt (Electron/OS).";
+  }
+  if (/getPrimaryService|Service not found|UUID/i.test(msg)) {
+    return (
+      "Coyote verbunden, aber V3-Service nicht gefunden. Gerät neu starten und erneut koppeln."
+    );
   }
   return `Verbindungsfehler: ${msg}`;
 }
@@ -499,6 +512,7 @@ function clearBatteryPolling() {
 }
 
 function onDisconnected() {
+  connectInProgress = false;
   AppState.isConnected = false;
   AppState.writeChar = null;
   AppState.notifyChar = null;
@@ -573,7 +587,17 @@ document.addEventListener("DOMContentLoaded", () => {
       log("Web Bluetooth wird von diesem System/Browser nicht unterst\u00fctzt.", "error");
       return;
     }
+    if (connectInProgress) {
+      log("Verbindung läuft bereits – bitte warten…", "warning");
+      return;
+    }
+    // Already linked?
+    if (AppState.device?.gatt?.connected && AppState.writeChar) {
+      log("Bereits mit dem Coyote verbunden.", "info");
+      return;
+    }
 
+    connectInProgress = true;
     clearReconnect();
 
     log("Suche nach DG-LAB Coyote 3.0...", "info");
@@ -581,11 +605,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if (DOM["connection-indicator"])
       DOM["connection-indicator"].className = "status-indicator connecting";
     setReconnectStatus("Bluetooth-Suche läuft…");
-    setDeviceListHint([`Filter: Prefix ${CONSTANTS.COYOTE_NAME_PREFIX} / „coyote“`]);
+    setDeviceListHint([
+      `Filter: ${CONSTANTS.COYOTE_NAME_PREFIX}* / Coyote / Service 0x180C`,
+    ]);
 
     try {
+      // Multiple filters are OR'd — catch name variants + devices advertising V3 service.
       AppState.device = await navigator.bluetooth.requestDevice({
-        filters: [{ namePrefix: CONSTANTS.COYOTE_NAME_PREFIX }],
+        filters: [
+          { namePrefix: CONSTANTS.COYOTE_NAME_PREFIX },
+          { namePrefix: "47L12" },
+          { namePrefix: "Coyote" },
+          { namePrefix: "coyote" },
+          { services: [CONSTANTS.SERVICE_UUID] },
+        ],
         optionalServices: [
           CONSTANTS.SERVICE_UUID,
           CONSTANTS.DEVICE_INFO_SERVICE,
@@ -594,13 +627,28 @@ document.addEventListener("DOMContentLoaded", () => {
         ],
       });
 
-      log(`Ger\u00e4t gefunden: ${AppState.device.name}. Verbinde...`, "info");
+      log(`Gerät gefunden: ${AppState.device.name || "(Name unbekannt)"}. Verbinde...`, "info");
       setDeviceListHint([AppState.device.name || "Coyote"]);
       setReconnectStatus("GATT-Verbindung wird aufgebaut…");
 
-      AppState.device.addEventListener("gattserverdisconnected", onDisconnected);
+      // Avoid stacking disconnect listeners across reconnects
+      if (onGattDisconnected && AppState.device) {
+        try {
+          AppState.device.removeEventListener("gattserverdisconnected", onGattDisconnected);
+        } catch {
+          /* ignore */
+        }
+      }
+      onGattDisconnected = onDisconnected;
+      AppState.device.addEventListener("gattserverdisconnected", onGattDisconnected);
 
-      AppState.server = await AppState.device.gatt.connect();
+      // Reconnect path if OS already has a handle
+      if (AppState.device.gatt.connected) {
+        log("GATT war noch verbunden – nutze bestehende Session.", "info");
+      } else {
+        AppState.server = await AppState.device.gatt.connect();
+      }
+      AppState.server = AppState.device.gatt;
       log("GATT Server verbunden. Suche Services...", "info");
 
       const service = await AppState.server.getPrimaryService(CONSTANTS.SERVICE_UUID);
@@ -738,7 +786,17 @@ document.addEventListener("DOMContentLoaded", () => {
       log(friendly, "error");
       setReconnectStatus(friendly);
       setDeviceListHint([]);
+      // Best-effort cleanup if half-connected
+      try {
+        if (AppState.device?.gatt?.connected) {
+          AppState.device.gatt.disconnect();
+        }
+      } catch {
+        /* ignore */
+      }
       resetUIOnDisconnect();
+    } finally {
+      connectInProgress = false;
     }
   });
 
@@ -747,6 +805,9 @@ document.addEventListener("DOMContentLoaded", () => {
       log("Trenne Verbindung manuell...", "info");
       clearReconnect();
       AppState.device.gatt.disconnect();
+    } else {
+      resetUIOnDisconnect();
+      log("Kein aktives Gerät zum Trennen.", "info");
     }
   });
 });

@@ -173,8 +173,16 @@ export function escapeHtml(value) {
 }
 
 export function isCoyoteDeviceName(name) {
-  const n = String(name || "");
-  return n.includes("47L121") || n.toLowerCase().includes("coyote");
+  const raw = String(name || "").trim();
+  if (!raw) return false;
+  const n = raw.toLowerCase();
+  return (
+    raw.includes("47L121") ||
+    raw.includes("47L12") ||
+    n.includes("coyote") ||
+    n.includes("dg-lab") ||
+    n.includes("dglab")
+  );
 }
 
 /**

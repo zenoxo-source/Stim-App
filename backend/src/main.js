@@ -29,8 +29,11 @@ let closeFallbackTimer = null;
 let bluetoothSelectCallback = null;
 let bluetoothSelectTimer = null;
 let bluetoothPickerActive = false;
+/** Latest scan snapshot for timeout fallbacks (names often fill in late on Windows). */
+let lastBluetoothDeviceList = [];
 
-const BLUETOOTH_SELECT_TIMEOUT_MS = 15000;
+// Windows BLE often needs >15s until the advertised name is populated.
+const BLUETOOTH_SELECT_TIMEOUT_MS = 30000;
 const API_KEY_FILENAME = "ai-api-key.enc";
 const GH_UPDATE_TOKEN_FILENAME = "gh-update-token.enc";
 const UPDATE_OWNER = "zenoxo-source";
@@ -89,11 +92,29 @@ function clearBluetoothSelect() {
   }
   bluetoothSelectCallback = null;
   bluetoothPickerActive = false;
+  lastBluetoothDeviceList = [];
 }
 
+/**
+ * Match DG-LAB Coyote hosts (and similar names). Empty names are common mid-scan
+ * on Windows and are handled separately in the select handler.
+ */
 function isCoyoteDevice(device) {
-  const name = device.deviceName || "";
-  return name.includes("47L121") || name.toLowerCase().includes("coyote");
+  const name = (device.deviceName || "").trim();
+  if (!name) return false;
+  const n = name.toLowerCase();
+  return (
+    name.includes("47L121") ||
+    name.includes("47L12") ||
+    n.includes("coyote") ||
+    n.includes("dg-lab") ||
+    n.includes("dglab") ||
+    n.includes("dungeon")
+  );
+}
+
+function deviceLabel(device) {
+  return (device.deviceName || "").trim() || device.deviceId || "(unbekannt)";
 }
 
 function createWindow() {
@@ -149,20 +170,26 @@ function createWindow() {
   });
 
   // Auto-select Coyote; if several match, show a picker dialog once.
+  // Windows often reports empty deviceName on early scan events — keep scanning.
   mainWindow.webContents.on("select-bluetooth-device", (event, deviceList, callback) => {
     event.preventDefault();
-    console.log(`Electron Bluetooth scan found ${deviceList.length} devices.`);
-
     bluetoothSelectCallback = callback;
+    lastBluetoothDeviceList = Array.isArray(deviceList) ? deviceList.slice() : [];
 
-    const matches = deviceList.filter(isCoyoteDevice);
+    const names = lastBluetoothDeviceList.map(deviceLabel);
+    console.log(
+      `Electron Bluetooth scan: ${lastBluetoothDeviceList.length} device(s): ${
+        names.join(" | ") || "(none)"
+      }`
+    );
+
+    const matches = lastBluetoothDeviceList.filter(isCoyoteDevice);
 
     if (matches.length === 1) {
-      console.log(
-        `Auto-selecting matched device: ${matches[0].deviceName} (${matches[0].deviceId})`
-      );
+      console.log(`Auto-selecting: ${deviceLabel(matches[0])} (${matches[0].deviceId})`);
+      const id = matches[0].deviceId;
       clearBluetoothSelect();
-      callback(matches[0].deviceId);
+      callback(id);
       return;
     }
 
@@ -173,7 +200,7 @@ function createWindow() {
         bluetoothSelectTimer = null;
       }
 
-      const buttons = matches.slice(0, 6).map((d) => d.deviceName || d.deviceId);
+      const buttons = matches.slice(0, 6).map((d) => deviceLabel(d));
       buttons.push("Abbrechen");
 
       const choice = dialog.showMessageBoxSync(mainWindow, {
@@ -189,7 +216,7 @@ function createWindow() {
       const selected = matches[choice];
       clearBluetoothSelect();
       if (selected) {
-        console.log(`User selected device: ${selected.deviceName} (${selected.deviceId})`);
+        console.log(`User selected: ${deviceLabel(selected)} (${selected.deviceId})`);
         callback(selected.deviceId);
       } else {
         console.log("User cancelled device selection.");
@@ -198,16 +225,36 @@ function createWindow() {
       return;
     }
 
-    console.log("No matched device in list yet. Scanning...");
+    // Still scanning — arm timeout once with best-effort fallbacks.
     if (!bluetoothSelectTimer) {
       bluetoothSelectTimer = setTimeout(() => {
         bluetoothSelectTimer = null;
-        if (bluetoothSelectCallback) {
-          console.warn("Bluetooth scan timed out without matching device.");
-          const cb = bluetoothSelectCallback;
-          bluetoothSelectCallback = null;
-          cb("");
+        if (!bluetoothSelectCallback) return;
+        const cb = bluetoothSelectCallback;
+        bluetoothSelectCallback = null;
+
+        const list = lastBluetoothDeviceList || [];
+        const lateMatches = list.filter(isCoyoteDevice);
+        if (lateMatches.length >= 1) {
+          console.warn(`BT timeout: selecting match ${deviceLabel(lateMatches[0])}`);
+          clearBluetoothSelect();
+          cb(lateMatches[0].deviceId);
+          return;
         }
+        // Single BLE device (often name still empty under the namePrefix filter)
+        if (list.length === 1 && list[0].deviceId) {
+          console.warn(
+            `BT timeout: only one BLE device (${deviceLabel(list[0])}) — attempting connect.`
+          );
+          clearBluetoothSelect();
+          cb(list[0].deviceId);
+          return;
+        }
+        console.warn(
+          "Bluetooth scan timed out without matching Coyote (expect name 47L121* / coyote)."
+        );
+        clearBluetoothSelect();
+        cb("");
       }, BLUETOOTH_SELECT_TIMEOUT_MS);
     }
   });

@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.9.1 — Coyote-Verbindung repariert
+
+### Bluetooth / Electron
+- **Scan-Timeout 30s** (Windows liefert Gerätenamen oft verzögert)
+- **Breitere Namens-Erkennung**: `47L121*`, `47L12*`, coyote, dg-lab, dglab
+- **Mehr requestDevice-Filter** (OR): Name-Präfixe + Service `0x180C`
+- **Timeout-Fallback**: bei einem einzigen BLE-Gerät oder spätem Namens-Match verbinden
+- **Kein doppelter Connect**, kein gestapelter `gattserverdisconnected`-Listener
+- Bestehende GATT-Session wird wiederverwendet, wenn noch connected
+- Klarere Fehlermeldungen (kein Gerät / Service fehlt / Berechtigung)
+
 ## 3.9.0 — Security & Safety Hardening
 
 ### Sicherheit
