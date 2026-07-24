@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.9.0 — Security & Safety Hardening
+
+### Sicherheit
+- **XSS**: Fun-Toasts nutzen `textContent` statt `innerHTML` (keine ungefilterten Strings mehr)
+- **Panic kill-all** stoppt jetzt zusätzlich: Dice, Music-Sync, Story, Webcam (Kamera freigeben), Sessions, Pattern-Ceiling
+- **Panic-Cooldown**: `sendB0Now` blockiert Wave-Amps > 0 während Cooldown (kein „Nachziehen“ über Games/Sync)
+- **Remote-WS**: Schreibbefehle blockiert bei Panic-Cooldown **oder** Session-PIN; nur `stop_all` / `get_*` bleiben erlaubt
+- **Remote**: Master/Custom-Pattern zusätzlich abgesichert; Pattern-Interval geclampt
+
+### Funktionen
+- Close-Handler erkennt aktive Patterns/Sessions und stoppt Output vor Exit
+- Session-State wird bei Panic sauber genullt
+
+### Qualität
+- Lint clean · 419/419 Tests grün
+
 ## 3.8.0 — Vollständige EN-Übersetzung
 
 ### Verbesserungen

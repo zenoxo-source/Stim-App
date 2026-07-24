@@ -125,7 +125,15 @@ export function showFunToast(title, subtitle) {
   }
   const el = document.createElement("div");
   el.className = "fun-toast";
-  el.innerHTML = `<strong>${title}</strong>${subtitle ? `<span>${subtitle}</span>` : ""}`;
+  // XSS-safe: never inject unescaped strings into HTML
+  const strong = document.createElement("strong");
+  strong.textContent = String(title ?? "");
+  el.appendChild(strong);
+  if (subtitle) {
+    const span = document.createElement("span");
+    span.textContent = String(subtitle);
+    el.appendChild(span);
+  }
   host.appendChild(el);
   requestAnimationFrame(() => el.classList.add("show"));
   setTimeout(() => {

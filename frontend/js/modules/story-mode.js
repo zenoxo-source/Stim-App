@@ -435,6 +435,17 @@ export function stopStory(reason = "manuell") {
   }
 }
 
+// Panic / global kill (browser only)
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("stim:kill-all", () => {
+    try {
+      stopStory("panic");
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 /**
  * Make a choice (advance to next scene). Validates choice index.
  * @param {number} choiceIdx

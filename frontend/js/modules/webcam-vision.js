@@ -245,6 +245,17 @@ export function disable(reason = "manuell") {
   log(`Webcam-Vision gestoppt (${reason}).`, "info");
 }
 
+// Panic / global kill — always release camera (browser only)
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("stim:kill-all", () => {
+    try {
+      disable("panic");
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 /**
  * Capture one frame + send to LLM. The LLM's response becomes available via
  * getLastAnalysis(). Frame is discarded immediately after the request.

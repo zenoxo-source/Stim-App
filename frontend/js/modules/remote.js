@@ -10,9 +10,15 @@ import {
 import { ensureGameStrength } from "./games-extra.js";
 import { killAllOutput } from "./safety.js";
 import { trackStat } from "./stats.js";
+import { isPanicCooldownActive } from "./safety-extras.js";
+import { isLocked as isPinLocked } from "./session-pin.js";
+
+/** Commands allowed even during PIN lock / panic cooldown (safety + read-only). */
+const REMOTE_ALWAYS_ALLOWED = new Set(["stop_all", "get_state", "get_patterns", "get_logs"]);
 
 const REMOTE_COMMANDS = {
   set_intensity: (msg) => {
+    // Soft-limits applied inside updateSlidersA/B via clampStrengthWithCeiling
     const ch = String(msg.channel || "").toUpperCase();
     const val = Math.min(200, Math.max(0, parseInt(msg.value, 10) || 0));
     if (ch === "A") updateSlidersA(val);
@@ -37,6 +43,12 @@ const REMOTE_COMMANDS = {
   },
 
   set_master: (msg) => {
+    if (isPanicCooldownActive()) {
+      return { ok: false, error: "panic cooldown active" };
+    }
+    if (isPinLocked()) {
+      return { ok: false, error: "session PIN locked" };
+    }
     const val = Math.min(100, Math.max(0, parseInt(msg.value, 10) || 100));
     AppState.masterScale = val / 100;
     const slider = document.getElementById("slider-master");
@@ -60,17 +72,23 @@ const REMOTE_COMMANDS = {
     if (!AppState.isConnected) {
       return { ok: false, error: "not connected" };
     }
+    if (isPanicCooldownActive()) {
+      return { ok: false, error: "panic cooldown active" };
+    }
+    if (isPinLocked()) {
+      return { ok: false, error: "session PIN locked" };
+    }
     const chA = Array.isArray(msg.channelA) ? msg.channelA.slice(0, 32) : [];
     const chB = Array.isArray(msg.channelB) ? msg.channelB.slice(0, 32) : [];
-    const interval = parseInt(msg.interval, 10) || 100;
+    const interval = Math.min(2000, Math.max(50, parseInt(msg.interval, 10) || 100));
     if (chA.length === 0 && chB.length === 0) {
       return { ok: false, error: "channelA or channelB required" };
     }
     AppState.aiCustomPatternA = chA.map(function (v) {
-      return Math.min(100, Math.max(0, Math.round(v)));
+      return Math.min(100, Math.max(0, Math.round(Number(v) || 0)));
     });
     AppState.aiCustomPatternB = chB.map(function (v) {
-      return Math.min(100, Math.max(0, Math.round(v)));
+      return Math.min(100, Math.max(0, Math.round(Number(v) || 0)));
     });
     AppState.aiCustomInterval = interval;
     AppState.activePattern = CONSTANTS.PATTERNS.AI_CUSTOM;
@@ -268,6 +286,21 @@ function handleRemoteCommand(msg) {
     log('Remote: unbekannter Befehl "' + type + '"', "warning");
     addRemoteCmdLog("[" + ts + '] WARN: unbekannter Befehl "' + type + '"');
     return;
+  }
+  // Safety: only stop/read commands during panic cooldown or PIN lock
+  if (!REMOTE_ALWAYS_ALLOWED.has(type)) {
+    if (isPanicCooldownActive()) {
+      remoteStats.errCmds++;
+      log("Remote: " + type + " blockiert (Panic-Cooldown).", "warning");
+      addRemoteCmdLog("[" + ts + "] ERR: " + type + " — panic cooldown");
+      return { ok: false, error: "panic cooldown active" };
+    }
+    if (isPinLocked()) {
+      remoteStats.errCmds++;
+      log("Remote: " + type + " blockiert (Session-PIN).", "warning");
+      addRemoteCmdLog("[" + ts + "] ERR: " + type + " — session PIN locked");
+      return { ok: false, error: "session PIN locked" };
+    }
   }
   try {
     var result = handler(msg);

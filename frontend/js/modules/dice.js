@@ -143,6 +143,17 @@ export function stopDice(reason = "manuell") {
   log(`Dice-Modus gestoppt (${reason}).`, "info");
 }
 
+// Panic / global kill (browser only — tests mock window without events)
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("stim:kill-all", () => {
+    try {
+      stopDice("panic");
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 /** @returns {boolean} */
 export function isDiceActive() {
   return intervalHandle !== null;

@@ -199,6 +199,17 @@ export function stopMusicSync(reason = "manuell") {
   log(`Music-Sync gestoppt (${reason}).`, "info");
 }
 
+// Panic / global kill — release mic + stop pulses (browser only)
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("stim:kill-all", () => {
+    try {
+      stopMusicSync("panic");
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 /** @returns {boolean} */
 export function isMusicSyncActive() {
   return pollHandle !== null;

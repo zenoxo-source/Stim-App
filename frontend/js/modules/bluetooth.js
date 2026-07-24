@@ -8,6 +8,7 @@ import { trackStat } from "./stats.js";
 import { unlockAchievement } from "./fun.js";
 import {
   blockDuringPanicCooldown,
+  isPanicCooldownActive,
   clampStrengthWithCeiling,
   noteGattActivity,
   armSignalLossWatcher,
@@ -146,6 +147,12 @@ function getDeviceStrength(val, softLimit) {
 export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
   if (!AppState.writeChar) return;
   const o = opts || {};
+
+  // During panic cooldown, refuse non-zero wave amps (strength is already 0).
+  // Emergency/soft-stop packets still pass through with amp 0 → intensity 101.
+  if (!o.force && isPanicCooldownActive() && ((Number(ampA) || 0) > 0 || (Number(ampB) || 0) > 0)) {
+    return;
+  }
 
   // Pulse-width sliders scale logical wave amplitude (0–100%)
   const logicalA = ProtocolUtils.applyPulseWidthScale(ampA, AppState.pulseWidthA);

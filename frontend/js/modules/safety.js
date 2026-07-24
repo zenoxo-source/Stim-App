@@ -6,8 +6,9 @@ import { updateOutputStatus } from "./status-ui.js";
 import { sendV3EmergencyStop } from "./bluetooth.js";
 import { stopAllMiniGames } from "./games-extra.js";
 import { stopSafetyTimer } from "./presets.js";
-import { armPanicCooldown } from "./safety-extras.js";
+import { armPanicCooldown, clearPatternCeiling } from "./safety-extras.js";
 import { stopRamp } from "./ramp.js";
+import { SESSION_STATE } from "./sessions.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   // Register beforeunload to stop all output on accidental close
@@ -33,7 +34,9 @@ document.addEventListener("DOMContentLoaded", () => {
         AppState.edgeState === "RUNNING" ||
         AppState.potatoState === "LIVE" ||
         AppState.potatoState === "BOOM" ||
-        AppState.survivalState === "RUNNING"
+        AppState.survivalState === "RUNNING" ||
+        AppState.activePattern ||
+        (SESSION_STATE && SESSION_STATE.activeSession)
       ) {
         killAllOutput();
         setTimeout(() => window.electronAPI.confirmClose(), 200);
@@ -118,7 +121,24 @@ export function killAllOutput(opts = {}) {
       /* ramp module optional at load time */
     }
 
+    // Clear pattern ceiling so next session starts clean
+    try {
+      clearPatternCeiling();
+    } catch {
+      /* optional */
+    }
+
     AppState.activePattern = null;
+
+    // Stop multi-phase sessions without re-entering wave path
+    try {
+      if (SESSION_STATE?.activeSession) {
+        SESSION_STATE.activeSession = null;
+        SESSION_STATE.sessionPaused = false;
+      }
+    } catch {
+      /* ignore */
+    }
 
     // Stop audio
     AppState.audioElement?.pause();
