@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.10.1 — Autodrive massiv verbessert
+
+### Autodrive Engine
+- **Adaptives Intensitätsmodell**: Feedback-Bias bleibt über Ticks erhalten (Envelope überschreibt Feedback nicht mehr)
+- **Auto-Climb**: ohne negatives Feedback steigen die Intensität langsam (abschaltbar)
+- **Comfort-Band**: lernt Floor/Ceiling aus „zu schwach / zu stark“
+- **Session-Learning**: speichert bevorzugten Bias über Sessions (`stim_app_autodrive_learn_v1`)
+- **Micro-Modulation**: Tease-Drops, Edge-Breathing, Climax-Stutter-Waves
+- **Pattern-Choreografie** pro Phase (Rotation, ampScale, freqBias)
+- **Neue Templates**: Marathon, Turbo, Deny & Release (plus bestehende)
+- **Längerer CLIMAX_PUSH** + aggressivere Escalation; Deny einmalig bei Deny-Template
+- **„Jetzt“ / „Fast“ / „Noch nicht“** reaktiver; kritische Feedbacks umgehen Rate-Limit
+
+### Autodrive UI
+- Template-Karten statt pure Dropdown
+- Live-Dashboard: Phasen-Hero, Timeline, Session/Phase/Rel-Bars, A/B-Meter
+- ETA gesamt + Phase, Pattern-Anzeige, Kontext-Tipps
+- Dauer-Override, Auto-Climb-Toggle, größere Feedback-Buttons
+
 ## 3.10.0 — Autodrive + UX-Restrukturierung
 
 ### Features

@@ -7,14 +7,16 @@ import {
   resolveChannelStrengths,
   sanitiseAutodriveConfig,
   AUTODRIVE_TEMPLATES,
+  getPhaseLabel,
 } from "../../frontend/js/lib/autodrive-engine.js";
 
 const t0 = 1_000_000;
 
-function classicCfg() {
+function classicCfg(extra = {}) {
   return sanitiseAutodriveConfig({
     templateId: "classic",
     skipCalibration: true,
+    ...extra,
   });
 }
 
@@ -24,6 +26,14 @@ describe("autodrive-engine", () => {
     assert.equal(c.goal, "edge_then_release");
     assert.equal(c.edgeCount, 2);
     assert.equal(c.allowClimaxPatterns, true);
+  });
+
+  it("has expanded template set", () => {
+    assert.ok(AUTODRIVE_TEMPLATES.classic);
+    assert.ok(AUTODRIVE_TEMPLATES.quick_finish);
+    assert.ok(AUTODRIVE_TEMPLATES.marathon);
+    assert.ok(AUTODRIVE_TEMPLATES.turbo);
+    assert.ok(AUTODRIVE_TEMPLATES.deny);
   });
 
   it("resolveChannelStrengths respects per-channel caps and focus A", () => {
@@ -70,7 +80,6 @@ describe("autodrive-engine", () => {
       settleUntil: null,
     };
 
-    // cycle 1
     s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "almost", nowMs: t0 + 1000 });
     assert.equal(s.phase, "EDGE_HOLD");
     assert.equal(s.edgeCountDone, 0);
@@ -78,13 +87,11 @@ describe("autodrive-engine", () => {
     assert.equal(s.phase, "TEASE");
     assert.equal(s.edgeCountDone, 1);
 
-    // cycle 2
     s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "almost", nowMs: s.phaseStartedAt + 100 });
     s = reduceAutodrive(s, { type: "PHASE_TIMEOUT", nowMs: s.phaseDeadlineAt });
     assert.equal(s.edgeCountDone, 2);
     assert.equal(s.phase, "TEASE");
 
-    // settle then TICK → SURGE
     const afterSettle = (s.settleUntil || 0) + 1;
     s = reduceAutodrive(s, { type: "TICK", nowMs: afterSettle });
     assert.equal(s.phase, "SURGE");
@@ -92,10 +99,17 @@ describe("autodrive-engine", () => {
 
   it("double completeEdge same visit only +1", () => {
     let s = createInitialState(classicCfg(), t0);
-    s = enterHoldLike(s, t0);
+    s = reduceAutodrive(
+      {
+        ...s,
+        phase: "TEASE",
+        edgeCountDone: 0,
+        phaseDeadlineAt: t0 + 999999,
+      },
+      { type: "FEEDBACK", feedback: "almost", nowMs: t0 + 10 }
+    );
     s = reduceAutodrive(s, { type: "PHASE_TIMEOUT", nowMs: s.phaseDeadlineAt });
     assert.equal(s.edgeCountDone, 1);
-    // force hold again with completed flag stuck — completeEdge path via almost
     s = {
       ...s,
       phase: "EDGE_HOLD",
@@ -103,7 +117,6 @@ describe("autodrive-engine", () => {
       phaseDeadlineAt: t0 + 50000,
     };
     s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "almost", nowMs: t0 + 20000 });
-    // completeEdge idempotent → still 1
     assert.equal(s.edgeCountDone, 1);
   });
 
@@ -149,6 +162,8 @@ describe("autodrive-engine", () => {
       phase: "CLIMAX_PUSH",
       phaseDeadlineAt: t0 + 1000,
       userMarkedClimax: false,
+      denyCount: 99,
+      maxDenies: 0,
     };
     s = reduceAutodrive(s, { type: "PHASE_TIMEOUT", nowMs: t0 + 1000 });
     assert.equal(s.phase, "AFTERCARE");
@@ -163,20 +178,84 @@ describe("autodrive-engine", () => {
     assert.equal(out.patternId, null);
   });
 
-  it("templates exist", () => {
-    assert.ok(AUTODRIVE_TEMPLATES.classic);
-    assert.ok(AUTODRIVE_TEMPLATES.quick_finish);
+  it("feedback bias persists across ticks (envelope does not wipe)", () => {
+    let s = createInitialState(classicCfg(), t0);
+    s = {
+      ...s,
+      phase: "BUILD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 600000,
+      relStrength: 0.4,
+      feedbackBias: 0,
+    };
+    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "too_weak", nowMs: t0 + 1000 });
+    const afterFb = s.feedbackBias;
+    assert.ok(afterFb > 0, "too_weak should raise bias");
+    // many ticks
+    for (let i = 0; i < 30; i++) {
+      s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 2000 + i * 100 });
+    }
+    assert.ok(s.feedbackBias > 0, "bias should persist");
+    assert.ok(s.relStrength > 0.35, "intensity should stay elevated");
+  });
+
+  it("too_strong lowers climb rate and comfort ceiling", () => {
+    let s = createInitialState(classicCfg(), t0);
+    s = {
+      ...s,
+      phase: "BUILD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 600000,
+      relStrength: 0.7,
+      climbRate: 1,
+      comfortCeiling: 0.95,
+    };
+    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "too_strong", nowMs: t0 + 500 });
+    assert.ok(s.climbRate < 1);
+    assert.ok(s.comfortCeiling < 0.95);
+    assert.ok(s.relStrength < 0.7);
+  });
+
+  it("now jumps to CLIMAX_PUSH from TEASE", () => {
+    let s = createInitialState(classicCfg(), t0);
+    s = { ...s, phase: "TEASE", phaseDeadlineAt: t0 + 99999, relStrength: 0.5 };
+    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "now", nowMs: t0 + 200 });
+    assert.equal(s.phase, "CLIMAX_PUSH");
+    assert.ok(s.relStrength >= 0.8);
+  });
+
+  it("output exposes phase labels and remaining time", () => {
+    let s = createInitialState(classicCfg(), t0);
+    s = {
+      ...s,
+      phase: "BUILD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 60000,
+      effectiveElapsedMs: 60000,
+      targetDurationMs: 12 * 60 * 1000,
+    };
+    const out = computeAutodriveOutput(s, t0 + 1000);
+    assert.equal(out.phaseLabel, getPhaseLabel("BUILD"));
+    assert.ok(out.remainingMs > 0);
+    assert.ok(out.tip);
+    assert.ok(out.patternId);
+  });
+
+  it("deny template can re-enter hold after first push timeout", () => {
+    let s = createInitialState(
+      sanitiseAutodriveConfig({ templateId: "deny", skipCalibration: true }),
+      t0
+    );
+    s = {
+      ...s,
+      phase: "CLIMAX_PUSH",
+      phaseDeadlineAt: t0 + 100,
+      denyCount: 0,
+      maxDenies: 1,
+      userMarkedClimax: false,
+    };
+    s = reduceAutodrive(s, { type: "PHASE_TIMEOUT", nowMs: t0 + 100 });
+    assert.equal(s.phase, "EDGE_HOLD");
+    assert.equal(s.denyCount, 1);
   });
 });
-
-function enterHoldLike(s, now) {
-  return reduceAutodrive(
-    {
-      ...s,
-      phase: "TEASE",
-      edgeCountDone: 0,
-      phaseDeadlineAt: now + 999999,
-    },
-    { type: "FEEDBACK", feedback: "almost", nowMs: now + 10 }
-  );
-}

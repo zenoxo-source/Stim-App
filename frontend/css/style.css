@@ -1723,3 +1723,213 @@ textarea.text-input { resize: vertical; min-height: 100px; }
 .profile-row button {
   font-size: 13px;
 }
+
+/* ========== Autodrive v3.10.1+ ========== */
+.autodrive-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 960px) {
+  .autodrive-layout { grid-template-columns: 1fr; }
+}
+.autodrive-lead {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+  line-height: 1.45;
+}
+.autodrive-template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.autodrive-tpl-card {
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition-normal);
+  min-height: 78px;
+}
+.autodrive-tpl-card:hover {
+  border-color: rgba(0, 120, 212, 0.5);
+  background: rgba(0, 120, 212, 0.12);
+}
+.autodrive-tpl-card.active {
+  border-color: #d83b01;
+  box-shadow: 0 0 0 1px rgba(216, 59, 1, 0.45);
+  background: rgba(216, 59, 1, 0.12);
+}
+.autodrive-tpl-card .tpl-name { font-weight: 600; font-size: 13px; display: block; }
+.autodrive-tpl-card .tpl-desc { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: block; line-height: 1.3; }
+.autodrive-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.autodrive-options .autodrive-check {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.autodrive-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn-autodrive-go {
+  background: linear-gradient(135deg, #d83b01, #a80000) !important;
+  min-width: 120px;
+  font-weight: 600;
+}
+.autodrive-status-msg {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--color-warning);
+  min-height: 1.2em;
+}
+.autodrive-live-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.autodrive-badge {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  color: var(--text-secondary);
+}
+.autodrive-badge.running {
+  background: rgba(216, 59, 1, 0.25);
+  color: #ffb899;
+}
+.autodrive-badge.paused {
+  background: rgba(0, 120, 212, 0.25);
+  color: #8ec8ff;
+}
+.autodrive-phase-hero {
+  margin: 8px 0 14px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, rgba(216,59,1,0.15), rgba(0,120,212,0.12));
+  border: 1px solid var(--border-color);
+}
+.autodrive-phase-name {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.autodrive-phase-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.autodrive-phase-raw {
+  opacity: 0.45;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+.autodrive-timeline {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.autodrive-timeline .tl-step {
+  flex: 1;
+  min-width: 52px;
+  text-align: center;
+  font-size: 10px;
+  padding: 6px 2px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text-muted);
+  border: 1px solid transparent;
+}
+.autodrive-timeline .tl-step.done {
+  background: rgba(16, 124, 65, 0.2);
+  color: #7dcea0;
+}
+.autodrive-timeline .tl-step.active {
+  background: rgba(216, 59, 1, 0.28);
+  color: #ffc9b0;
+  border-color: rgba(216, 59, 1, 0.55);
+  font-weight: 600;
+}
+.autodrive-bars { display: flex; flex-direction: column; gap: 10px; }
+.autodrive-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 3px;
+}
+.autodrive-bar-track {
+  height: 10px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.autodrive-bar-fill {
+  height: 100%;
+  width: 0%;
+  transition: width 0.15s ease-out;
+  border-radius: 5px;
+}
+.autodrive-bar-fill.session { background: linear-gradient(90deg, #0078d4, #d83b01); }
+.autodrive-bar-fill.phase { background: #8660a9; }
+.autodrive-bar-fill.rel { background: linear-gradient(90deg, #107c41, #d83b01); }
+.autodrive-bar-fill.a { background: #0078d4; }
+.autodrive-bar-fill.b { background: #d83b01; }
+.autodrive-channel-meters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.autodrive-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 12px 0 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.autodrive-tip {
+  font-size: 13px;
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.04);
+  border-left: 3px solid #d83b01;
+  padding: 8px 10px;
+  margin: 0 0 12px;
+  min-height: 2.6em;
+  line-height: 1.4;
+}
+.autodrive-feedback-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.autodrive-feedback-grid .autodrive-fb {
+  min-height: 52px;
+  font-weight: 600;
+}
+.autodrive-feedback-grid .autodrive-fb.now {
+  background: linear-gradient(135deg, #d83b01, #a80000);
+}
+.autodrive-feedback-grid .autodrive-fb.done {
+  background: linear-gradient(135deg, #107c41, #0b5a2e);
+}
+.autodrive-feedback-grid .autodrive-fb.wide {
+  grid-column: 1 / -1;
+}
+.autodrive-feedback-grid .autodrive-fb:active {
+  transform: scale(0.98);
+}

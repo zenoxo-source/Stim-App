@@ -229,61 +229,112 @@
 
       <!-- View: Autodrive -->
       <section id="view-autodrive" class="tab-view">
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-title">Session starten</div>
-            <p style="font-size: 13px; color: var(--text-muted, #9aa); margin-top: 0;">
-              Offline-fähige Engine ohne LLM. Intensität relativ zu Soft-Limits. Nutze Feedback für Anpassung.
+        <div class="autodrive-layout">
+          <!-- Template picker -->
+          <div class="card autodrive-templates-card">
+            <div class="card-title">Template</div>
+            <p class="autodrive-lead">
+              Adaptive Offline-Engine: lernt aus Feedback, steigt auto, Soft-Limit-relativ.
+              Keine Garantie — hohe Erfolgsrate durch Anpassung.
             </p>
-            <label class="field-label" for="autodrive-template">Template</label>
-            <select id="autodrive-template" class="select-control" style="width: 100%; margin-bottom: 10px;">
-              <option value="classic">Klassisch (~12 min, 2 Edges)</option>
-              <option value="quick_finish">Schnell (~5 min, direkt)</option>
-              <option value="long_tease">Langer Tease (~20 min, 4 Edges)</option>
-              <option value="intense">Intensiv (~10 min, Cap 85 %)</option>
-            </select>
-            <label class="field-label" for="autodrive-focus">Kanal-Fokus</label>
-            <select id="autodrive-focus" class="select-control" style="width: 100%; margin-bottom: 10px;">
-              <option value="both">Beide</option>
-              <option value="A">Nur A (+ gekoppelt B)</option>
-              <option value="B">Nur B (+ gekoppelt A)</option>
-            </select>
-            <label class="field-label" for="autodrive-sensitivity">Sensitivität</label>
-            <select id="autodrive-sensitivity" class="select-control" style="width: 100%; margin-bottom: 14px;">
-              <option value="gentle">Sanft</option>
-              <option value="medium" selected>Mittel</option>
-              <option value="intense">Intensiv</option>
-            </select>
-            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-              <button type="button" id="btn-autodrive-start" class="btn" style="background: linear-gradient(135deg, #d83b01, #a80000);">Start</button>
+            <div id="autodrive-template-grid" class="autodrive-template-grid" role="listbox" aria-label="Autodrive Templates"></div>
+            <input type="hidden" id="autodrive-template" value="classic" />
+
+            <div class="autodrive-options">
+              <div>
+                <label class="field-label" for="autodrive-focus">Kanal</label>
+                <select id="autodrive-focus" class="select-control">
+                  <option value="both">Beide</option>
+                  <option value="A">Fokus A</option>
+                  <option value="B">Fokus B</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label" for="autodrive-sensitivity">Sensitivität</label>
+                <select id="autodrive-sensitivity" class="select-control">
+                  <option value="gentle">Sanft</option>
+                  <option value="medium" selected>Mittel</option>
+                  <option value="intense">Intensiv</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label" for="autodrive-duration">Dauer (Min)</label>
+                <input type="number" id="autodrive-duration" class="text-input" min="2" max="60" value="12" step="1" />
+              </div>
+              <div class="autodrive-check">
+                <label><input type="checkbox" id="autodrive-auto-climb" checked /> Auto-Climb (ohne Feedback steigen)</label>
+              </div>
+            </div>
+
+            <div class="autodrive-controls">
+              <button type="button" id="btn-autodrive-start" class="btn btn-autodrive-go">🚀 Start</button>
               <button type="button" id="btn-autodrive-pause" class="btn btn-secondary">Pause</button>
               <button type="button" id="btn-autodrive-resume" class="btn btn-secondary">Weiter</button>
               <button type="button" id="btn-autodrive-stop" class="btn btn-danger">Stop</button>
             </div>
+            <div id="autodrive-status-msg" class="autodrive-status-msg" aria-live="polite"></div>
           </div>
-          <div class="card">
-            <div class="card-title">Live</div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
-              <div>Phase: <strong id="autodrive-phase">IDLE</strong></div>
-              <div>Edges: <strong id="autodrive-edges">0 / 0</strong></div>
-              <div>Rel. Int.: <strong id="autodrive-rel">0%</strong></div>
-              <div>Owner: <strong id="autodrive-owner">none</strong></div>
+
+          <!-- Live dashboard -->
+          <div class="card autodrive-live-card">
+            <div class="card-title autodrive-live-title">
+              <span>Live</span>
+              <span id="autodrive-running-badge" class="autodrive-badge idle">Bereit</span>
             </div>
-            <div style="margin-top: 12px;">
-              <div style="font-size: 12px; margin-bottom: 4px;">Fortschritt</div>
-              <div style="height: 10px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden;">
-                <div id="autodrive-progress" style="height: 100%; width: 0%; background: linear-gradient(90deg, #0078d4, #d83b01);"></div>
+
+            <div class="autodrive-phase-hero">
+              <div class="autodrive-phase-name" id="autodrive-phase">Bereit</div>
+              <div class="autodrive-phase-meta">
+                <span>Gesamt <strong id="autodrive-eta">0:00</strong></span>
+                <span>Phase <strong id="autodrive-phase-eta">0:00</strong></span>
+                <span class="autodrive-phase-raw" id="autodrive-phase-raw">IDLE</span>
               </div>
             </div>
-            <div class="card-title" style="margin-top: 18px;">Feedback</div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-              <button type="button" class="btn btn-secondary autodrive-fb" data-fb="too_weak" style="min-height: 48px;">Zu schwach</button>
-              <button type="button" class="btn btn-secondary autodrive-fb" data-fb="good" style="min-height: 48px;">Gut</button>
-              <button type="button" class="btn btn-secondary autodrive-fb" data-fb="too_strong" style="min-height: 48px;">Zu stark</button>
-              <button type="button" class="btn btn-secondary autodrive-fb" data-fb="almost" style="min-height: 48px;">Fast</button>
-              <button type="button" class="btn autodrive-fb" data-fb="now" style="min-height: 48px; background: #d83b01;">Jetzt</button>
-              <button type="button" class="btn autodrive-fb" data-fb="climaxed" style="min-height: 48px; background: #107c10;">Fertig ✓</button>
-              <button type="button" class="btn btn-secondary autodrive-fb" data-fb="not_yet" style="min-height: 48px; grid-column: 1 / -1;">Noch nicht</button>
+
+            <div class="autodrive-timeline" id="autodrive-timeline" aria-hidden="true"></div>
+
+            <div class="autodrive-bars">
+              <div>
+                <div class="autodrive-bar-label"><span>Session</span><span id="autodrive-progress-pct">0%</span></div>
+                <div class="autodrive-bar-track"><div id="autodrive-progress" class="autodrive-bar-fill session"></div></div>
+              </div>
+              <div>
+                <div class="autodrive-bar-label"><span>Phase</span></div>
+                <div class="autodrive-bar-track"><div id="autodrive-phase-progress" class="autodrive-bar-fill phase"></div></div>
+              </div>
+              <div>
+                <div class="autodrive-bar-label"><span>Rel. Intensität</span><span id="autodrive-rel">0%</span></div>
+                <div class="autodrive-bar-track"><div id="autodrive-rel-bar" class="autodrive-bar-fill rel"></div></div>
+              </div>
+              <div class="autodrive-channel-meters">
+                <div>
+                  <div class="autodrive-bar-label"><span>A</span><span id="autodrive-str-a">0</span></div>
+                  <div class="autodrive-bar-track"><div id="autodrive-meter-a" class="autodrive-bar-fill a"></div></div>
+                </div>
+                <div>
+                  <div class="autodrive-bar-label"><span>B</span><span id="autodrive-str-b">0</span></div>
+                  <div class="autodrive-bar-track"><div id="autodrive-meter-b" class="autodrive-bar-fill b"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="autodrive-stats-row">
+              <div>Edges <strong id="autodrive-edges">0 / 0</strong></div>
+              <div>Pattern <strong id="autodrive-pattern">—</strong></div>
+              <div>Owner <strong id="autodrive-owner">none</strong></div>
+            </div>
+
+            <p id="autodrive-tip" class="autodrive-tip">Template wählen und Start drücken</p>
+
+            <div class="card-title" style="margin-top: 8px;">Feedback</div>
+            <div class="autodrive-feedback-grid">
+              <button type="button" class="btn btn-secondary autodrive-fb" data-fb="too_weak">⬇ Zu schwach</button>
+              <button type="button" class="btn btn-secondary autodrive-fb" data-fb="good">✓ Gut</button>
+              <button type="button" class="btn btn-secondary autodrive-fb" data-fb="too_strong">⬆ Zu stark</button>
+              <button type="button" class="btn btn-secondary autodrive-fb" data-fb="almost">🔥 Fast</button>
+              <button type="button" class="btn autodrive-fb now" data-fb="now">⚡ Jetzt</button>
+              <button type="button" class="btn autodrive-fb done" data-fb="climaxed">✓ Fertig</button>
+              <button type="button" class="btn btn-secondary autodrive-fb wide" data-fb="not_yet">↩ Noch nicht</button>
             </div>
           </div>
         </div>
