@@ -24,6 +24,7 @@ import { updateOutputStatus } from "./modules/status-ui.js";
 import { i18nText } from "./modules/i18n.js";
 import { applyAutodriveWaveTick, isAutodriveActive } from "./modules/autodrive.js";
 import { claimOutput, releaseOutput, registerOwnerStop } from "./modules/output-owner.js";
+import { processAudioToStim, loadStimConfig, getStimHistory } from "./modules/stim-player.js";
 
 registerOwnerStop("pattern", () => {
   if (
@@ -46,6 +47,51 @@ registerOwnerStop("session", () => {
     /* ignore */
   }
 });
+
+/** Draw recent stim output history (XToys-style power/freq strip). */
+function drawStimOutputHistory() {
+  const canvas = document.getElementById("canvas-stim-history");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const hist = getStimHistory();
+  if (canvas.width !== canvas.clientWidth) canvas.width = canvas.clientWidth || 300;
+  if (canvas.height !== canvas.clientHeight) canvas.height = canvas.clientHeight || 80;
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.fillStyle = "#0b0b0d";
+  ctx.fillRect(0, 0, w, h);
+  if (hist.length < 2) return;
+  const n = hist.length;
+  const mid = h / 2;
+  // Channel A top half, B bottom — height = strength, color = frequency
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * w;
+    const p = hist[i];
+    const softA = AppState.softLimitA || 150;
+    const softB = AppState.softLimitB || 150;
+    const hA = (p.sA / softA) * (mid - 2);
+    const hB = (p.sB / softB) * (mid - 2);
+    const freqNorm = (f) => Math.max(0, Math.min(1, (f - 10) / 230));
+    const col = (f, alpha) => {
+      const t = freqNorm(f);
+      // green (low) → red (high) like XToys description
+      const r = Math.round(40 + 200 * t);
+      const g = Math.round(180 - 120 * t);
+      const b = Math.round(80 + 40 * (1 - t));
+      return `rgba(${r},${g},${b},${alpha})`;
+    };
+    ctx.fillStyle = col(p.fA, 0.85);
+    ctx.fillRect(x, mid - hA, Math.max(1, w / n + 0.5), hA);
+    ctx.fillStyle = col(p.fB, 0.85);
+    ctx.fillRect(x, mid, Math.max(1, w / n + 0.5), hB);
+  }
+  ctx.strokeStyle = "rgba(255,255,255,0.15)";
+  ctx.beginPath();
+  ctx.moveTo(0, mid);
+  ctx.lineTo(w, mid);
+  ctx.stroke();
+}
 
 // ==========================================
 // Named pattern wave samples (shared with Autodrive)
@@ -444,54 +490,46 @@ export function startWaveLoop() {
 
       await sendWaveformCommand(fA, aA, fB, aB, { writer: "wave-loop" });
     } else if (AppState.isAudioPlaying && AppState.analyserA && AppState.analyserB) {
-      const arrayA = new Uint8Array(AppState.analyserA.fftSize);
-      const arrayB = new Uint8Array(AppState.analyserB.fftSize);
+      const cfg = loadStimConfig();
+      // Keep sensitivity sliders in sync with config if present
+      if (AppState.sensitivityA) cfg.sensitivityA = AppState.sensitivityA;
+      if (AppState.sensitivityB) cfg.sensitivityB = AppState.sensitivityB;
+      const out = processAudioToStim(AppState.analyserA, AppState.analyserB, cfg);
 
-      AppState.analyserA.getByteTimeDomainData(arrayA);
-      AppState.analyserB.getByteTimeDomainData(arrayB);
+      AppState.lastWaveFreqA = out.fA;
+      AppState.lastWaveAmpA = out.aA;
+      AppState.lastWaveFreqB = out.fB;
+      AppState.lastWaveAmpB = out.aB;
 
-      const getPeak = (arr) => {
-        let max = 0;
-        for (let i = 0; i < arr.length; i++) {
-          const val = Math.abs(arr[i] - 128) / 128;
-          if (val > max) max = val;
-        }
-        return max;
-      };
-
-      const peakA = getPeak(arrayA);
-      let peakB = getPeak(arrayB);
-      if (peakB === 0) peakB = peakA;
-
-      const freqArrayA = new Uint8Array(AppState.analyserA.frequencyBinCount);
-      AppState.analyserA.getByteFrequencyData(freqArrayA);
-      let maxBinA = 0,
-        maxValA = 0;
-      for (let i = 0; i < freqArrayA.length; i++) {
-        if (freqArrayA[i] > maxValA) {
-          maxValA = freqArrayA[i];
-          maxBinA = i;
-        }
-      }
-      // Map analyser bin → logical then encode to wire 10–240 (V3)
-      let mappedFreqA = CONSTANTS.DEFAULT_FREQUENCY;
-      if (maxValA > 20) {
-        const logical = 10 + maxBinA * 8; // ~10–1000-ish range
-        mappedFreqA = ProtocolUtils.encodeWaveFreqLogical
-          ? ProtocolUtils.encodeWaveFreqLogical(logical)
-          : Math.max(10, Math.min(240, Math.round(logical)));
+      // XToys-style: drive absolute strength from audio within calibrated min/max
+      if (cfg.strengthDrive) {
+        AppState.strengthA = out.strengthA;
+        AppState.strengthB = out.strengthB;
+        AppState.btPendingMode = CONSTANTS.V3_MODE_ABSOLUTE_BOTH;
+        if (DOM["slider-intensity-a"]) DOM["slider-intensity-a"].value = String(out.strengthA);
+        if (DOM["label-intensity-a"]) DOM["label-intensity-a"].textContent = String(out.strengthA);
+        if (DOM["intensity-circle-a"])
+          DOM["intensity-circle-a"].textContent = String(out.strengthA);
+        if (DOM["slider-intensity-b"]) DOM["slider-intensity-b"].value = String(out.strengthB);
+        if (DOM["label-intensity-b"]) DOM["label-intensity-b"].textContent = String(out.strengthB);
+        if (DOM["intensity-circle-b"])
+          DOM["intensity-circle-b"].textContent = String(out.strengthB);
       }
 
-      let ampA = Math.round(peakA * 100 * AppState.sensitivityA);
-      let ampB = Math.round(peakB * 100 * AppState.sensitivityB);
+      await sendWaveformCommand(out.fA, out.aA, out.fB, out.aB, { writer: "wave-loop" });
 
-      ampA = Math.min(100, Math.max(0, ampA));
-      ampB = Math.min(100, Math.max(0, ampB));
-
-      await sendWaveformCommand(mappedFreqA, ampA, mappedFreqA, ampB, { writer: "wave-loop" });
-
-      if (DOM["visualizer-val-a"]) DOM["visualizer-val-a"].textContent = `${ampA}%`;
-      if (DOM["visualizer-val-b"]) DOM["visualizer-val-b"].textContent = `${ampB}%`;
+      if (DOM["visualizer-val-a"]) {
+        DOM["visualizer-val-a"].textContent = `${out.aA}% · str ${out.strengthA} · f${out.fA}`;
+      }
+      if (DOM["visualizer-val-b"]) {
+        DOM["visualizer-val-b"].textContent = `${out.aB}% · str ${out.strengthB} · f${out.fB}`;
+      }
+      // Optional output history canvas
+      try {
+        drawStimOutputHistory();
+      } catch {
+        /* ignore */
+      }
     } else if (AppState.reflexState === "SHOCKING") {
       const shockFreq = GAME_CONFIG.data.shockFreq;
       await sendWaveformCommand(

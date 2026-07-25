@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.12.0 — STIM Player XToys-level mapping
+
+### Vergleich XToys vs. Stim App (Coyote 3)
+XToys ist eine **Layout-Plattform** (Patterns, Scripts, Online-Sessions, Shock, Draw, Multi-Toy). Unser STIM-Player war nur **Audio-Peak → Wave-Amp**.
+
+### STIM Player Upgrade
+- **Strength-Drive**: Audio steuert absolute Strength in kalibriertem Min/Max (Soft-Limits bleiben Cap)
+- **Freq-Modi**: Spektrum · mit Intensität · inverse Intensität · fest (wie XToys „update frequency“)
+- **Kanal-Modi**: Stereo / Mono L / Mono R / Mono Summe
+- **Wave-Amp Min/Max**, Glättung (EMA), Noise-Gate
+- **Output-Graph**: Strength-Historie, Farbe = Frequenz (A oben / B unten)
+- **Loop / Shuffle** Playlist
+- **Output-Ownership** (`audio`) beim Play
+- Persistente Config `stim_app_stim_player_v1`
+- Modul `stim-player.js` + Unit-Tests
+
 ## 3.11.1 — Autodrive polish (pressure, nudge, wake-lock)
 
 ### Verbesserungen

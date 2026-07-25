@@ -718,16 +718,20 @@
         </div>
       </section>
 
-      <!-- View: STIM Player -->
+      <!-- View: STIM Player (XToys-inspired audio→stim) -->
       <section id="view-stim" class="tab-view">
         <div class="stim-player-layout">
           <div class="card">
-            <div class="card-title">STIM-Datei Import (MP3 / Audio)</div>
+            <div class="card-title">STIM Player · Audio → Coyote</div>
+            <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px;line-height:1.45;">
+              Wie XToys Audio-Patterns: Amplitude steuert Wave + optional Strength, Frequenz aus Spektrum oder Intensität.
+              Zuerst Soft-Limits und Strength-Min/Max kalibrieren.
+            </p>
             
             <div class="import-box" id="drop-zone">
               <span class="pattern-icon" style="font-size: 48px; display: block; margin-bottom: 12px;">📁</span>
               <span class="import-text">Klicke zum Auswählen oder ziehe Audio-Dateien hierher</span>
-              <span class="import-subtitle">Mehrfachauswahl möglich · Amplituden → Kanal A/B in Echtzeit</span>
+              <span class="import-subtitle">MP3/WAV · Stereo L→A / R→B · Playlist</span>
               <input type="file" id="input-stim-file" accept="audio/mp3, audio/*" multiple>
             </div>
             <div id="stim-playlist" class="stim-playlist" style="margin-top:12px;"></div>
@@ -754,7 +758,76 @@
               <input type="checkbox" id="check-hear-audio" checked style="width: 18px; height: 18px; cursor: pointer;">
               <span class="control-label" style="font-size: 12px; margin-left: 8px;">Lautstärke×Master:</span>
               <input type="checkbox" id="check-audio-master-link" checked style="width: 18px; height: 18px; cursor: pointer;" title="Hörlautstärke folgt dem Master-Slider">
+              <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="stim-loop"> Loop</label>
+              <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="stim-shuffle"> Shuffle</label>
             </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Mapping &amp; Kalibrierung (XToys-Style)</div>
+            <div class="stim-map-grid">
+              <div>
+                <label class="field-label">Strength steuern (Audio→Intensität)</label>
+                <label style="font-size:13px;"><input type="checkbox" id="stim-strength-drive" checked> Strength-Drive an</label>
+              </div>
+              <div>
+                <label class="field-label" for="stim-str-min">Strength Min (Fühlschwelle)</label>
+                <input type="number" id="stim-str-min" class="text-input" min="0" max="200" value="15">
+              </div>
+              <div>
+                <label class="field-label" for="stim-str-max">Strength Max (Cap)</label>
+                <input type="number" id="stim-str-max" class="text-input" min="1" max="200" value="80">
+              </div>
+              <div>
+                <label class="field-label" for="stim-base-str">Baseline Strength</label>
+                <input type="number" id="stim-base-str" class="text-input" min="0" max="200" value="40">
+              </div>
+              <div>
+                <label class="field-label" for="stim-freq-mode">Frequenz-Modus</label>
+                <select id="stim-freq-mode" class="select-control">
+                  <option value="spectrum">Spektrum (Audio-Pitch)</option>
+                  <option value="with_intensity">Mit Intensität (↑Freq↑Power)</option>
+                  <option value="inverse_intensity">Inverse Intensität</option>
+                  <option value="fixed">Fest</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label" for="stim-freq-fixed">Freq fest / Mitte</label>
+                <input type="number" id="stim-freq-fixed" class="text-input" min="10" max="240" value="45">
+              </div>
+              <div>
+                <label class="field-label" for="stim-freq-min">Freq Min</label>
+                <input type="number" id="stim-freq-min" class="text-input" min="10" max="240" value="25">
+              </div>
+              <div>
+                <label class="field-label" for="stim-freq-max">Freq Max</label>
+                <input type="number" id="stim-freq-max" class="text-input" min="10" max="240" value="110">
+              </div>
+              <div>
+                <label class="field-label" for="stim-channel-mode">Kanal-Modus</label>
+                <select id="stim-channel-mode" class="select-control">
+                  <option value="stereo">Stereo L→A / R→B</option>
+                  <option value="mono_sum">Mono Summe</option>
+                  <option value="mono_l">Nur Links → A+B</option>
+                  <option value="mono_r">Nur Rechts → A+B</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label" for="stim-smoothing">Glättung <span id="stim-smoothing-val">0.40</span></label>
+                <input type="range" id="stim-smoothing" min="0" max="0.9" step="0.05" value="0.4" style="width:100%;">
+              </div>
+              <div>
+                <label class="field-label" for="stim-amp-min">Wave-Amp Min</label>
+                <input type="number" id="stim-amp-min" class="text-input" min="0" max="100" value="15">
+              </div>
+              <div>
+                <label class="field-label" for="stim-amp-max">Wave-Amp Max</label>
+                <input type="number" id="stim-amp-max" class="text-input" min="0" max="100" value="100">
+              </div>
+            </div>
+            <p style="font-size:11px;color:var(--text-muted);margin:10px 0 0;">
+              Kalib-Tipp: Min = gerade fühlbar, Max = noch angenehm. Soft-Limits bleiben harte Obergrenze.
+            </p>
           </div>
 
           <!-- Real-time extraction visualization -->
@@ -782,6 +855,12 @@
                 <input type="range" id="slider-sens-b" min="0.5" max="3" step="0.1" value="1.2" style="width: 120px;">
               </div>
             </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Output-Graph (Strength · Farbe = Freq)</div>
+            <p style="font-size:11px;color:var(--text-muted);margin:0 0 8px;">Oben A · Unten B · grün=niedrige Freq · rot=hohe Freq (ähnlich XToys)</p>
+            <canvas id="canvas-stim-history" class="stim-history-canvas" height="100" style="width:100%;height:100px;border-radius:8px;background:#0b0b0d;"></canvas>
           </div>
         </div>
       </section>

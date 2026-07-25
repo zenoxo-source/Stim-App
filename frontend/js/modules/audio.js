@@ -1,9 +1,15 @@
-// audio.js - STIM Audio extraction player with playlist
+// audio.js - STIM Audio extraction player with playlist (XToys-inspired mapping)
 import { AppState, DOM, CONSTANTS, log } from "../state.js";
 import * as ProtocolUtils from "../lib/protocol-utils.js";
 import { sendSoftStop } from "./bluetooth.js";
 import { updateOutputStatus } from "./status-ui.js";
 import { ensureGameStrength } from "./games-extra.js";
+import { claimOutput, releaseOutput, registerOwnerStop } from "./output-owner.js";
+import { loadStimConfig, saveStimConfig, resetStimSmoothing } from "./stim-player.js";
+
+registerOwnerStop("audio", () => {
+  if (AppState.isAudioPlaying) pauseSTIMAudio();
+});
 
 function handleAudioFile(file) {
   const extension = file.name.split(".").pop().toLowerCase();
@@ -140,16 +146,39 @@ function loadPlaylistIndex(idx, autoplay = false) {
   };
 
   AppState.audioElement.onended = () => {
-    // Auto-advance playlist
-    if (AppState.playlist && AppState.playlistIndex < AppState.playlist.length - 1) {
-      loadPlaylistIndex(AppState.playlistIndex + 1, true);
-    } else {
-      AppState.isAudioPlaying = false;
-      if (DOM["btn-play-audio"]) DOM["btn-play-audio"].textContent = "▶️ Play";
-      sendSoftStop({ keepStrength: true });
-      log("STIM Wiedergabe beendet.", "info");
-      updateOutputStatus();
+    const cfg = loadStimConfig();
+    if (AppState.playlist && AppState.playlist.length > 0) {
+      if (cfg.loop && AppState.playlist.length === 1) {
+        loadPlaylistIndex(0, true);
+        return;
+      }
+      if (cfg.shuffle && AppState.playlist.length > 1) {
+        let next = AppState.playlistIndex;
+        while (next === AppState.playlistIndex && AppState.playlist.length > 1) {
+          next = Math.floor(Math.random() * AppState.playlist.length);
+        }
+        loadPlaylistIndex(next, true);
+        return;
+      }
+      if (AppState.playlistIndex < AppState.playlist.length - 1) {
+        loadPlaylistIndex(AppState.playlistIndex + 1, true);
+        return;
+      }
+      if (cfg.loop) {
+        loadPlaylistIndex(0, true);
+        return;
+      }
     }
+    AppState.isAudioPlaying = false;
+    if (DOM["btn-play-audio"]) DOM["btn-play-audio"].textContent = "▶️ Play";
+    try {
+      releaseOutput("audio");
+    } catch {
+      /* ignore */
+    }
+    sendSoftStop({ keepStrength: true });
+    log("STIM Wiedergabe beendet.", "info");
+    updateOutputStatus();
   };
 }
 
@@ -164,6 +193,16 @@ export function applyAudioMasterLink() {
 
 function playSTIMAudio() {
   if (!AppState.audioCtx || !AppState.audioElement?.src) return;
+  if (!AppState.isConnected) {
+    log("STIM: Bluetooth verbinden, bevor Audio→Stim startet.", "error");
+    return;
+  }
+
+  const claim = claimOutput("audio");
+  if (!claim.ok) {
+    log(`STIM: Output-Claim fehlgeschlagen (${claim.error})`, "error");
+    return;
+  }
 
   if (AppState.audioCtx.state === "suspended") {
     AppState.audioCtx.resume();
@@ -192,14 +231,19 @@ function playSTIMAudio() {
   if (DOM["check-settings-audio"]) DOM["check-settings-audio"].checked = AppState.audioHearSound;
   applyAudioMasterLink();
 
-  // V3: wave amps alone are not enough – need channel strength
-  ensureGameStrength(40);
+  const cfg = loadStimConfig();
+  // Baseline strength (XToys calibration min); strengthDrive updates continuously
+  ensureGameStrength(cfg.baseStrength || 40);
+  resetStimSmoothing();
 
   AppState.audioElement.play();
   AppState.isAudioPlaying = true;
   if (DOM["btn-play-audio"]) DOM["btn-play-audio"].textContent = "⏸️ Pause";
 
-  log("STIM Wiedergabe gestartet.", "info");
+  log(
+    `STIM gestartet · Freq=${cfg.freqMode} · StrengthDrive=${cfg.strengthDrive ? "an" : "aus"} · ${cfg.channelMode}`,
+    "info"
+  );
 
   if (AppState.audioTimer) clearInterval(AppState.audioTimer);
   AppState.audioTimer = setInterval(updateSTIMTimeline, 250);
@@ -216,10 +260,17 @@ function pauseSTIMAudio() {
   if (DOM["btn-play-audio"]) DOM["btn-play-audio"].textContent = "▶️ Play";
   clearInterval(AppState.audioTimer);
 
+  try {
+    releaseOutput("audio");
+  } catch {
+    /* ignore */
+  }
   sendSoftStop({ keepStrength: true });
   log("STIM Wiedergabe pausiert.", "info");
   updateOutputStatus();
 }
+
+export { playSTIMAudio, pauseSTIMAudio, loadPlaylistIndex };
 
 function updateSTIMTimeline() {
   if (!AppState.isAudioPlaying || !AppState.audioElement) return;
@@ -388,9 +439,105 @@ document.addEventListener("DOMContentLoaded", () => {
 
   DOM["slider-sens-a"]?.addEventListener("input", (e) => {
     AppState.sensitivityA = parseFloat(e.target.value);
+    saveStimConfig({ sensitivityA: AppState.sensitivityA });
   });
 
   DOM["slider-sens-b"]?.addEventListener("input", (e) => {
     AppState.sensitivityB = parseFloat(e.target.value);
+    saveStimConfig({ sensitivityB: AppState.sensitivityB });
+  });
+
+  // --- Stim mapping UI ---
+  function bindStimCfg() {
+    const cfg = loadStimConfig();
+    const set = (id, val, isCheck) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (isCheck) el.checked = !!val;
+      else el.value = String(val);
+    };
+    set("stim-strength-drive", cfg.strengthDrive, true);
+    set("stim-str-min", cfg.strengthMin);
+    set("stim-str-max", cfg.strengthMax);
+    set("stim-base-str", cfg.baseStrength);
+    set("stim-freq-mode", cfg.freqMode);
+    set("stim-freq-fixed", cfg.freqFixed);
+    set("stim-freq-min", cfg.freqMin);
+    set("stim-freq-max", cfg.freqMax);
+    set("stim-channel-mode", cfg.channelMode);
+    set("stim-smoothing", cfg.smoothing);
+    set("stim-amp-min", cfg.waveAmpMin);
+    set("stim-amp-max", cfg.waveAmpMax);
+    set("stim-loop", cfg.loop, true);
+    set("stim-shuffle", cfg.shuffle, true);
+    const sv = document.getElementById("stim-smoothing-val");
+    if (sv) sv.textContent = Number(cfg.smoothing).toFixed(2);
+    if (DOM["slider-sens-a"]) DOM["slider-sens-a"].value = cfg.sensitivityA;
+    if (DOM["slider-sens-b"]) DOM["slider-sens-b"].value = cfg.sensitivityB;
+    AppState.sensitivityA = cfg.sensitivityA;
+    AppState.sensitivityB = cfg.sensitivityB;
+  }
+
+  function readStimCfgFromUi() {
+    const num = (id, fb) => {
+      const v = Number(document.getElementById(id)?.value);
+      return Number.isFinite(v) ? v : fb;
+    };
+    const chk = (id, fb) => {
+      const el = document.getElementById(id);
+      return el ? !!el.checked : fb;
+    };
+    return saveStimConfig({
+      strengthDrive: chk("stim-strength-drive", true),
+      strengthMin: num("stim-str-min", 15),
+      strengthMax: num("stim-str-max", 80),
+      baseStrength: num("stim-base-str", 40),
+      freqMode: document.getElementById("stim-freq-mode")?.value || "spectrum",
+      freqFixed: num("stim-freq-fixed", 45),
+      freqMin: num("stim-freq-min", 25),
+      freqMax: num("stim-freq-max", 110),
+      channelMode: document.getElementById("stim-channel-mode")?.value || "stereo",
+      smoothing: num("stim-smoothing", 0.4),
+      waveAmpMin: num("stim-amp-min", 15),
+      waveAmpMax: num("stim-amp-max", 100),
+      loop: chk("stim-loop", false),
+      shuffle: chk("stim-shuffle", false),
+      sensitivityA: AppState.sensitivityA,
+      sensitivityB: AppState.sensitivityB,
+    });
+  }
+
+  bindStimCfg();
+  [
+    "stim-strength-drive",
+    "stim-str-min",
+    "stim-str-max",
+    "stim-base-str",
+    "stim-freq-mode",
+    "stim-freq-fixed",
+    "stim-freq-min",
+    "stim-freq-max",
+    "stim-channel-mode",
+    "stim-smoothing",
+    "stim-amp-min",
+    "stim-amp-max",
+    "stim-loop",
+    "stim-shuffle",
+  ].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", () => {
+      readStimCfgFromUi();
+      if (id === "stim-smoothing") {
+        const sv = document.getElementById("stim-smoothing-val");
+        if (sv)
+          sv.textContent = Number(document.getElementById("stim-smoothing")?.value || 0).toFixed(2);
+      }
+    });
+    document.getElementById(id)?.addEventListener("input", () => {
+      if (id === "stim-smoothing") {
+        const sv = document.getElementById("stim-smoothing-val");
+        if (sv)
+          sv.textContent = Number(document.getElementById("stim-smoothing")?.value || 0).toFixed(2);
+      }
+    });
   });
 });
