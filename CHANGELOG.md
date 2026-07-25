@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.1.1 — Autodrive: Erfolgsrate zählt korrekt
+
+### Behoben
+- **`climaxRate` unterschätzte sich systematisch**: Wer den Climax-Button während der Session nicht drückte und den Höhepunkt erst im Debrief meldete, wurde nicht gezählt — `applyDebrief` addierte nachweislich `+ 0` auf `climaxHits`. Debrief-Meldungen zählen jetzt, und die Rate wird neu berechnet.
+- Schutz gegen Doppelzählung: Das `endedAt` der letzten Session dient als Kennung, ein erneut abgeschicktes Debrief zählt nicht nochmal.
+
+### Tests
+- 578 Tests (vorher 563): neue Suite `autodrive-learning.test.js` für die sitzungsübergreifende Adaption — Climax-Zählung, Idempotenz, Bias-Anpassung und deren Clamps, Soft-Limit-Coach
+
+### Unverändert
+- Ein während der Session markierter Climax bleibt gezählt, auch wenn das Debrief später „nein" sagt. Welches Signal in diesem Widerspruch gewinnen soll, ist offen.
+
 ## 4.1.0 — Remote-API, i18n & Testabdeckung
 
 ### Behoben

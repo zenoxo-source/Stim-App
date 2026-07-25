@@ -482,8 +482,25 @@ export function applyDebrief(answers = {}) {
   const learn = loadLearning();
   const patch = { ...learn, lastDebriefAt: Date.now() };
   if (answers.climax === "yes") {
-    patch.climaxHits = (learn.climaxHits || 0) + 0; // already counted if marked
     patch.debriefYes = (learn.debriefYes || 0) + 1;
+    // Not everyone reaches for the climax button mid-session. When the session
+    // went unmarked, the debrief is the first time we hear about it — count it
+    // here, or climaxRate under-reports every such session.
+    // endedAt identifies the session, so re-submitting a debrief cannot
+    // double-count.
+    const last = getLastSessionSnapshot();
+    const sessionId = last?.endedAt ?? null;
+    const alreadyCounted =
+      !last ||
+      last.marked === true ||
+      (sessionId !== null && learn.debriefCountedFor === sessionId);
+    if (!alreadyCounted) {
+      patch.climaxHits = (learn.climaxHits || 0) + 1;
+      patch.debriefCountedFor = sessionId;
+      if (learn.sessions > 0) {
+        patch.climaxRate = patch.climaxHits / learn.sessions;
+      }
+    }
   } else if (answers.climax === "almost") {
     patch.debriefAlmost = (learn.debriefAlmost || 0) + 1;
     patch.preferredBias = clamp((learn.preferredBias || 0) + 0.03, -0.15, 0.2);
