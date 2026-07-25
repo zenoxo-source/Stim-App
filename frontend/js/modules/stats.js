@@ -56,6 +56,10 @@ export function trackStat(key, value) {
     stats.remoteCommands += 1;
   } else if (key === "play_time") {
     stats.totalPlayTimeSec += value;
+  } else if (typeof key === "string" && key.startsWith("autodrive_")) {
+    // Counters for Autodrive analytics (starts/stops/success/debrief/feedback)
+    if (!stats.autodrive) stats.autodrive = {};
+    stats.autodrive[key] = (stats.autodrive[key] || 0) + 1;
   }
   saveStats(stats);
 }

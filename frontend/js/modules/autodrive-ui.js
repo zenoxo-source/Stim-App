@@ -1,8 +1,11 @@
-// autodrive-ui.js — Home + Autodrive dashboard bindings
+// autodrive-ui.js — Home 1-tap, fullscreen session, prompts, debrief, coach
 
 import { AppState, log } from "../state.js";
 import {
   startAutodrive,
+  startQuickClassic,
+  startLastSuccess,
+  hasLastSuccess,
   pauseAutodrive,
   resumeAutodrive,
   stopAutodrive,
@@ -12,6 +15,11 @@ import {
   loadAutodriveConfig,
   saveAutodriveConfig,
   getAutodriveState,
+  getLastSessionSnapshot,
+  applyDebrief,
+  getSoftLimitCoachMessage,
+  clearSoftLimitCoach,
+  getAutodriveStatsSummary,
   AUTODRIVE_TEMPLATES,
 } from "./autodrive.js";
 import { getOutputOwner } from "./output-owner.js";
@@ -26,8 +34,11 @@ const TIMELINE = [
   { id: "CLIMAX_PUSH", label: "Push" },
   { id: "AFTERCARE", label: "Care" },
 ];
-
 const PHASE_ORDER = TIMELINE.map((t) => t.id);
+
+let debriefClimax = null;
+let debriefOverall = null;
+let wasRunning = false;
 
 function refreshHomeSummary() {
   const conn = document.getElementById("home-conn-text");
@@ -44,6 +55,20 @@ function refreshHomeSummary() {
   if (phase) phase.textContent = st.phaseLabel || st.phase || "—";
   const prog = document.getElementById("home-ad-progress");
   if (prog) prog.style.width = `${Math.round((st.progress || 0) * 100)}%`;
+
+  const lastBtn = document.getElementById("home-btn-last-success");
+  if (lastBtn) lastBtn.style.display = hasLastSuccess() ? "inline-block" : "none";
+
+  const statsEl = document.getElementById("home-ad-stats");
+  if (statsEl) {
+    const s = getAutodriveStatsSummary();
+    if (s.sessions > 0) {
+      const pct = Math.round((s.climaxRate || 0) * 100);
+      statsEl.textContent = `Autodrive-Stats: ${s.sessions} Sessions · ${pct}% mit „Fertig ✓“ markiert`;
+    } else {
+      statsEl.textContent = "";
+    }
+  }
 }
 
 function paintTimeline(st) {
@@ -53,10 +78,10 @@ function paintTimeline(st) {
   const idx = PHASE_ORDER.indexOf(cur);
   root.innerHTML = TIMELINE.map((step, i) => {
     let cls = "tl-step";
-    if (cur === "PAUSED" || cur === "IDLE" || cur === "COOLDOWN") {
-      /* no active highlight beyond history */
-    } else if (i < idx) cls += " done";
-    else if (i === idx) cls += " active";
+    if (cur !== "PAUSED" && cur !== "IDLE" && cur !== "COOLDOWN") {
+      if (i < idx) cls += " done";
+      else if (i === idx) cls += " active";
+    }
     if (cur === "AFTERCARE" && step.id === "AFTERCARE") cls = "tl-step active";
     return `<div class="${cls}">${step.label}</div>`;
   }).join("");
@@ -89,6 +114,27 @@ function paintDashboard(st) {
 
   paintTimeline(st);
   refreshHomeSummary();
+  paintCoach();
+}
+
+function paintCoach() {
+  const el = document.getElementById("autodrive-coach");
+  if (!el) return;
+  const coach = getSoftLimitCoachMessage();
+  if (!coach || isAutodriveActive()) {
+    el.style.display = "none";
+    return;
+  }
+  el.style.display = "block";
+  el.innerHTML = `${coach.message} <button type="button" class="btn btn-secondary btn-sm" id="coach-dismiss">OK</button> <button type="button" class="btn btn-secondary btn-sm" id="coach-settings">Einstellungen</button>`;
+  document.getElementById("coach-dismiss")?.addEventListener("click", () => {
+    clearSoftLimitCoach();
+    el.style.display = "none";
+  });
+  document.getElementById("coach-settings")?.addEventListener("click", () => {
+    clearSoftLimitCoach();
+    document.querySelector('.nav-item[data-tab="settings"]')?.click();
+  });
 }
 
 function buildTemplateGrid(selectedId) {
@@ -99,8 +145,6 @@ function buildTemplateGrid(selectedId) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "autodrive-tpl-card" + (tpl.id === selectedId ? " active" : "");
-    btn.setAttribute("role", "option");
-    btn.setAttribute("aria-selected", tpl.id === selectedId ? "true" : "false");
     btn.dataset.template = tpl.id;
     btn.innerHTML = `<span class="tpl-name">${tpl.label}</span><span class="tpl-desc">${tpl.description || ""}</span>`;
     btn.addEventListener("click", () => selectTemplate(tpl.id));
@@ -132,6 +176,8 @@ function collectConfigFromUi() {
     : tpl.targetDurationMin;
   const autoClimb = !!document.getElementById("autodrive-auto-climb")?.checked;
   const placement = document.getElementById("autodrive-placement")?.value || "soft_external";
+  const abRole = document.getElementById("autodrive-ab-role")?.value || "sync";
+  const fullscreenPreferred = !!document.getElementById("autodrive-fullscreen-pref")?.checked;
 
   return saveAutodriveConfig({
     templateId,
@@ -145,6 +191,8 @@ function collectConfigFromUi() {
     sensitivity,
     autoClimb,
     placement,
+    abRole,
+    fullscreenPreferred,
   });
 }
 
@@ -153,6 +201,70 @@ function setStatusMsg(msg, isError) {
   if (!el) return;
   el.textContent = msg || "";
   el.style.color = isError ? "var(--color-error, #f66)" : "var(--color-warning, #d83b01)";
+}
+
+function openFullscreen() {
+  const el = document.getElementById("autodrive-fullscreen");
+  if (el) el.style.display = "flex";
+}
+
+function closeFullscreen() {
+  const el = document.getElementById("autodrive-fullscreen");
+  if (el) el.style.display = "none";
+}
+
+function maybeOpenFullscreen() {
+  const pref = document.getElementById("autodrive-fullscreen-pref");
+  const cfg = loadAutodriveConfig();
+  if ((pref && pref.checked) || cfg.fullscreenPreferred !== false) {
+    openFullscreen();
+  }
+}
+
+function openDebrief() {
+  const snap = getLastSessionSnapshot();
+  const modal = document.getElementById("autodrive-debrief");
+  const summary = document.getElementById("ad-debrief-summary");
+  if (!modal) return;
+  debriefClimax = null;
+  debriefOverall = null;
+  if (summary && snap) {
+    const min = Math.round((snap.durationMs || 0) / 60000);
+    summary.textContent = `${min} Min · Edges ${snap.edges || 0} · Feedback zu schwach ${snap.tooWeak || 0} / zu stark ${snap.tooStrong || 0} / fast ${snap.almost || 0}${snap.marked ? " · Fertig markiert" : ""}`;
+  } else if (summary) {
+    summary.textContent = "Kurzes Feedback hilft der nächsten Session.";
+  }
+  modal.style.display = "flex";
+}
+
+function closeDebrief() {
+  const modal = document.getElementById("autodrive-debrief");
+  if (modal) modal.style.display = "none";
+}
+
+function submitDebrief() {
+  applyDebrief({
+    climax: debriefClimax || "no",
+    overall: debriefOverall || "ok",
+  });
+  closeDebrief();
+  paintCoach();
+  setStatusMsg("Danke — Learning aktualisiert", false);
+}
+
+function handleStartResult(r, openFs) {
+  if (!r.ok) {
+    setStatusMsg(r.error || "Start fehlgeschlagen", true);
+    log(`Autodrive: ${r.error}`, "error");
+    if (r.error && /Nicht verbunden|verbunden/i.test(r.error)) {
+      // stay helpful
+    }
+    return;
+  }
+  setStatusMsg("Läuft — Feedback nutzen (Fullscreen empfohlen)", false);
+  wasRunning = true;
+  paintDashboard(getAutodriveState());
+  if (openFs !== false) maybeOpenFullscreen();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -171,22 +283,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if (climb) climb.checked = cfg.autoClimb !== false;
     const place = document.getElementById("autodrive-placement");
     if (place && cfg.placement) place.value = cfg.placement;
+    const ab = document.getElementById("autodrive-ab-role");
+    if (ab && cfg.abRole) ab.value = cfg.abRole;
+    const fsPref = document.getElementById("autodrive-fullscreen-pref");
+    if (fsPref) fsPref.checked = cfg.fullscreenPreferred !== false;
   } catch {
     buildTemplateGrid("classic");
   }
 
   document.getElementById("btn-autodrive-start")?.addEventListener("click", () => {
-    const conf = collectConfigFromUi();
-    const r = startAutodrive(conf);
-    if (!r.ok) {
-      setStatusMsg(r.error || "Start fehlgeschlagen", true);
-      log(`Autodrive: ${r.error}`, "error");
-    } else {
-      setStatusMsg("Läuft — Feedback nutzen für bessere Anpassung", false);
-    }
-    paintDashboard(getAutodriveState());
+    handleStartResult(startAutodrive(collectConfigFromUi()));
   });
-
+  document.getElementById("btn-autodrive-last")?.addEventListener("click", () => {
+    handleStartResult(startLastSuccess());
+  });
   document.getElementById("btn-autodrive-pause")?.addEventListener("click", () => {
     pauseAutodrive();
     setStatusMsg("Pausiert", false);
@@ -196,11 +306,22 @@ document.addEventListener("DOMContentLoaded", () => {
     setStatusMsg("Fortgesetzt", false);
   });
   document.getElementById("btn-autodrive-stop")?.addEventListener("click", () => {
+    const active = isAutodriveActive();
+    if (active && (getAutodriveState().progress || 0) > 0.15) {
+      if (!confirm("Autodrive wirklich stoppen?")) return;
+    }
     stopAutodrive("ui");
+    closeFullscreen();
     setStatusMsg("Gestoppt", false);
     paintDashboard(getAutodriveState());
+    if (wasRunning) {
+      wasRunning = false;
+      setTimeout(openDebrief, 300);
+    }
   });
+  document.getElementById("btn-autodrive-fs")?.addEventListener("click", openFullscreen);
 
+  // Global feedback buttons (normal + fullscreen use .autodrive-fb)
   document.querySelectorAll(".autodrive-fb").forEach((btn) => {
     btn.addEventListener("click", () => {
       const fb = btn.getAttribute("data-fb");
@@ -210,13 +331,29 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       injectFeedback(fb);
-      btn.classList.add("active");
-      setTimeout(() => btn.classList.remove("active"), 200);
+      if (fb === "climaxed") {
+        // Aftercare then stop may follow — debrief when idle
+        setTimeout(() => {
+          if (!isAutodriveActive()) {
+            closeFullscreen();
+            openDebrief();
+          }
+        }, 800);
+      }
     });
   });
 
+  // Home
   document.getElementById("home-btn-connect")?.addEventListener("click", () => {
     document.getElementById("btn-connect")?.click();
+  });
+  document.getElementById("home-btn-quick-start")?.addEventListener("click", () => {
+    handleStartResult(startQuickClassic(), true);
+    document.querySelector('.nav-item[data-tab="autodrive"]')?.click();
+  });
+  document.getElementById("home-btn-last-success")?.addEventListener("click", () => {
+    handleStartResult(startLastSuccess(), true);
+    document.querySelector('.nav-item[data-tab="autodrive"]')?.click();
   });
   document.getElementById("home-btn-autodrive")?.addEventListener("click", () => {
     document.querySelector('.nav-item[data-tab="autodrive"]')?.click();
@@ -224,14 +361,79 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("home-btn-manual")?.addEventListener("click", () => {
     document.querySelector('.nav-item[data-tab="deck"]')?.click();
   });
+  document.getElementById("home-btn-fullscreen")?.addEventListener("click", openFullscreen);
 
-  // One-click start from Home
-  document.getElementById("home-btn-autodrive")?.addEventListener("dblclick", () => {
-    document.querySelector('.nav-item[data-tab="autodrive"]')?.click();
-    setTimeout(() => document.getElementById("btn-autodrive-start")?.click(), 100);
+  // Fullscreen chrome
+  document.getElementById("ad-fs-close")?.addEventListener("click", closeFullscreen);
+  document.getElementById("ad-fs-pause")?.addEventListener("click", () => pauseAutodrive());
+  document.getElementById("ad-fs-resume")?.addEventListener("click", () => resumeAutodrive());
+  document.getElementById("ad-fs-stop")?.addEventListener("click", () => {
+    document.getElementById("btn-autodrive-stop")?.click();
   });
 
-  onAutodriveUi((st) => paintDashboard(st));
+  // Debrief
+  document.querySelectorAll(".ad-debrief-climax").forEach((b) => {
+    b.addEventListener("click", () => {
+      debriefClimax = b.getAttribute("data-climax");
+      document.querySelectorAll(".ad-debrief-climax").forEach((x) => x.classList.remove("active"));
+      b.classList.add("active");
+      if (debriefOverall) submitDebrief();
+    });
+  });
+  document.querySelectorAll(".ad-debrief-overall").forEach((b) => {
+    b.addEventListener("click", () => {
+      debriefOverall = b.getAttribute("data-overall");
+      document.querySelectorAll(".ad-debrief-overall").forEach((x) => x.classList.remove("active"));
+      b.classList.add("active");
+      if (debriefClimax) submitDebrief();
+      else submitDebrief(); // overall alone is enough
+    });
+  });
+  document.getElementById("ad-debrief-skip")?.addEventListener("click", closeDebrief);
+
+  // Keyboard during fullscreen / autodrive
+  window.addEventListener("keydown", (e) => {
+    if (!isAutodriveActive()) return;
+    if (
+      e.target &&
+      (e.target.tagName === "INPUT" ||
+        e.target.tagName === "TEXTAREA" ||
+        e.target.tagName === "SELECT")
+    ) {
+      return;
+    }
+    const map = {
+      Digit1: "too_weak",
+      Digit2: "good",
+      Digit3: "too_strong",
+      Digit4: "almost",
+      Digit5: "now",
+      Digit6: "climaxed",
+      Digit7: "not_yet",
+      KeyF: "almost",
+      KeyJ: "now",
+      KeyG: "climaxed",
+    };
+    const fb = map[e.code];
+    if (fb) {
+      e.preventDefault();
+      injectFeedback(fb);
+    }
+  });
+
+  onAutodriveUi((st) => {
+    const running = st.phase && st.phase !== "IDLE";
+    if (wasRunning && !running && st.phase === "IDLE") {
+      // Natural end
+      closeFullscreen();
+      setTimeout(openDebrief, 400);
+      wasRunning = false;
+    }
+    if (running) wasRunning = true;
+    paintDashboard(st);
+  });
+
   setInterval(refreshHomeSummary, 1000);
   paintDashboard(getAutodriveState());
+  paintCoach();
 });

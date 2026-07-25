@@ -139,6 +139,9 @@ export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
   aggression: 1.0,
   autoClimb: true,
   placement: "soft_external",
+  /** @type {"sync"|"aRhythm_bSteady"|"aSteady_bRhythm"} */
+  abRole: "sync",
+  fullscreenPreferred: true,
 });
 
 const SENSITIVITY_SCALE = Object.freeze({
@@ -293,6 +296,15 @@ export function sanitiseAutodriveConfig(input) {
     const a = Number(raw.aggression);
     if (Number.isFinite(a)) base.aggression = clamp(a, 0.5, 1.6);
   }
+  if (
+    typeof raw.abRole === "string" &&
+    ["sync", "aRhythm_bSteady", "aSteady_bRhythm"].includes(raw.abRole)
+  ) {
+    base.abRole = raw.abRole;
+  }
+  if (typeof raw.fullscreenPreferred === "boolean") {
+    base.fullscreenPreferred = raw.fullscreenPreferred;
+  }
 
   if (base.autoStopMinutes == null) {
     base.autoStopMinutes = Math.max(base.targetDurationMin + 8, 30);
@@ -379,6 +391,21 @@ export function createInitialState(config, nowMs, learning = {}) {
     climaxInDrop: false,
     placeFreqBias: place.freqBias || 0,
     placeDutyScale: place.dutyScale || 1,
+    // Peak-lock: hold a "good" intensity zone
+    peakLockRel: null,
+    peakLockUntil: 0,
+    peakLockHits: 0,
+    // After almost in push: extra boosted crests
+    pushBoostRemaining: 0,
+    // Session quality counters (for coach / debrief)
+    sessionTooWeakCount: 0,
+    sessionTooStrongCount: 0,
+    sessionAlmostCount: 0,
+    sessionGoodCount: 0,
+    // Feedback prompt scheduling
+    nextPromptAt: nowMs + 20000,
+    lastPromptAt: 0,
+    pendingPrompt: null,
   };
 }
 
@@ -471,6 +498,7 @@ export function reduceAutodrive(state, event) {
     s = applyHabituation(s, now);
     s = applyClimaxWave(s, now);
     s = applyMicroMod(s, now);
+    s = applyFeedbackPrompts(s, now);
     if (s.phaseDeadlineAt && now >= s.phaseDeadlineAt) {
       s = applyPhaseTimeout(s, now);
     } else {
@@ -618,6 +646,19 @@ export function computeAutodriveOutput(state, nowMs) {
     channelMode: state.channelMode,
     climaxWaveIndex: state.climaxWaveIndex || 0,
     placement: state.config.placement,
+    peakLockActive: !!(
+      state.peakLockRel != null &&
+      state.peakLockUntil &&
+      nowMs < state.peakLockUntil
+    ),
+    peakLockRel: state.peakLockRel,
+    pendingPrompt: state.pendingPrompt,
+    holdRemainingMs:
+      state.phase === "EDGE_HOLD" ? Math.max(0, (state.phaseDeadlineAt || nowMs) - nowMs) : 0,
+    nextStepHint: nextStepHint(state),
+    sessionTooWeakCount: state.sessionTooWeakCount || 0,
+    sessionTooStrongCount: state.sessionTooStrongCount || 0,
+    abRole: state.config.abRole || "sync",
   };
 }
 
@@ -892,7 +933,12 @@ function applyAdaptiveEnvelope(s, now) {
 
   const quietMs = now - (s.lastFeedbackAt || s.startedAt || now);
   const recentTooStrong = s.lastTooStrongAt && now - s.lastTooStrongAt < 12000;
-  if (
+  // Peak-lock: after repeated "good", linger near that intensity
+  const lockActive = s.peakLockRel != null && s.peakLockUntil && now < s.peakLockUntil;
+  if (lockActive && (s.phase === "BUILD" || s.phase === "TEASE" || s.phase === "WARMUP")) {
+    const lock = s.peakLockRel;
+    target = clamp(lock + 0.03 * Math.sin((s.loopCounter || 0) * 0.08), lock - 0.04, lock + 0.06);
+  } else if (
     s.config.autoClimb !== false &&
     !recentTooStrong &&
     quietMs > 4000 &&
@@ -907,6 +953,11 @@ function applyAdaptiveEnvelope(s, now) {
 
   if (s.phase === "EDGE_HOLD" && s.lastAlmostAt && now - s.lastAlmostAt < 3000) {
     target = Math.max(target, 0.68);
+  }
+
+  // Push boost waves after almost-during-push
+  if (s.phase === "CLIMAX_PUSH" && (s.pushBoostRemaining || 0) > 0 && !s.climaxInDrop) {
+    target = clamp(Math.max(target, 0.9 + 0.04 * s.pushBoostRemaining), 0.85, 1);
   }
 
   // Calibration: forced slow ramp for threshold discovery
@@ -1040,6 +1091,18 @@ function applyClimaxWave(s, now) {
       idx = Math.min(idx + 1, CLIMAX_WAVES.length - 1);
       started = now;
       rel = Math.max(rel, 0.72);
+      // Consume one push-boost after a drop cycle
+      if ((s.pushBoostRemaining || 0) > 0) {
+        return {
+          ...s,
+          climaxWaveIndex: idx,
+          climaxWaveStartedAt: started,
+          climaxInDrop: false,
+          relStrength: clamp(Math.max(rel, 0.88), 0, 1),
+          pushBoostRemaining: s.pushBoostRemaining - 1,
+          wireFreqTarget: clamp((s.wireFreqTarget || 90) + 8, 10, 240),
+        };
+      }
     }
   }
 
@@ -1220,8 +1283,12 @@ function applyFeedback(s, feedback, now) {
       lastTooWeakAt: now,
       consecutiveGood: 0,
       edgeScore: Math.max(0, (s.edgeScore || 0) - 5),
+      sessionTooWeakCount: (s.sessionTooWeakCount || 0) + 1,
+      peakLockRel: null,
+      peakLockUntil: 0,
+      pendingPrompt: null,
+      nextPromptAt: now + 25000,
     };
-    // Calibration: raise baseline discovery
     if (s.phase === "CALIBRATING") {
       next.sessionBaseline = clamp(Math.max(s.sessionBaseline || 0.1, next.relStrength), 0.08, 0.4);
       next.relStrength = clamp(next.relStrength + 0.05, 0, 0.4);
@@ -1247,13 +1314,23 @@ function applyFeedback(s, feedback, now) {
   }
 
   if (feedback === "good") {
+    const hits = (s.consecutiveGood || 0) + 1;
     let next = {
       ...s,
       relStrength: clamp(s.relStrength + 0.025, 0, 1),
       feedbackBias: clamp((s.feedbackBias || 0) + 0.015, -0.3, 0.3),
-      consecutiveGood: (s.consecutiveGood || 0) + 1,
+      consecutiveGood: hits,
       climbRate: Math.min(1.3, (s.climbRate || 1) * 1.05),
+      sessionGoodCount: (s.sessionGoodCount || 0) + 1,
+      pendingPrompt: null,
+      nextPromptAt: now + 35000,
     };
+    // Peak-lock after 2+ goods: hold this zone ~25–40s
+    if (hits >= 2 && s.phase !== "CALIBRATING" && s.phase !== "CLIMAX_PUSH") {
+      next.peakLockRel = clamp(s.relStrength, 0.2, 0.85);
+      next.peakLockUntil = now + 25000 + Math.min(15000, hits * 4000);
+      next.peakLockHits = (s.peakLockHits || 0) + 1;
+    }
     if (s.phase === "CALIBRATING") {
       next.sessionBaseline = clamp(s.relStrength, 0.08, 0.35);
       next.calibrated = true;
@@ -1279,6 +1356,11 @@ function applyFeedback(s, feedback, now) {
       consecutiveGood: 0,
       consecutiveAlmost: 0,
       edgeScore: Math.max(0, (s.edgeScore || 0) - 20),
+      sessionTooStrongCount: (s.sessionTooStrongCount || 0) + 1,
+      peakLockRel: null,
+      peakLockUntil: 0,
+      pendingPrompt: null,
+      nextPromptAt: now + 20000,
     };
     if (s.phase === "CALIBRATING") {
       next.sessionBaseline = clamp(next.relStrength * 0.9, 0.06, 0.3);
@@ -1298,6 +1380,9 @@ function applyFeedback(s, feedback, now) {
       edgeScore: clamp((s.edgeScore || 0) + 20, 0, 100),
       feedbackBias: Math.min(s.feedbackBias || 0, 0.05),
       climbRate: Math.max(0.5, (s.climbRate || 1) * 0.8),
+      sessionAlmostCount: (s.sessionAlmostCount || 0) + 1,
+      pendingPrompt: null,
+      nextPromptAt: now + 30000,
     };
     if (s.phase === "EDGE_HOLD") {
       return completeEdge(scoreUp, now);
@@ -1306,12 +1391,15 @@ function applyFeedback(s, feedback, now) {
       return enterHold(scoreUp, now);
     }
     if (s.phase === "CLIMAX_PUSH") {
-      // Drop briefly then harder (edge-of-orgasm technique)
+      // Drop then 2 reinforced crests (classic edge-then-over)
       return {
         ...scoreUp,
-        relStrength: clamp(s.relStrength * 0.75, 0.5, 0.85),
+        relStrength: clamp(s.relStrength * 0.72, 0.48, 0.82),
         climaxInDrop: true,
         climaxWaveStartedAt: now,
+        pushBoostRemaining: 2,
+        wireFreqTarget: clamp((s.wireFreqTarget || 80) + 15, 10, 240),
+        dutyCycle: 0.9,
       };
     }
     return scoreUp;
@@ -1440,22 +1528,31 @@ function patternForPhase(state, nowMs) {
 }
 
 function phaseTip(state) {
+  if (state.pendingPrompt) return state.pendingPrompt;
+  if (state.peakLockRel != null && state.peakLockUntil) {
+    // tip only if still locked — checked by caller via peakLockActive mostly
+  }
   switch (state.phase) {
     case "CALIBRATING":
-      return "Kalibrierung: melde Zu schwach / Gut / Zu stark — Baseline wird gespeichert";
+      return "Kalibrierung: Zu schwach / Gut / Zu stark — Baseline speichern";
     case "WARMUP":
       return "Körper ankommen lassen — Intensität steigt sanft";
     case "BUILD":
       return `Aufbau · Edge-Score ${Math.round(state.edgeScore || 0)} — „Fast“ wenn nah`;
     case "TEASE":
-      return "Tease mit Freq/Duty-Wechsel — „Jetzt“ springt zum Push";
-    case "EDGE_HOLD":
-      return "Am Limit halten — „Fast“ bestätigt Edge";
+      return "Tease — „Jetzt“ = Push, „Fast“ = Edge";
+    case "EDGE_HOLD": {
+      const sec = Math.ceil(
+        Math.max(0, (state.phaseDeadlineAt || 0) - (state.lastTickAt || 0)) / 1000
+      );
+      return `Edge halten — noch ~${sec}s · „Fast“ bestätigt`;
+    }
     case "SURGE":
       return "Starke Wellen — gleich Multi-Wave-Push";
     case "CLIMAX_PUSH": {
       const w = (state.climaxWaveIndex || 0) + 1;
-      return `Push-Welle ${w}/${CLIMAX_WAVES.length} — „Fertig ✓“ wenn du kommst`;
+      const boost = (state.pushBoostRemaining || 0) > 0 ? " · Boost aktiv" : "";
+      return `Push-Welle ${w}/${CLIMAX_WAVES.length}${boost} — „Fertig ✓“ wenn du kommst`;
     }
     case "AFTERCARE":
       return state.userMarkedClimax
@@ -1466,4 +1563,55 @@ function phaseTip(state) {
     default:
       return "";
   }
+}
+
+function nextStepHint(state) {
+  const need = state.edgeCountTarget || 0;
+  const done = state.edgeCountDone || 0;
+  if (state.phase === "CALIBRATING") return "Baseline finden";
+  if (state.phase === "WARMUP" || state.phase === "BUILD") {
+    if (need > 0) return `Danach: Edge ${done + 1}/${need}`;
+    return "Danach: Surge → Push";
+  }
+  if (state.phase === "TEASE") {
+    if (need > done) return `Noch ${need - done} Edge(s)`;
+    return "Als Nächstes: Surge → Push";
+  }
+  if (state.phase === "EDGE_HOLD") return `Edge ${done + 1}/${Math.max(need, done + 1)}`;
+  if (state.phase === "SURGE") return "Gleich: Climax-Push";
+  if (state.phase === "CLIMAX_PUSH") return "Drüber kommen · Fertig tippen";
+  if (state.phase === "AFTERCARE") return "Gleich fertig";
+  return "";
+}
+
+function applyFeedbackPrompts(s, now) {
+  if (s.phase === "AFTERCARE" || s.phase === "COOLDOWN" || s.phase === "CALIBRATING") {
+    return { ...s, pendingPrompt: null };
+  }
+  // Clear prompt after feedback
+  if (s.lastFeedbackAt && s.lastFeedbackAt > (s.lastPromptAt || 0)) {
+    // keep scheduling
+  }
+  if (s.nextPromptAt && now >= s.nextPromptAt && !s.pendingPrompt) {
+    const prompts = {
+      WARMUP: "Noch ok? Tippe Gut / Zu schwach / Zu stark",
+      BUILD: "Wie fühlt sich das an? Gut · Fast · Zu stark",
+      TEASE: "Nah dran? → Fast · Jetzt zum Push",
+      EDGE_HOLD: "Am Limit? Fast = Edge zählen",
+      SURGE: "Bereit zum Push? Jetzt / Fast",
+      CLIMAX_PUSH: "Kommst du? Fertig ✓ · Fast · Noch nicht",
+    };
+    const text = prompts[s.phase] || "Kurzes Feedback? Gut / Fast / Zu stark";
+    return {
+      ...s,
+      pendingPrompt: text,
+      lastPromptAt: now,
+      nextPromptAt: now + 45000 + Math.round(Math.random() * 30000),
+    };
+  }
+  // Auto-dismiss prompt after 12s without acting (still re-prompt later)
+  if (s.pendingPrompt && s.lastPromptAt && now - s.lastPromptAt > 12000) {
+    return { ...s, pendingPrompt: null };
+  }
+  return s;
 }

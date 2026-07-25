@@ -201,20 +201,23 @@
             </div>
             <div style="display: flex; flex-wrap: wrap; gap: 10px;">
               <button type="button" id="home-btn-connect" class="btn">🔌 Bluetooth</button>
-              <button type="button" id="home-btn-autodrive" class="btn" style="background: linear-gradient(135deg, #d83b01, #a80000);">🚀 Autodrive starten</button>
+              <button type="button" id="home-btn-quick-start" class="btn" style="background: linear-gradient(135deg, #d83b01, #a80000); font-weight: 700;">🚀 1-Tap Klassisch</button>
+              <button type="button" id="home-btn-last-success" class="btn btn-secondary" style="display:none;">⭐ Letzte erfolgreiche</button>
+              <button type="button" id="home-btn-autodrive" class="btn btn-secondary">Autodrive anpassen</button>
               <button type="button" id="home-btn-manual" class="btn btn-secondary">Manual</button>
             </div>
             <p style="margin: 14px 0 0; font-size: 12px; color: var(--text-muted, #888);">
               Keine Garantie — biologische Varianz, Soft-Limits und Consent gelten. Panic (STOPP) jederzeit.
             </p>
+            <div id="home-ad-stats" class="home-ad-stats" style="margin-top: 12px; font-size: 12px; color: var(--text-muted);"></div>
           </div>
           <div class="card">
             <div class="card-title">Schnellstart</div>
             <ol style="margin: 0; padding-left: 18px; line-height: 1.7; font-size: 14px;">
               <li>Soft-Limits unter Einstellungen setzen</li>
               <li>Bluetooth verbinden</li>
-              <li>Autodrive-Template wählen und Start</li>
-              <li>Feedback-Buttons nutzen (zu schwach / fast / jetzt / fertig)</li>
+              <li><strong>1-Tap Klassisch</strong> oder Template wählen</li>
+              <li>Große Feedback-Buttons (Fullscreen) nutzen</li>
             </ol>
             <div id="home-autodrive-mini" style="margin-top: 16px; display: none;">
               <div style="font-weight: 600; margin-bottom: 6px;">Autodrive läuft</div>
@@ -222,6 +225,7 @@
               <div class="progress-bar" style="height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 8px; overflow: hidden;">
                 <div id="home-ad-progress" style="height: 100%; width: 0%; background: #d83b01; transition: width 0.2s;"></div>
               </div>
+              <button type="button" id="home-btn-fullscreen" class="btn" style="margin-top: 10px; width: 100%;">⛶ Session Fullscreen</button>
             </div>
           </div>
         </div>
@@ -269,18 +273,30 @@
                   <option value="dual">Dual-Kanal</option>
                 </select>
               </div>
+              <div>
+                <label class="field-label" for="autodrive-ab-role">A/B-Rollen</label>
+                <select id="autodrive-ab-role" class="select-control">
+                  <option value="sync">Sync (beide gleich)</option>
+                  <option value="aRhythm_bSteady">A Rhythmus · B Steady</option>
+                  <option value="aSteady_bRhythm">A Steady · B Rhythmus</option>
+                </select>
+              </div>
               <div class="autodrive-check">
-                <label><input type="checkbox" id="autodrive-auto-climb" checked /> Auto-Climb (ohne Feedback steigen)</label>
+                <label><input type="checkbox" id="autodrive-auto-climb" checked /> Auto-Climb</label>
+                <label style="margin-left: 12px;"><input type="checkbox" id="autodrive-fullscreen-pref" checked /> Fullscreen beim Start</label>
               </div>
             </div>
 
             <div class="autodrive-controls">
               <button type="button" id="btn-autodrive-start" class="btn btn-autodrive-go">🚀 Start</button>
+              <button type="button" id="btn-autodrive-last" class="btn btn-secondary">⭐ Letzte Erfolg</button>
               <button type="button" id="btn-autodrive-pause" class="btn btn-secondary">Pause</button>
               <button type="button" id="btn-autodrive-resume" class="btn btn-secondary">Weiter</button>
               <button type="button" id="btn-autodrive-stop" class="btn btn-danger">Stop</button>
+              <button type="button" id="btn-autodrive-fs" class="btn btn-secondary">⛶ Fullscreen</button>
             </div>
             <div id="autodrive-status-msg" class="autodrive-status-msg" aria-live="polite"></div>
+            <div id="autodrive-coach" class="autodrive-coach" style="display:none;"></div>
           </div>
 
           <!-- Live dashboard -->
@@ -340,7 +356,12 @@
               <div>Owner <strong id="autodrive-owner">none</strong></div>
             </div>
 
+            <div id="autodrive-prompt" class="autodrive-prompt" style="display:none;" role="status"></div>
             <p id="autodrive-tip" class="autodrive-tip">Template wählen und Start drücken</p>
+            <div class="autodrive-stats-row">
+              <div>Nächster Schritt: <strong id="autodrive-next-step">—</strong></div>
+              <div>Edge-Timer: <strong id="autodrive-hold-eta">—</strong></div>
+            </div>
 
             <div class="card-title" style="margin-top: 8px;">Feedback</div>
             <div class="autodrive-feedback-grid">
@@ -355,6 +376,60 @@
           </div>
         </div>
       </section>
+
+      <!-- Autodrive Fullscreen Session Mode -->
+      <div id="autodrive-fullscreen" class="ad-fs" style="display:none;" aria-modal="true" role="dialog">
+        <div class="ad-fs-top">
+          <div class="ad-fs-phase" id="ad-fs-phase">—</div>
+          <div class="ad-fs-meta">
+            <span id="ad-fs-next"></span>
+            <span id="ad-fs-edges"></span>
+            <span id="ad-fs-hold"></span>
+          </div>
+          <button type="button" id="ad-fs-close" class="btn btn-secondary btn-sm">UI</button>
+        </div>
+        <div class="ad-fs-bars">
+          <div class="autodrive-bar-track tall"><div id="ad-fs-progress" class="autodrive-bar-fill session"></div></div>
+          <div class="autodrive-bar-track tall"><div id="ad-fs-rel" class="autodrive-bar-fill rel"></div></div>
+          <div class="autodrive-bar-track tall"><div id="ad-fs-edge" class="autodrive-bar-fill edge"></div></div>
+        </div>
+        <p class="ad-fs-tip" id="ad-fs-tip"></p>
+        <div class="ad-fs-feedback">
+          <button type="button" class="ad-fs-btn weak autodrive-fb" data-fb="too_weak">Zu schwach</button>
+          <button type="button" class="ad-fs-btn good autodrive-fb" data-fb="good">Gut</button>
+          <button type="button" class="ad-fs-btn strong autodrive-fb" data-fb="too_strong">Zu stark</button>
+          <button type="button" class="ad-fs-btn almost autodrive-fb" data-fb="almost">🔥 Fast</button>
+          <button type="button" class="ad-fs-btn now autodrive-fb" data-fb="now">⚡ Jetzt</button>
+          <button type="button" class="ad-fs-btn done autodrive-fb" data-fb="climaxed">✓ Fertig</button>
+          <button type="button" class="ad-fs-btn notyet autodrive-fb" data-fb="not_yet">↩ Noch nicht</button>
+        </div>
+        <div class="ad-fs-bottom">
+          <button type="button" id="ad-fs-pause" class="btn btn-secondary">Pause</button>
+          <button type="button" id="ad-fs-resume" class="btn btn-secondary">Weiter</button>
+          <button type="button" id="ad-fs-stop" class="btn btn-danger">Stop</button>
+        </div>
+      </div>
+
+      <!-- Autodrive Debrief Modal -->
+      <div id="autodrive-debrief" class="ad-debrief" style="display:none;" aria-modal="true" role="dialog">
+        <div class="ad-debrief-card">
+          <h2>Session-Ende</h2>
+          <p id="ad-debrief-summary" class="ad-debrief-summary"></p>
+          <p class="field-label">Höhepunkt erreicht?</p>
+          <div class="ad-debrief-row">
+            <button type="button" class="btn ad-debrief-climax" data-climax="yes">Ja</button>
+            <button type="button" class="btn btn-secondary ad-debrief-climax" data-climax="almost">Fast</button>
+            <button type="button" class="btn btn-secondary ad-debrief-climax" data-climax="no">Nein</button>
+          </div>
+          <p class="field-label" style="margin-top:12px;">Insgesamt zu…</p>
+          <div class="ad-debrief-row">
+            <button type="button" class="btn btn-secondary ad-debrief-overall" data-overall="weak">Schwach</button>
+            <button type="button" class="btn btn-secondary ad-debrief-overall" data-overall="ok">Passt</button>
+            <button type="button" class="btn btn-secondary ad-debrief-overall" data-overall="strong">Stark</button>
+          </div>
+          <button type="button" id="ad-debrief-skip" class="btn btn-secondary" style="margin-top:14px;width:100%;">Überspringen</button>
+        </div>
+      </div>
 
       <!-- View: Control Deck -->
       <section id="view-deck" class="tab-view">

@@ -12,6 +12,17 @@ import { killAllOutput } from "./safety.js";
 import { trackStat } from "./stats.js";
 import { isPanicCooldownActive } from "./safety-extras.js";
 import { isLocked as isPinLocked } from "./session-pin.js";
+import {
+  injectFeedback as adInjectFeedback,
+  isAutodriveActive,
+  startAutodrive,
+  startQuickClassic,
+  startLastSuccess,
+  stopAutodrive,
+  pauseAutodrive,
+  resumeAutodrive,
+  getAutodriveState,
+} from "./autodrive.js";
 
 /** Commands allowed even during PIN lock / panic cooldown (safety + read-only). */
 const REMOTE_ALWAYS_ALLOWED = new Set(["stop_all", "get_state", "get_patterns", "get_logs"]);
@@ -120,6 +131,55 @@ const REMOTE_COMMANDS = {
     return { ok: true };
   },
 
+  /** Partner feedback while Autodrive owns output */
+  autodrive_feedback: (msg) => {
+    const fb = String(msg.feedback || msg.value || "").toLowerCase();
+    const allowed = new Set([
+      "too_weak",
+      "good",
+      "too_strong",
+      "almost",
+      "now",
+      "climaxed",
+      "not_yet",
+    ]);
+    if (!allowed.has(fb)) {
+      return { ok: false, error: `unknown feedback: ${fb}` };
+    }
+    if (!isAutodriveActive()) {
+      return { ok: false, error: "autodrive not active" };
+    }
+    adInjectFeedback(fb);
+    return { ok: true, feedback: fb };
+  },
+
+  autodrive_start: (msg) => {
+    if (msg.quick) return startQuickClassic();
+    if (msg.lastSuccess) return startLastSuccess();
+    const patch = {};
+    if (msg.templateId) patch.templateId = msg.templateId;
+    return startAutodrive(patch);
+  },
+
+  autodrive_stop: () => {
+    stopAutodrive("remote");
+    return { ok: true };
+  },
+
+  autodrive_pause: () => {
+    pauseAutodrive();
+    return { ok: true };
+  },
+
+  autodrive_resume: () => {
+    resumeAutodrive();
+    return { ok: true };
+  },
+
+  autodrive_state: () => {
+    return { ok: true, autodrive: getAutodriveState() };
+  },
+
   get_state: () => {
     return {
       ok: true,
@@ -135,6 +195,7 @@ const REMOTE_COMMANDS = {
         softLimitB: AppState.softLimitB,
         batteryLevel: AppState.batteryLevel,
         swapChannels: AppState.swapChannels,
+        outputOwner: AppState.outputOwner || "none",
       },
     };
   },

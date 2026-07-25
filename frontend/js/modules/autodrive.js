@@ -33,6 +33,8 @@ export {
 const CONFIG_KEY = "stim_app_autodrive_v1";
 const SEEN_KEY = "stim_app_autodrive_seen";
 const LEARN_KEY = "stim_app_autodrive_learn_v1";
+const LAST_SUCCESS_KEY = "stim_app_autodrive_last_success_v1";
+const LAST_SESSION_KEY = "stim_app_autodrive_last_session_v1";
 const TICK_MS = CONSTANTS.WAVE_LOOP_INTERVAL_MS || 100;
 
 /** @type {object|null} */
@@ -273,12 +275,24 @@ export function resumeAutodrive() {
 export function stopAutodrive(reason = "manuell") {
   if (!engineState && !tickHandle) return;
   const wasActive = isAutodriveActive();
-  const marked = engineState?.userMarkedClimax;
-  const bias = engineState?.feedbackBias;
-  const phase = engineState?.phase;
-  const peakRel = engineState?.peakRel;
-  const placement = engineState?.config?.placement;
-  const lastPattern = engineState?.lastPatternId;
+  const snap = engineState
+    ? {
+        marked: !!engineState.userMarkedClimax,
+        bias: engineState.feedbackBias,
+        phase: engineState.phase,
+        peakRel: engineState.peakRel,
+        placement: engineState.config?.placement,
+        lastPattern: engineState.lastPatternId,
+        config: { ...engineState.config },
+        tooWeak: engineState.sessionTooWeakCount || 0,
+        tooStrong: engineState.sessionTooStrongCount || 0,
+        almost: engineState.sessionAlmostCount || 0,
+        good: engineState.sessionGoodCount || 0,
+        edges: engineState.edgeCountDone || 0,
+        durationMs: engineState.effectiveElapsedMs || 0,
+        reason,
+      }
+    : null;
 
   if (tickHandle) {
     clearInterval(tickHandle);
@@ -304,7 +318,6 @@ export function stopAutodrive(reason = "manuell") {
     releaseOutput("autodrive");
   }
 
-  // Soft-stop output on stop (unless panic already zeroed)
   if (reason !== "panic" && reason !== "owner-claim") {
     try {
       sendSoftStop({ keepStrength: false, zeroUiStrength: false, writer: "safety" });
@@ -313,21 +326,21 @@ export function stopAutodrive(reason = "manuell") {
     }
   }
 
-  if (wasActive) {
+  if (wasActive && snap) {
     log(`Autodrive gestoppt (${reason}).`, "info");
     try {
       trackStat("autodrive_stops");
-      if (marked) trackStat("autodrive_success");
+      if (snap.marked) trackStat("autodrive_success");
       const learn = loadLearning();
       const sessions = (learn.sessions || 0) + 1;
-      const climaxHits = (learn.climaxHits || 0) + (marked ? 1 : 0);
+      const climaxHits = (learn.climaxHits || 0) + (snap.marked ? 1 : 0);
       const preferredBias =
-        typeof bias === "number"
-          ? clamp((learn.preferredBias || 0) * 0.7 + bias * 0.3, -0.15, 0.2)
+        typeof snap.bias === "number"
+          ? clamp((learn.preferredBias || 0) * 0.7 + snap.bias * 0.3, -0.15, 0.2)
           : learn.preferredBias || 0;
       const lastPeakRel =
-        typeof peakRel === "number"
-          ? clamp((learn.lastPeakRel || 0.5) * 0.6 + peakRel * 0.4, 0.3, 0.95)
+        typeof snap.peakRel === "number"
+          ? clamp((learn.lastPeakRel || 0.5) * 0.6 + snap.peakRel * 0.4, 0.3, 0.95)
           : learn.lastPeakRel || 0;
       saveLearning({
         sessions,
@@ -335,17 +348,149 @@ export function stopAutodrive(reason = "manuell") {
         climaxRate: climaxHits / sessions,
         preferredBias,
         lastPeakRel,
-        preferredPlacement: marked
-          ? placement || learn.preferredPlacement
+        preferredPlacement: snap.marked
+          ? snap.placement || learn.preferredPlacement
           : learn.preferredPlacement,
-        preferredPatternFamily: lastPattern || learn.preferredPatternFamily,
-        lastPhase: phase,
+        preferredPatternFamily: snap.lastPattern || learn.preferredPatternFamily,
+        lastPhase: snap.phase,
+        lastTooWeak: snap.tooWeak,
+        softLimitCoachPending:
+          !snap.marked &&
+          snap.tooWeak >= 3 &&
+          (AppState.softLimitA || 0) < 120 &&
+          (AppState.softLimitB || 0) < 120,
       });
+      // Persist last session for debrief UI
+      localStorage.setItem(
+        LAST_SESSION_KEY,
+        JSON.stringify({
+          ...snap,
+          endedAt: Date.now(),
+          softLimitA: AppState.softLimitA,
+          softLimitB: AppState.softLimitB,
+        })
+      );
+      if (snap.marked && snap.config) {
+        localStorage.setItem(
+          LAST_SUCCESS_KEY,
+          JSON.stringify({
+            templateId: snap.config.templateId,
+            placement: snap.config.placement,
+            sensitivity: snap.config.sensitivity,
+            channelFocus: snap.config.channelFocus,
+            targetDurationMin: snap.config.targetDurationMin,
+            abRole: snap.config.abRole,
+            goal: snap.config.goal,
+            edgeCount: snap.config.edgeCount,
+            aggression: snap.config.aggression,
+            maxSessionIntensityFactor: snap.config.maxSessionIntensityFactor,
+            allowClimaxPatterns: snap.config.allowClimaxPatterns,
+            savedAt: Date.now(),
+          })
+        );
+      }
     } catch {
       /* ignore */
     }
   }
   notifyUi();
+}
+
+/** One-tap classic start (Home). */
+export function startQuickClassic() {
+  return startAutodrive({
+    templateId: "classic",
+    skipCalibration: !!localStorage.getItem(SEEN_KEY),
+  });
+}
+
+/** Replay last successful session config. */
+export function startLastSuccess() {
+  try {
+    const raw = localStorage.getItem(LAST_SUCCESS_KEY);
+    if (!raw) return { ok: false, error: "Noch keine erfolgreiche Session gespeichert." };
+    const cfg = JSON.parse(raw);
+    return startAutodrive({ ...cfg, skipCalibration: true });
+  } catch {
+    return { ok: false, error: "Letzte Session ungültig." };
+  }
+}
+
+export function hasLastSuccess() {
+  try {
+    return !!localStorage.getItem(LAST_SUCCESS_KEY);
+  } catch {
+    return false;
+  }
+}
+
+export function getLastSessionSnapshot() {
+  try {
+    const raw = localStorage.getItem(LAST_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Apply post-session debrief answers into learning.
+ * @param {{ climax?: "yes"|"almost"|"no", overall?: "weak"|"ok"|"strong" }} answers
+ */
+export function applyDebrief(answers = {}) {
+  const learn = loadLearning();
+  const patch = { ...learn, lastDebriefAt: Date.now() };
+  if (answers.climax === "yes") {
+    patch.climaxHits = (learn.climaxHits || 0) + 0; // already counted if marked
+    patch.debriefYes = (learn.debriefYes || 0) + 1;
+  } else if (answers.climax === "almost") {
+    patch.debriefAlmost = (learn.debriefAlmost || 0) + 1;
+    patch.preferredBias = clamp((learn.preferredBias || 0) + 0.03, -0.15, 0.2);
+  } else if (answers.climax === "no") {
+    patch.debriefNo = (learn.debriefNo || 0) + 1;
+  }
+  if (answers.overall === "weak") {
+    patch.preferredBias = clamp((learn.preferredBias || 0) + 0.05, -0.15, 0.2);
+    patch.softLimitCoachPending = true;
+  } else if (answers.overall === "strong") {
+    patch.preferredBias = clamp((learn.preferredBias || 0) - 0.04, -0.15, 0.2);
+  }
+  saveLearning(patch);
+  try {
+    trackStat("autodrive_debrief");
+  } catch {
+    /* ignore */
+  }
+  return patch;
+}
+
+export function getSoftLimitCoachMessage() {
+  const learn = loadLearning();
+  if (!learn.softLimitCoachPending) return null;
+  return {
+    message:
+      "Oft „zu schwach“ bei niedrigen Soft-Limits. In den Einstellungen Limits etwas erhöhen? (nie automatisch)",
+    softA: AppState.softLimitA,
+    softB: AppState.softLimitB,
+  };
+}
+
+export function clearSoftLimitCoach() {
+  saveLearning({ softLimitCoachPending: false });
+}
+
+export function getAutodriveStatsSummary() {
+  const learn = loadLearning();
+  const sessions = learn.sessions || 0;
+  const climaxHits = learn.climaxHits || 0;
+  return {
+    sessions,
+    climaxHits,
+    climaxRate: sessions > 0 ? climaxHits / sessions : 0,
+    preferredBias: learn.preferredBias || 0,
+    lastPeakRel: learn.lastPeakRel || 0,
+    hasLastSuccess: hasLastSuccess(),
+  };
 }
 
 /**
@@ -492,9 +637,14 @@ export async function applyAutodriveWaveTick(sendWave, computePattern) {
   aA = Math.round(Math.min(100, Math.max(0, aA * scale * gate)));
   aB = Math.round(Math.min(100, Math.max(0, aB * scale * gate)));
 
-  // Channel mode: alt / aLead / bLead
+  // Channel mode + A/B roles
   const mode = out.patternParams?.channelMode || out.channelMode || "both";
-  if (mode === "alt") {
+  const abRole = out.abRole || engineState?.config?.abRole || "sync";
+  if (abRole === "aRhythm_bSteady") {
+    aB = Math.round(Math.max(aB * 0.55, aB * 0.4 + 20));
+  } else if (abRole === "aSteady_bRhythm") {
+    aA = Math.round(Math.max(aA * 0.55, aA * 0.4 + 20));
+  } else if (mode === "alt") {
     const flip = (AppState.loopTimeCounter || 0) % 8 < 4;
     if (flip) aB = Math.round(aB * 0.15);
     else aA = Math.round(aA * 0.15);
@@ -552,6 +702,25 @@ function notifyUi() {
     "autodrive-baseline",
     st.sessionBaseline != null ? `${Math.round(st.sessionBaseline * 100)}%` : "—"
   );
+  setText("autodrive-next-step", st.nextStepHint || "");
+  setText("autodrive-hold-eta", st.holdRemainingMs > 0 ? formatMs(st.holdRemainingMs) : "—");
+  const promptEl = document.getElementById("autodrive-prompt");
+  if (promptEl) {
+    if (st.pendingPrompt) {
+      promptEl.style.display = "block";
+      promptEl.textContent = st.pendingPrompt;
+    } else {
+      promptEl.style.display = "none";
+    }
+  }
+  setText("ad-fs-phase", st.phaseLabel || st.phase || "—");
+  setText("ad-fs-tip", st.pendingPrompt || st.tip || "");
+  setText("ad-fs-next", st.nextStepHint || "");
+  setText("ad-fs-edges", `${st.edgeCountDone || 0}/${st.edgeCountTarget || 0}`);
+  setText("ad-fs-hold", st.holdRemainingMs > 0 ? formatMs(st.holdRemainingMs) : "");
+  setWidth("ad-fs-progress", Math.round((st.progress || 0) * 100));
+  setWidth("ad-fs-rel", Math.round((st.relStrength || 0) * 100));
+  setWidth("ad-fs-edge", st.edgeScore || 0);
 }
 
 function setText(id, text) {

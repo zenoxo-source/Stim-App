@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.11.0 — Autodrive UX Complete (Fullscreen, 1-Tap, Debrief)
+
+### UX / Climax-Quote
+- **1-Tap Klassisch** auf Home (+ Letzte erfolgreiche Session)
+- **Fullscreen Session-Mode** — riesige Feedback-Buttons, Edge/Rel-Bars, Hands-busy
+- **Aktive Feedback-Prompts** (periodisch „Noch ok? / Fast? / Fertig?“)
+- **Session-Debrief** nach Stop — Höhepunkt? / zu schwach|stark → Learning
+- **Soft-Limit-Coach** bei wiederholtem „zu schwach“ + niedrigen Limits
+- **Peak-Lock** nach 2× „Gut“ — Intensitätszone halten
+- **Push-Boost**: „Fast“ im Push → Drop + 2 verstärkte Crests
+- **Edge-Timer** + „Nächster Schritt“-Hinweis
+- **A/B-Rollen**: Sync / A-Rhythmus·B-Steady / A-Steady·B-Rhythmus
+- **Hotkeys** 1–7 / F·J·G für Feedback während Session
+- **Remote**: `autodrive_feedback`, `autodrive_start|stop|pause|resume|state`
+- **Stats**: Autodrive-Counter lokal; Home zeigt Climax-Rate
+
 ## 3.10.2 — Autodrive E-Stim Sensation Plane
 
 ### Autodrive (Research-driven)

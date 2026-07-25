@@ -313,4 +313,47 @@ describe("autodrive-engine", () => {
     s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
     assert.equal(s.phase, "EDGE_HOLD");
   });
+
+  it("good x2 sets peak lock", () => {
+    let s = createInitialState(classicCfg(), t0);
+    s = {
+      ...s,
+      phase: "BUILD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 999999,
+      relStrength: 0.45,
+    };
+    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "good", nowMs: t0 + 100 });
+    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "good", nowMs: t0 + 2000 });
+    assert.ok(s.peakLockRel != null);
+    assert.ok(s.peakLockUntil > t0);
+  });
+
+  it("almost in CLIMAX_PUSH sets pushBoostRemaining", () => {
+    let s = createInitialState(classicCfg(), t0);
+    s = {
+      ...s,
+      phase: "CLIMAX_PUSH",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 999999,
+      relStrength: 0.9,
+    };
+    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "almost", nowMs: t0 + 100 });
+    assert.equal(s.pushBoostRemaining, 2);
+    assert.equal(s.climaxInDrop, true);
+  });
+
+  it("schedules feedback prompt after nextPromptAt", () => {
+    let s = createInitialState(classicCfg(), t0);
+    s = {
+      ...s,
+      phase: "BUILD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 999999,
+      nextPromptAt: t0 + 50,
+      pendingPrompt: null,
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.ok(s.pendingPrompt);
+  });
 });
