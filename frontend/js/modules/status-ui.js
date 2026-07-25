@@ -2,9 +2,11 @@
 import { AppState, log } from "../state.js";
 import { killAllOutput } from "./safety.js";
 import { isPanicCooldownActive, panicCooldownRemaining } from "./safety-extras.js";
+import { getOutputOwner, getOwnerLabel } from "./output-owner.js";
 
 export function isOutputActive() {
   if (!AppState.isConnected) return false;
+  if (getOutputOwner() !== "none") return true;
   if (AppState.activePattern) return true;
   if (AppState.isAudioPlaying) return true;
   if (AppState.reflexState === "SHOCKING") return true;
@@ -20,6 +22,18 @@ export function isOutputActive() {
 }
 
 function activeOutputModeLabel() {
+  const ownerLabel = getOwnerLabel();
+  if (ownerLabel) {
+    if (ownerLabel === "Autodrive" && AppState.activePattern === "autodrive") {
+      try {
+        const phase = document.getElementById("autodrive-phase")?.textContent;
+        return phase && phase !== "IDLE" ? `Autodrive · ${phase}` : "Autodrive";
+      } catch {
+        return "Autodrive";
+      }
+    }
+    return ownerLabel;
+  }
   if (AppState.activePattern) return String(AppState.activePattern);
   if (AppState.isAudioPlaying) return "STIM";
   if (AppState.edgeState === "RUNNING") return "Edge";

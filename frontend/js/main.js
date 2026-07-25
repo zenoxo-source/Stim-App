@@ -11,6 +11,10 @@ import "./lib/protocol-utils.js";
 // Core deck: navigation + wave loop + slider handlers + diagnostics
 import "./control-deck.js";
 
+// Progressive flags + output ownership (must load before BLE writers claim)
+import "./modules/feature-flags.js";
+import "./modules/output-owner.js";
+
 // Hardware / output layer
 import "./modules/bluetooth.js";
 
@@ -107,6 +111,10 @@ import "./modules/ui-bindings-pr6.js";
 
 // AI Director (autonomous conductor: LLM + ai-bridge + safety)
 import "./modules/ai-director.js";
+
+// Autodrive (offline adaptive climax engine) + UI
+import "./modules/autodrive.js";
+import "./modules/autodrive-ui.js";
 
 // LLM service (chat completion + tool dispatch)
 import "./llm-service.js";

@@ -16,6 +16,7 @@ import {
   resetSignalLossFlag,
 } from "./safety-extras.js";
 import { blockIfLocked as blockIfPinLocked } from "./session-pin.js";
+import { assertCanWrite, forceReleaseAll } from "./output-owner.js";
 
 // V3 Protocol overview:
 //   0xB0 packet (20 bytes): combined strength + waveform, sent every 100ms
@@ -247,10 +248,19 @@ export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
   drainBluetoothQueue();
 }
 
-export function sendStrengthCommand(valA, valB) {
+/**
+ * @param {number} valA
+ * @param {number} valB
+ * @param {{ writer?: string }} [opts]
+ */
+export function sendStrengthCommand(valA, valB, opts = {}) {
   if (!AppState.writeChar) return;
   if (blockDuringPanicCooldown("Strength-Befehl")) return;
   if (blockIfPinLocked("Strength-Befehl")) return;
+
+  // Output ownership (K26): default writer = external
+  const writer = opts?.writer || "external";
+  if (!assertCanWrite(writer, { kind: "strength" })) return;
 
   // Keep AppState as logical (UI) values; do not bake masterScale into state.
   // Apply panic-cooldown + active pattern/ramp ceiling.
@@ -270,8 +280,16 @@ export function sendStrengthCommand(valA, valB) {
   sendB0Now(fA, aA, fB, aB);
 }
 
-export function sendWaveformCommand(freqA, ampA, freqB, ampB) {
-  // Delegate to unified B0 sender
+/**
+ * @param {number} freqA
+ * @param {number} ampA
+ * @param {number} freqB
+ * @param {number} ampB
+ * @param {{ writer?: string }} [opts]
+ */
+export function sendWaveformCommand(freqA, ampA, freqB, ampB, opts = {}) {
+  const writer = opts?.writer || "external";
+  if (!assertCanWrite(writer, { kind: "wave" })) return;
   sendB0Now(freqA, ampA, freqB, ampB);
 }
 
@@ -529,6 +547,11 @@ function onDisconnected() {
   clearBatteryPolling();
   stopWaveLoop();
   disarmSignalLossWatcher();
+  try {
+    forceReleaseAll("disconnect");
+  } catch {
+    /* ignore */
+  }
 
   log("Bluetooth-Verbindung zum Coyote verloren.", "warning");
   if (DOM["connection-text"]) DOM["connection-text"].textContent = "Getrennt";
@@ -765,7 +788,13 @@ function wireConnectButton() {
       AppState.reconnectAttempts = 0;
       AppState.lastB1Time = Date.now();
       resetSignalLossFlag();
-      armSignalLossWatcher();
+      armSignalLossWatcher(() => {
+        try {
+          forceReleaseAll("signal-loss");
+        } catch {
+          /* ignore */
+        }
+      });
       trackStat("connection");
       log("Erfolgreich mit Coyote 3.0 verbunden!", "success");
       unlockAchievement("first_connect");

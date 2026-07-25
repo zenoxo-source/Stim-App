@@ -10,13 +10,15 @@ import { registerHotkey } from "./hotkeys.js";
 import { updateSlidersA, updateSlidersB } from "../control-deck.js";
 
 const TAB_MAP = {
-  1: "deck",
-  2: "stim",
-  3: "games",
-  4: "editor",
-  5: "remote",
-  6: "ai",
-  7: "settings",
+  1: "home",
+  2: "autodrive",
+  3: "deck",
+  4: "stim",
+  5: "games",
+  6: "editor",
+  7: "remote",
+  8: "ai",
+  9: "settings",
 };
 
 /**

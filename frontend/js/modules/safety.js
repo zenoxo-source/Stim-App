@@ -9,6 +9,7 @@ import { stopSafetyTimer } from "./presets.js";
 import { armPanicCooldown, clearPatternCeiling } from "./safety-extras.js";
 import { stopRamp } from "./ramp.js";
 import { SESSION_STATE } from "./sessions.js";
+import { forceReleaseAll } from "./output-owner.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   // Register beforeunload to stop all output on accidental close
@@ -99,6 +100,13 @@ function isTyping(element) {
 
 export function killAllOutput(opts = {}) {
   try {
+    // 1) Release all session owners (Autodrive, ramp hooks, …) — K10
+    try {
+      forceReleaseAll(opts?.reason || "panic");
+    } catch {
+      /* optional */
+    }
+
     // Abort any in-flight AI chat request
     if (AIChatState.currentController !== null) {
       AIChatState.currentController.abort();

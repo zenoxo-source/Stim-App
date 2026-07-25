@@ -16,6 +16,11 @@ import {
   setPatternCeiling,
   clearPatternCeiling,
 } from "./safety-extras.js";
+import { claimOutput, releaseOutput, registerOwnerStop } from "./output-owner.js";
+
+registerOwnerStop("ramp", () => {
+  stopRamp("owner-claim");
+});
 
 const RAMP_TICK_MS = 1000; // 1 second ticks
 
@@ -54,7 +59,12 @@ export function startRamp({ targetA, targetB, durationMin }) {
     intervalId: null,
   };
 
-  // Use pattern ceiling as a hard cap so nothing else (games, sessions, AI) can
+  const claim = claimOutput("ramp");
+  if (!claim.ok) {
+    return { ok: false, error: claim.error || "Output-Claim fehlgeschlagen." };
+  }
+
+  // Use pattern ceiling as a hard cap so nothing else (game, sessions, AI) can
   // push above target while the ramp runs.
   const ceiling = Math.max(tA, tB);
   if (ceiling > 0) setPatternCeiling(ceiling);
@@ -90,7 +100,7 @@ function rampTick() {
   const nextA = Math.round(r.startA + (r.targetA - r.startA) * progress);
   const nextB = Math.round(r.startB + (r.targetB - r.startB) * progress);
 
-  sendStrengthCommand(nextA, nextB);
+  sendStrengthCommand(nextA, nextB, { writer: "ramp" });
 
   if (r.currentTick >= r.totalTicks) {
     stopRamp("Ziel erreicht");
@@ -109,6 +119,11 @@ export function stopRamp(reason = "manuell") {
   if (r.intervalId) clearInterval(r.intervalId);
   AppState.rampState = null;
   clearPatternCeiling();
+  try {
+    releaseOutput("ramp");
+  } catch {
+    /* ignore */
+  }
   log(`Ramp gestoppt (${reason}).`, "info");
   updateRampUI();
 }

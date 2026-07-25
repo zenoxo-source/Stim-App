@@ -1,5 +1,22 @@
 # Changelog
 
+## 3.10.0 — Autodrive + UX-Restrukturierung
+
+### Features
+- **🚀 Autodrive** — Offline-fähige adaptive Session-Engine (ohne LLM): Phases WARMUP→BUILD→TEASE→EDGE→SURGE→CLIMAX_PUSH→AFTERCARE, Templates (Schnell/Klassisch/Langer Tease/Intensiv), Feedback-Buttons, Soft-Limit-relative Intensität
+- **🏠 Home** — Einstiegs-Tab mit Connect, Soft-Limits-Kurzinfo und Autodrive-CTA
+- **Output Ownership** — Mutex für Strength/Wave (`output-owner.js`); Autodrive blockiert Fremd-Writes; killAll/forceRelease/Signal-Loss stoppen Owner
+- **Feature Flags** — `stim_app_flags_v1` (autodrive, newNav, …)
+
+### UI
+- Sidebar: Home · Autodrive · Manual · STIM · Play · Library · Connect · AI · Settings
+- Hotkeys 1–9 für Tabs; einmalig Home nach newNav-Aktivierung
+
+### Technik
+- Pure Engine: `frontend/js/lib/autodrive-engine.js` (unit-tested)
+- Wave-Loop sole B0-Pfad für Autodrive + `btPendingMode=0x0F` bei Strength-Dirty
+- Design: `docs/DESIGN-restructure-autodrive.md`
+
 ## 3.9.3 — Layout stabil beim Fensterziehen
 
 ### UI

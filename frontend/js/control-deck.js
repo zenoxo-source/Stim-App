@@ -22,6 +22,210 @@ import {
 } from "./modules/bluetooth.js";
 import { updateOutputStatus } from "./modules/status-ui.js";
 import { i18nText } from "./modules/i18n.js";
+import { applyAutodriveWaveTick, isAutodriveActive } from "./modules/autodrive.js";
+import { claimOutput, releaseOutput, registerOwnerStop } from "./modules/output-owner.js";
+
+registerOwnerStop("pattern", () => {
+  if (
+    AppState.activePattern &&
+    AppState.activePattern !== "autodrive" &&
+    AppState.activePattern !== "session"
+  ) {
+    AppState.activePattern = null;
+    document.querySelectorAll?.(".pattern-card")?.forEach?.((c) => c.classList.remove("active"));
+  }
+});
+registerOwnerStop("session", () => {
+  try {
+    if (SESSION_STATE?.activeSession) {
+      SESSION_STATE.activeSession = null;
+      SESSION_STATE.sessionPaused = false;
+    }
+    if (AppState.activePattern === "session") AppState.activePattern = null;
+  } catch {
+    /* ignore */
+  }
+});
+
+// ==========================================
+// Named pattern wave samples (shared with Autodrive)
+// ==========================================
+
+/**
+ * Compute one tick of a named pattern waveform.
+ * @param {string} patternId
+ * @param {number} loopCounter
+ * @returns {{ fA: number, aA: number, fB: number, aB: number }}
+ */
+export function computeNamedPatternWave(patternId, loopCounter) {
+  let fA = AppState.frequencyA;
+  let aA = 0;
+  let fB = AppState.frequencyB;
+  let aB = 0;
+  const t = loopCounter || 0;
+
+  switch (patternId) {
+    case CONSTANTS.PATTERNS.GENTLE:
+    case "gentle":
+      fA = 45;
+      fB = 45;
+      aA = Math.round(40 + 40 * Math.sin(t * 0.3));
+      aB = Math.round(40 + 40 * Math.cos(t * 0.3));
+      break;
+    case CONSTANTS.PATTERNS.RHYTHM:
+    case "rhythm": {
+      const cycleIndex = t % 12;
+      fA = 35;
+      fB = 35;
+      if (cycleIndex === 0) {
+        aA = 100;
+        aB = 0;
+      } else if (cycleIndex === 1) {
+        aA = 50;
+        aB = 0;
+      } else if (cycleIndex === 3) {
+        aA = 0;
+        aB = 100;
+      } else if (cycleIndex === 4) {
+        aA = 0;
+        aB = 50;
+      }
+      break;
+    }
+    case CONSTANTS.PATTERNS.TEASE:
+    case "tease": {
+      const cycleIndex = t % 60;
+      if (cycleIndex < 20) {
+        fA = Math.round(45 + cycleIndex * 5);
+        fB = fA;
+        aA = Math.round(cycleIndex * 5);
+        aB = aA;
+      }
+      break;
+    }
+    case CONSTANTS.PATTERNS.CLIMAX:
+    case "climax":
+      fA = Math.round(60 + 50 * Math.sin(t * 0.4));
+      fB = Math.round(60 + 50 * Math.cos(t * 0.4));
+      aA = Math.round(70 + 30 * Math.sin(t * 1.5));
+      aB = Math.round(70 + 30 * Math.cos(t * 1.5));
+      break;
+    case CONSTANTS.PATTERNS.STROBE:
+    case "strobe": {
+      const on = t % 2 === 0;
+      fA = 60;
+      fB = 60;
+      aA = on ? 100 : 0;
+      aB = on ? 100 : 0;
+      break;
+    }
+    case CONSTANTS.PATTERNS.WAVE:
+    case "wave": {
+      const sweep = t % 80;
+      const tt = sweep / 80;
+      fA = Math.round(
+        CONSTANTS.MIN_FREQUENCY +
+          (CONSTANTS.MAX_FREQUENCY - CONSTANTS.MIN_FREQUENCY) * Math.sin(tt * Math.PI)
+      );
+      fB = Math.round(
+        CONSTANTS.MIN_FREQUENCY +
+          (CONSTANTS.MAX_FREQUENCY - CONSTANTS.MIN_FREQUENCY) * Math.sin(tt * Math.PI + Math.PI / 4)
+      );
+      aA = 70;
+      aB = 70;
+      break;
+    }
+    case CONSTANTS.PATTERNS.HEARTBEAT:
+    case "heartbeat": {
+      const cycle60 = t % 10;
+      fA = 45;
+      fB = 45;
+      if (cycle60 === 0) {
+        aA = 90;
+        aB = 70;
+      } else if (cycle60 === 1) {
+        aA = 30;
+        aB = 20;
+      } else if (cycle60 === 3) {
+        aA = 70;
+        aB = 90;
+      } else if (cycle60 === 4) {
+        aA = 20;
+        aB = 30;
+      }
+      break;
+    }
+    case CONSTANTS.PATTERNS.ALTERNATE:
+    case "alternate": {
+      const altIdx = t % 6;
+      fA = 50;
+      fB = 50;
+      if (altIdx < 3) {
+        aA = 80;
+        aB = 0;
+      } else {
+        aA = 0;
+        aB = 80;
+      }
+      break;
+    }
+    case CONSTANTS.PATTERNS.ESCALATE:
+    case "escalate": {
+      const escCycle = t % 35;
+      fA = 50;
+      fB = 50;
+      if (escCycle < 30) {
+        aA = Math.round((escCycle / 30) * 100);
+        aB = aA;
+      }
+      break;
+    }
+    case CONSTANTS.PATTERNS.FLUTTER:
+    case "flutter": {
+      const flutIdx = t % 2;
+      fA = 80;
+      fB = 80;
+      aA = flutIdx === 0 ? 100 : 0;
+      aB = flutIdx === 0 ? 80 : 0;
+      break;
+    }
+    case CONSTANTS.PATTERNS.DRIFT:
+    case "drift": {
+      const dt = t * 0.02;
+      fA = Math.round(80 + 60 * Math.sin(dt * 0.7) * Math.cos(dt * 0.3));
+      fB = Math.round(80 + 60 * Math.cos(dt * 0.5) * Math.sin(dt * 0.4));
+      fA = Math.max(CONSTANTS.MIN_FREQUENCY, Math.min(CONSTANTS.MAX_FREQUENCY, fA));
+      fB = Math.max(CONSTANTS.MIN_FREQUENCY, Math.min(CONSTANTS.MAX_FREQUENCY, fB));
+      aA = Math.round(50 + 40 * Math.sin(dt * 0.6));
+      aB = Math.round(50 + 40 * Math.cos(dt * 0.6));
+      break;
+    }
+    case CONSTANTS.PATTERNS.SAWTOOTH:
+    case "sawtooth": {
+      const sawCycle = t % 20;
+      fA = 50;
+      fB = 55;
+      aA = Math.round((sawCycle / 20) * 100);
+      aB = Math.round(((20 - sawCycle) / 20) * 100);
+      break;
+    }
+    case CONSTANTS.PATTERNS.DUET:
+    case "duet": {
+      const duetT = t * 0.15;
+      fA = Math.round(60 + 30 * Math.sin(duetT));
+      fB = Math.round(60 + 30 * Math.cos(duetT));
+      aA = Math.round(60 + 35 * Math.sin(duetT * 1.5));
+      aB = Math.round(60 + 35 * Math.cos(duetT * 1.5));
+      break;
+    }
+    default:
+      fA = 45;
+      fB = 45;
+      aA = 60;
+      aB = 60;
+  }
+  return { fA, aA, fB, aB };
+}
 
 // ==========================================
 // WAVE LOOP - Central playback engine
@@ -45,7 +249,8 @@ export function startWaveLoop() {
       AppState.edgeState === "RUNNING" ||
       AppState.potatoState === "LIVE" ||
       AppState.potatoState === "BOOM" ||
-      AppState.survivalState === "RUNNING"
+      AppState.survivalState === "RUNNING" ||
+      isAutodriveActive()
     ) {
       return CONSTANTS.WAVE_LOOP_INTERVAL_MS; // 100ms
     }
@@ -60,14 +265,20 @@ export function startWaveLoop() {
     AppState.loopTimeCounter += 1;
     updateHeartbeat();
 
-    if (AppState.activePattern === "session") {
+    if (AppState.activePattern === "autodrive") {
+      await applyAutodriveWaveTick(
+        (fA, aA, fB, aB, opts) =>
+          sendWaveformCommand(fA, aA, fB, aB, opts || { writer: "wave-loop" }),
+        computeNamedPatternWave
+      );
+    } else if (AppState.activePattern === "session") {
       const tick = SESSION_STATE.computeTick();
       if (tick) {
         AppState.lastWaveFreqA = tick.fA;
         AppState.lastWaveAmpA = tick.aA;
         AppState.lastWaveFreqB = tick.fB;
         AppState.lastWaveAmpB = tick.aB;
-        await sendWaveformCommand(tick.fA, tick.aA, tick.fB, tick.aB);
+        await sendWaveformCommand(tick.fA, tick.aA, tick.fB, tick.aB, { writer: "wave-loop" });
         updateSessionUI();
       }
     } else if (AppState.activePattern) {
@@ -231,7 +442,7 @@ export function startWaveLoop() {
       AppState.lastWaveFreqB = fB;
       AppState.lastWaveAmpB = aB;
 
-      await sendWaveformCommand(fA, aA, fB, aB);
+      await sendWaveformCommand(fA, aA, fB, aB, { writer: "wave-loop" });
     } else if (AppState.isAudioPlaying && AppState.analyserA && AppState.analyserB) {
       const arrayA = new Uint8Array(AppState.analyserA.fftSize);
       const arrayB = new Uint8Array(AppState.analyserB.fftSize);
@@ -277,7 +488,7 @@ export function startWaveLoop() {
       ampA = Math.min(100, Math.max(0, ampA));
       ampB = Math.min(100, Math.max(0, ampB));
 
-      await sendWaveformCommand(mappedFreqA, ampA, mappedFreqA, ampB);
+      await sendWaveformCommand(mappedFreqA, ampA, mappedFreqA, ampB, { writer: "wave-loop" });
 
       if (DOM["visualizer-val-a"]) DOM["visualizer-val-a"].textContent = `${ampA}%`;
       if (DOM["visualizer-val-b"]) DOM["visualizer-val-b"].textContent = `${ampB}%`;
@@ -287,7 +498,8 @@ export function startWaveLoop() {
         shockFreq,
         AppState.reflexShockVal,
         shockFreq,
-        AppState.reflexShockVal
+        AppState.reflexShockVal,
+        { writer: "wave-loop" }
       );
     } else if (
       AppState.rhythmState !== "IDLE" ||
@@ -298,10 +510,10 @@ export function startWaveLoop() {
     ) {
       // Mini-games own their waveform output
     } else {
-      // Idle: constant output at user frequency.
-      // Logical amp 100 is then scaled by pulse-width sliders + master.
-      // Strength in 0xB0 packet controls actual output level.
-      await sendWaveformCommand(AppState.frequencyA, 100, AppState.frequencyB, 100);
+      // Idle: constant output at user frequency (owner none).
+      await sendWaveformCommand(AppState.frequencyA, 100, AppState.frequencyB, 100, {
+        writer: "wave-loop",
+      });
     }
 
     // Capture tick for session recorder (Fix 7)
@@ -481,8 +693,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const headerSub = DOM["view-subtitle"];
 
       const titles = {
+        home: [
+          i18nText("nav_home", "Home"),
+          i18nText("view_home_subtitle", "Verbinden · Soft-Limits · Autodrive"),
+        ],
+        autodrive: [
+          i18nText("nav_autodrive", "Autodrive"),
+          i18nText("view_autodrive_subtitle", "Adaptive Session · Feedback · Climax"),
+        ],
         deck: [
-          i18nText("nav_deck", "Control Deck"),
+          i18nText("nav_deck", "Manual"),
           i18nText("view_subtitle_deck", "Stim App · DG-LAB Coyote 3.0"),
         ],
         stim: [
@@ -490,20 +710,20 @@ document.addEventListener("DOMContentLoaded", () => {
           i18nText("view_stim_subtitle", "Audio · Playlist · Amplituden → A/B"),
         ],
         games: [
-          i18nText("nav_games", "Mini-Spiele"),
+          i18nText("nav_games", "Play"),
           i18nText("view_stim_title_alt", "Interaktives Feedback-Training"),
         ],
         editor: [
-          i18nText("nav_editor", "Pattern Editor"),
-          i18nText("view_editor_subtitle", "Eigene Wellenformen zeichnen & testen"),
+          i18nText("nav_editor", "Library"),
+          i18nText("view_editor_subtitle", "Patterns · Sessions · Recordings"),
         ],
         remote: [
-          i18nText("nav_remote", "Remote"),
+          i18nText("nav_remote", "Connect"),
           i18nText("view_remote_subtitle", "WebSocket-Steuerung & API"),
         ],
         ai: [
-          i18nText("view_ai_title", "AI Steuerungs-Assistent"),
-          i18nText("view_ai_subtitle", "Tool-Calls & Streaming"),
+          i18nText("view_ai_title", "AI"),
+          i18nText("view_ai_subtitle", "Chat · Director · Overlay"),
         ],
         settings: [
           i18nText("nav_settings", "Einstellungen"),
@@ -632,8 +852,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (AppState.activePattern === id) {
         AppState.activePattern = null;
+        try {
+          releaseOutput("pattern");
+        } catch {
+          /* ignore */
+        }
         sendSoftStop({ keepStrength: true });
       } else {
+        const claim = claimOutput("pattern");
+        if (!claim.ok) {
+          log(`Pattern-Claim fehlgeschlagen: ${claim.error}`, "error");
+          return;
+        }
         AppState.activePattern = id;
         card.classList.add("active");
         ensureGameStrength(40);
@@ -650,6 +880,11 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".pattern-card").forEach((c) => c.classList.remove("active"));
     if (SESSION_STATE.activeSession) SESSION_STATE.stop();
     AppState.activePattern = null;
+    try {
+      releaseOutput("pattern");
+    } catch {
+      /* ignore */
+    }
     updateSlidersA(0);
     updateSlidersB(0);
     sendSoftStop({ keepStrength: false, zeroUiStrength: true });
@@ -665,6 +900,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       const sessionId = card.getAttribute("data-session");
       if (SESSION_STATE.activeSession) SESSION_STATE.stop();
+      const claim = claimOutput("session");
+      if (!claim.ok) {
+        log(`Session-Claim fehlgeschlagen: ${claim.error}`, "error");
+        return;
+      }
       ensureGameStrength(40);
       SESSION_STATE.start(sessionId);
     });

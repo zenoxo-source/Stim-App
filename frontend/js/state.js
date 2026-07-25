@@ -148,6 +148,13 @@ export const AppState = {
   /** Active strength ramp; populated by modules/ramp.js. */
   rampState: null,
 
+  // ----- Output ownership + Autodrive (v4 restructure) -----
+  /** @type {string} Session output owner id; "none" when idle. */
+  outputOwner: "none",
+  /** Dirty-tracking for Autodrive absolute strength re-arm (K28). */
+  _autodriveLastAppliedA: null,
+  _autodriveLastAppliedB: null,
+
   reset() {
     this.strengthA = 0;
     this.strengthB = 0;

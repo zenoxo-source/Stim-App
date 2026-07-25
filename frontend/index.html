@@ -52,9 +52,19 @@
         
         <nav>
           <ul class="nav-menu">
-            <li class="nav-item active" data-tab="deck">
+            <li class="nav-item active" data-tab="home">
+              <button id="nav-btn-home">
+                <span class="nav-icon">🏠</span> Home
+              </button>
+            </li>
+            <li class="nav-item" data-tab="autodrive">
+              <button id="nav-btn-autodrive">
+                <span class="nav-icon">🚀</span> Autodrive
+              </button>
+            </li>
+            <li class="nav-item" data-tab="deck">
               <button id="nav-btn-deck">
-                <span class="nav-icon">🎛️</span> Control Deck
+                <span class="nav-icon">🎛️</span> Manual
               </button>
             </li>
             <li class="nav-item" data-tab="stim">
@@ -64,22 +74,22 @@
             </li>
             <li class="nav-item" data-tab="games">
               <button id="nav-btn-games">
-                <span class="nav-icon">🎮</span> Mini-Spiele
+                <span class="nav-icon">🎮</span> Play
               </button>
             </li>
             <li class="nav-item" data-tab="editor">
               <button id="nav-btn-editor">
-                <span class="nav-icon">✏️</span> Pattern Editor
+                <span class="nav-icon">📚</span> Library
               </button>
             </li>
             <li class="nav-item" data-tab="remote">
               <button id="nav-btn-remote">
-                <span class="nav-icon">🌐</span> Remote
+                <span class="nav-icon">🌐</span> Connect
               </button>
             </li>
             <li class="nav-item" data-tab="ai">
               <button id="nav-btn-ai">
-                <span class="nav-icon">🤖</span> AI Chat
+                <span class="nav-icon">🤖</span> AI
               </button>
             </li>
             <li class="nav-item" data-tab="settings">
@@ -177,8 +187,110 @@
         </div>
       </div>
 
+      <!-- View: Home -->
+      <section id="view-home" class="tab-view active">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Willkommen</div>
+            <p style="margin: 0 0 12px; color: var(--text-muted, #9aa); line-height: 1.5;">
+              Verbinde dein Coyote, prüfe Soft-Limits und starte Autodrive — die adaptive Session, die dich mit Feedback zum Höhepunkt führt.
+            </p>
+            <div id="home-connection-summary" style="margin-bottom: 12px; font-size: 14px;">
+              <div>Verbindung: <strong id="home-conn-text">Getrennt</strong></div>
+              <div>Soft-Limits: A <strong id="home-soft-a">—</strong> · B <strong id="home-soft-b">—</strong></div>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+              <button type="button" id="home-btn-connect" class="btn">🔌 Bluetooth</button>
+              <button type="button" id="home-btn-autodrive" class="btn" style="background: linear-gradient(135deg, #d83b01, #a80000);">🚀 Autodrive starten</button>
+              <button type="button" id="home-btn-manual" class="btn btn-secondary">Manual</button>
+            </div>
+            <p style="margin: 14px 0 0; font-size: 12px; color: var(--text-muted, #888);">
+              Keine Garantie — biologische Varianz, Soft-Limits und Consent gelten. Panic (STOPP) jederzeit.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-title">Schnellstart</div>
+            <ol style="margin: 0; padding-left: 18px; line-height: 1.7; font-size: 14px;">
+              <li>Soft-Limits unter Einstellungen setzen</li>
+              <li>Bluetooth verbinden</li>
+              <li>Autodrive-Template wählen und Start</li>
+              <li>Feedback-Buttons nutzen (zu schwach / fast / jetzt / fertig)</li>
+            </ol>
+            <div id="home-autodrive-mini" style="margin-top: 16px; display: none;">
+              <div style="font-weight: 600; margin-bottom: 6px;">Autodrive läuft</div>
+              <div>Phase: <span id="home-ad-phase">—</span></div>
+              <div class="progress-bar" style="height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 8px; overflow: hidden;">
+                <div id="home-ad-progress" style="height: 100%; width: 0%; background: #d83b01; transition: width 0.2s;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- View: Autodrive -->
+      <section id="view-autodrive" class="tab-view">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Session starten</div>
+            <p style="font-size: 13px; color: var(--text-muted, #9aa); margin-top: 0;">
+              Offline-fähige Engine ohne LLM. Intensität relativ zu Soft-Limits. Nutze Feedback für Anpassung.
+            </p>
+            <label class="field-label" for="autodrive-template">Template</label>
+            <select id="autodrive-template" class="select-control" style="width: 100%; margin-bottom: 10px;">
+              <option value="classic">Klassisch (~12 min, 2 Edges)</option>
+              <option value="quick_finish">Schnell (~5 min, direkt)</option>
+              <option value="long_tease">Langer Tease (~20 min, 4 Edges)</option>
+              <option value="intense">Intensiv (~10 min, Cap 85 %)</option>
+            </select>
+            <label class="field-label" for="autodrive-focus">Kanal-Fokus</label>
+            <select id="autodrive-focus" class="select-control" style="width: 100%; margin-bottom: 10px;">
+              <option value="both">Beide</option>
+              <option value="A">Nur A (+ gekoppelt B)</option>
+              <option value="B">Nur B (+ gekoppelt A)</option>
+            </select>
+            <label class="field-label" for="autodrive-sensitivity">Sensitivität</label>
+            <select id="autodrive-sensitivity" class="select-control" style="width: 100%; margin-bottom: 14px;">
+              <option value="gentle">Sanft</option>
+              <option value="medium" selected>Mittel</option>
+              <option value="intense">Intensiv</option>
+            </select>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <button type="button" id="btn-autodrive-start" class="btn" style="background: linear-gradient(135deg, #d83b01, #a80000);">Start</button>
+              <button type="button" id="btn-autodrive-pause" class="btn btn-secondary">Pause</button>
+              <button type="button" id="btn-autodrive-resume" class="btn btn-secondary">Weiter</button>
+              <button type="button" id="btn-autodrive-stop" class="btn btn-danger">Stop</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Live</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+              <div>Phase: <strong id="autodrive-phase">IDLE</strong></div>
+              <div>Edges: <strong id="autodrive-edges">0 / 0</strong></div>
+              <div>Rel. Int.: <strong id="autodrive-rel">0%</strong></div>
+              <div>Owner: <strong id="autodrive-owner">none</strong></div>
+            </div>
+            <div style="margin-top: 12px;">
+              <div style="font-size: 12px; margin-bottom: 4px;">Fortschritt</div>
+              <div style="height: 10px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden;">
+                <div id="autodrive-progress" style="height: 100%; width: 0%; background: linear-gradient(90deg, #0078d4, #d83b01);"></div>
+              </div>
+            </div>
+            <div class="card-title" style="margin-top: 18px;">Feedback</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <button type="button" class="btn btn-secondary autodrive-fb" data-fb="too_weak" style="min-height: 48px;">Zu schwach</button>
+              <button type="button" class="btn btn-secondary autodrive-fb" data-fb="good" style="min-height: 48px;">Gut</button>
+              <button type="button" class="btn btn-secondary autodrive-fb" data-fb="too_strong" style="min-height: 48px;">Zu stark</button>
+              <button type="button" class="btn btn-secondary autodrive-fb" data-fb="almost" style="min-height: 48px;">Fast</button>
+              <button type="button" class="btn autodrive-fb" data-fb="now" style="min-height: 48px; background: #d83b01;">Jetzt</button>
+              <button type="button" class="btn autodrive-fb" data-fb="climaxed" style="min-height: 48px; background: #107c10;">Fertig ✓</button>
+              <button type="button" class="btn btn-secondary autodrive-fb" data-fb="not_yet" style="min-height: 48px; grid-column: 1 / -1;">Noch nicht</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- View: Control Deck -->
-      <section id="view-deck" class="tab-view active">
+      <section id="view-deck" class="tab-view">
         <div class="grid-2">
           
           <!-- Channel A controls -->

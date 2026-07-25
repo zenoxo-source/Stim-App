@@ -98,15 +98,17 @@ export function buildIndex() {
   }
 
   // Tabs themselves (quick nav)
-  ["deck", "stim", "games", "editor", "remote", "ai", "settings"].forEach((t) => {
-    entries.push({
-      category: "Tab",
-      label: t,
-      sub: "Tab öffnen",
-      tab: t,
-      action: () => switchToTab(t),
-    });
-  });
+  ["home", "autodrive", "deck", "stim", "games", "editor", "remote", "ai", "settings"].forEach(
+    (t) => {
+      entries.push({
+        category: "Tab",
+        label: t,
+        sub: "Tab öffnen",
+        tab: t,
+        action: () => switchToTab(t),
+      });
+    }
+  );
 
   return entries;
 }

@@ -21,10 +21,10 @@ describe("search.js - buildIndex", () => {
     assert.ok(Array.isArray(idx));
   });
 
-  it("includes the 7 tab entries", () => {
+  it("includes the 9 tab entries", () => {
     const idx = buildIndex();
     const tabEntries = idx.filter((e) => e.category === "Tab");
-    assert.equal(tabEntries.length, 7);
+    assert.equal(tabEntries.length, 9);
   });
 
   it("includes sessions (Slow Burn, Ocean Ride, etc.)", () => {
