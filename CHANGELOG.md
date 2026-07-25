@@ -1,5 +1,28 @@
 # Changelog
 
+## 3.14.0 — UX Polish, Partner 2.0, macOS CI
+
+### macOS Release CI
+- **Unsigned macOS build**: Windows `CSC_LINK` nicht mehr an macOS-Job (brach Signing)
+- `identity: null`, `CSC_IDENTITY_AUTO_DISCOVERY=false` explizit
+- DMG/ZIP x64+arm64 weiterhin als Artifacts
+
+### Partner-Panel 2.0
+- Progress-Bar, Phase-Glow, Edge/Rel/Restzeit-Status
+- Stories starten, ± Intensität, Noch-nicht, Letzte Erfolgssession
+- Fullscreen-Shortcut, ESC schließt
+- **Shock Double-Tap** (2,5 s Arm) gegen Fehlklicks
+- Toast-Feedback bei Aktionen
+
+### UX-Polish
+- Session-Chrome: Restzeit, Progress, Partner-Button, Phase-Farbakzent
+- Home-Readiness-Badge (Bereit / optional STIM / noch nicht)
+- STIM-Kalib als optional (Warn), nicht Session-Blocker
+
+### Remote
+- `autodrive_feedback` inkl. `nudge_up` / `nudge_down`
+- `story_start` · `shock`
+
 ## 3.13.0 — Experience A+B+C (Readiness, Hybrid, Partner, Shock)
 
 ### Stufe A — Einstieg & Klarheit

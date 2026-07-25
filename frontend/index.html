@@ -436,13 +436,16 @@
 
       <!-- Partner panel -->
       <div id="partner-panel" class="partner-panel" style="display:none;" aria-modal="true" role="dialog">
-        <div class="partner-card">
+        <div class="partner-card" data-phase="IDLE">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <h2 style="margin:0;">Partner-Steuerung</h2>
-            <button type="button" id="partner-close" class="btn btn-secondary btn-sm">×</button>
+            <button type="button" id="partner-close" class="btn btn-secondary btn-sm" title="ESC">×</button>
           </div>
-          <p id="partner-status" style="font-size:13px;color:var(--text-muted);">—</p>
-          <p style="font-size:12px;color:var(--text-muted);">Lokal oder per Remote: <code>autodrive_feedback</code></p>
+          <p id="partner-status" class="partner-status">—</p>
+          <div class="partner-progress-track" aria-hidden="true">
+            <div id="partner-progress" class="partner-progress-fill"></div>
+          </div>
+          <p class="partner-hint">Große Buttons für Partner · Remote: <code>autodrive_feedback</code> · ESC schließt</p>
           <div class="partner-grid">
             <button type="button" class="btn partner-fb" data-fb="too_weak">Zu schwach</button>
             <button type="button" class="btn partner-fb" data-fb="good">Gut</button>
@@ -450,10 +453,19 @@
             <button type="button" class="btn partner-fb" data-fb="almost" style="background:linear-gradient(135deg,#8660a9,#d83b01);">🔥 Fast</button>
             <button type="button" class="btn partner-fb" data-fb="now" style="background:#d83b01;">⚡ Jetzt</button>
             <button type="button" class="btn partner-fb" data-fb="climaxed" style="background:#107c41;">✓ Fertig</button>
+            <button type="button" class="btn partner-fb" data-fb="not_yet">↩ Noch nicht</button>
+            <button type="button" id="partner-nudge-down" class="btn btn-secondary">− Intensität</button>
+            <button type="button" id="partner-nudge-up" class="btn btn-secondary">+ Intensität</button>
           </div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+          <div class="partner-story-row">
+            <select id="partner-story" class="select-control" aria-label="Session-Story"></select>
+            <button type="button" id="partner-story-run" class="btn btn-secondary">Story starten</button>
+          </div>
+          <div class="partner-actions">
             <button type="button" id="partner-start" class="btn">Start Klassisch</button>
+            <button type="button" id="partner-last" class="btn btn-secondary" style="display:none;">⭐ Letzte</button>
             <button type="button" id="partner-pause" class="btn btn-secondary">Pause</button>
+            <button type="button" id="partner-fs" class="btn btn-secondary">⛶ Fullscreen</button>
             <button type="button" id="partner-stop" class="btn btn-danger">Stop</button>
             <button type="button" id="partner-shock" class="btn btn-secondary">⚡ Shock</button>
           </div>

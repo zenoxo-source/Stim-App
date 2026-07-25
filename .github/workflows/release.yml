@@ -106,14 +106,17 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Build macOS packages
+      # Unsigned build: Windows CSC_LINK is a .p12 for Win codesign and breaks macOS.
+      # Apple Developer ID signing can be re-enabled later with MAC_CSC_* secrets.
+      - name: Build macOS packages (unsigned)
         env:
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          CSC_LINK: ""
+          CSC_KEY_PASSWORD: ""
         run: npm run build:app
 
       - name: Publish macOS artifacts to release
+        if: success()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
@@ -125,6 +128,7 @@ jobs:
             backend/dist-app/StimApp-*-mac-*.dmg
             backend/dist-app/StimApp-*-mac-*.zip
             backend/dist-app/StimApp-*-mac-*.blockmap
+            backend/dist-app/StimApp-*-mac-*.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

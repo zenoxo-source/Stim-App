@@ -2094,6 +2094,14 @@ textarea.text-input { resize: vertical; min-height: 100px; }
 }
 
 .home-readiness { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.ready-badge {
+  display: inline-flex; align-self: flex-start;
+  padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  margin-bottom: 4px;
+}
+.ready-badge-ok { background: rgba(16,124,65,0.25); color: #6fdf9a; }
+.ready-badge-warn { background: rgba(216,59,1,0.2); color: #ffb38a; }
+.ready-badge-bad { background: rgba(255,255,255,0.08); color: var(--text-muted); }
 .ready-row {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 10px; border-radius: 8px; font-size: 13px;
@@ -2115,24 +2123,71 @@ textarea.text-input { resize: vertical; min-height: 100px; }
 .story-card span { font-size: 12px; color: var(--text-muted); }
 .session-chrome {
   position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
-  z-index: 9000; display: flex; align-items: center; gap: 14px;
+  z-index: 9000; display: flex; align-items: center; gap: 12px;
   padding: 10px 16px; border-radius: 999px;
   background: rgba(20,20,24,0.92); border: 1px solid var(--border-color);
   box-shadow: 0 8px 32px rgba(0,0,0,0.45); max-width: 96vw; flex-wrap: wrap;
 }
 .sc-mode { font-weight: 700; font-size: 13px; white-space: nowrap; }
-.sc-stats { display: flex; gap: 10px; font-size: 12px; color: var(--text-secondary); }
+.sc-stats { display: flex; gap: 10px; font-size: 12px; color: var(--text-secondary); flex-wrap: wrap; }
+.sc-time { font-variant-numeric: tabular-nums; opacity: 0.9; }
 .sc-actions { display: flex; gap: 6px; }
+.sc-progress-track {
+  width: 72px; height: 4px; border-radius: 2px;
+  background: rgba(255,255,255,0.12); overflow: hidden; flex-shrink: 0;
+}
+.sc-progress-fill {
+  height: 100%; width: 0%; background: #d83b01; transition: width 0.25s ease;
+}
+.session-chrome[data-phase="PUSH"] .sc-progress-fill,
+.session-chrome[data-phase="SURGE"] .sc-progress-fill { background: #ff6a3d; }
+.session-chrome[data-phase="EDGE"] .sc-progress-fill { background: #8660a9; }
+.session-chrome[data-phase="PAUSED"] { opacity: 0.85; }
 .partner-panel {
   position: fixed; inset: 0; z-index: 10002;
-  background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.72); display: flex; align-items: center; justify-content: center;
   padding: 16px;
 }
 .partner-card {
   background: var(--bg-surface-solid); border-radius: 14px; padding: 18px;
-  max-width: 480px; width: 100%; border: 1px solid var(--border-color);
+  max-width: 520px; width: 100%; border: 1px solid var(--border-color);
+  max-height: 92vh; overflow-y: auto;
+}
+.partner-card[data-phase="EDGE"] { box-shadow: 0 0 0 2px rgba(134,96,169,0.55); }
+.partner-card[data-phase="PUSH"],
+.partner-card[data-phase="SURGE"] { box-shadow: 0 0 0 2px rgba(216,59,1,0.55); }
+.partner-card[data-phase="PAUSED"] { opacity: 0.92; }
+.partner-status {
+  font-size: 13px; color: var(--text-muted); margin: 8px 0 6px; min-height: 1.4em;
+}
+.partner-hint { font-size: 12px; color: var(--text-muted); margin: 0 0 4px; }
+.partner-progress-track {
+  height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1);
+  overflow: hidden; margin-bottom: 8px;
+}
+.partner-progress-fill {
+  height: 100%; width: 0%; background: linear-gradient(90deg, #8660a9, #d83b01);
+  transition: width 0.3s ease;
 }
 .partner-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px;
+}
+@media (max-width: 520px) {
+  .partner-grid { grid-template-columns: 1fr 1fr; }
 }
 .partner-grid .btn { min-height: 56px; font-weight: 600; }
+.partner-story-row {
+  display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;
+}
+.partner-story-row .select-control { flex: 1; min-width: 140px; }
+.partner-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;
+}
+.partner-shock-armed {
+  outline: 2px solid #ffb900 !important;
+  animation: partner-pulse 0.6s ease infinite alternate;
+}
+@keyframes partner-pulse {
+  from { filter: brightness(1); }
+  to { filter: brightness(1.25); }
+}

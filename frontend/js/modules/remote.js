@@ -23,6 +23,8 @@ import {
   resumeAutodrive,
   getAutodriveState,
 } from "./autodrive.js";
+import { runStory } from "./session-stories.js";
+import { fireShock } from "./shock.js";
 
 /** Commands allowed even during PIN lock / panic cooldown (safety + read-only). */
 const REMOTE_ALWAYS_ALLOWED = new Set(["stop_all", "get_state", "get_patterns", "get_logs"]);
@@ -142,6 +144,8 @@ const REMOTE_COMMANDS = {
       "now",
       "climaxed",
       "not_yet",
+      "nudge_up",
+      "nudge_down",
     ]);
     if (!allowed.has(fb)) {
       return { ok: false, error: `unknown feedback: ${fb}` };
@@ -158,6 +162,8 @@ const REMOTE_COMMANDS = {
     if (msg.lastSuccess) return startLastSuccess();
     const patch = {};
     if (msg.templateId) patch.templateId = msg.templateId;
+    if (msg.storyId) patch.storyId = msg.storyId;
+    if (typeof msg.hybridAudio === "boolean") patch.hybridAudio = msg.hybridAudio;
     return startAutodrive(patch);
   },
 
@@ -178,6 +184,23 @@ const REMOTE_COMMANDS = {
 
   autodrive_state: () => {
     return { ok: true, autodrive: getAutodriveState() };
+  },
+
+  /** Story start by id (see session-stories) */
+  story_start: (msg) => {
+    const id = String(msg.storyId || msg.id || "");
+    if (!id) return { ok: false, error: "storyId required" };
+    return runStory(id);
+  },
+
+  /** Short burst within soft-limits (blocked during autodrive) */
+  shock: (msg) => {
+    return fireShock({
+      intensity: msg.intensity,
+      durationMs: msg.durationMs,
+      freq: msg.freq,
+      channel: msg.channel,
+    });
   },
 
   get_state: () => {
