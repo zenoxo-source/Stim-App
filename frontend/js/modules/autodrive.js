@@ -47,6 +47,8 @@ let silenced = false;
 let uiListener = null;
 /** @type {string|null} */
 let lastLoggedPhase = null;
+/** @type {WakeLockSentinel|null} */
+let wakeLock = null;
 
 registerOwnerStop("autodrive", () => {
   stopAutodrive("owner-claim");
@@ -237,8 +239,42 @@ export function startAutodrive(patch = {}) {
     `Autodrive gestartet: ${cfg.templateId || "custom"} · ${cfg.targetDurationMin} Min · Ziel ${cfg.goal}`,
     "success"
   );
+  requestWakeLock();
   notifyUi();
   return { ok: true };
+}
+
+async function requestWakeLock() {
+  try {
+    if (typeof navigator !== "undefined" && navigator.wakeLock?.request) {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener?.("release", () => {
+        wakeLock = null;
+      });
+    }
+  } catch {
+    /* unsupported / denied */
+  }
+}
+
+function releaseWakeLock() {
+  try {
+    wakeLock?.release?.();
+  } catch {
+    /* ignore */
+  }
+  wakeLock = null;
+}
+
+/** Optional short vibration for prompts / phase changes (if supported). */
+export function hapticPulse(pattern = [40, 30, 40]) {
+  try {
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(pattern);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function pauseAutodrive() {
@@ -326,6 +362,8 @@ export function stopAutodrive(reason = "manuell") {
     }
   }
 
+  releaseWakeLock();
+
   if (wasActive && snap) {
     log(`Autodrive gestoppt (${reason}).`, "info");
     try {
@@ -396,11 +434,14 @@ export function stopAutodrive(reason = "manuell") {
   notifyUi();
 }
 
-/** One-tap classic start (Home). */
+/** One-tap classic start (Home). Skips calib after successful prior sessions. */
 export function startQuickClassic() {
+  const learn = loadLearning();
+  const seen = !!localStorage.getItem(SEEN_KEY);
+  const skipCal = seen && ((learn.climaxHits || 0) >= 1 || (learn.sessions || 0) >= 2);
   return startAutodrive({
     templateId: "classic",
-    skipCalibration: !!localStorage.getItem(SEEN_KEY),
+    skipCalibration: skipCal,
   });
 }
 
@@ -553,6 +594,24 @@ function engineTick() {
   if (engineState.phase !== before && engineState.phase !== lastLoggedPhase) {
     log(`Autodrive Phase: ${getPhaseLabel(engineState.phase)}`, "info");
     lastLoggedPhase = engineState.phase;
+    if (engineState.phase === "CLIMAX_PUSH" || engineState.phase === "EDGE_HOLD") {
+      hapticPulse([50, 40, 80]);
+    } else if (engineState.phase === "SURGE") {
+      hapticPulse([30, 20, 30]);
+    }
+    // Notify UI listeners about phase change (fullscreen auto-open etc.)
+    try {
+      window.dispatchEvent(
+        new CustomEvent("stim:autodrive-phase", {
+          detail: { phase: engineState.phase, before },
+        })
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+  if (engineState.pendingPrompt && engineState.lastPromptAt === now) {
+    hapticPulse([25, 40, 25]);
   }
   notifyUi();
 }

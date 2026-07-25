@@ -20,6 +20,7 @@ import {
   getSoftLimitCoachMessage,
   clearSoftLimitCoach,
   getAutodriveStatsSummary,
+  hapticPulse,
   AUTODRIVE_TEMPLATES,
 } from "./autodrive.js";
 import { getOutputOwner } from "./output-owner.js";
@@ -112,9 +113,43 @@ function paintDashboard(st) {
   const pct = document.getElementById("autodrive-progress-pct");
   if (pct) pct.textContent = `${Math.round((st.progress || 0) * 100)}%`;
 
+  // Connection banner on Autodrive tab
+  const banner = document.getElementById("autodrive-conn-banner");
+  if (banner) {
+    banner.style.display = AppState.isConnected ? "none" : "flex";
+  }
+
+  // Fullscreen phase theme + clock
+  const fs = document.getElementById("autodrive-fullscreen");
+  if (fs && fs.style.display !== "none") {
+    const ph = st.phase || "IDLE";
+    fs.dataset.phase = ph;
+    fs.className = "ad-fs phase-" + ph;
+    const clock = document.getElementById("ad-fs-clock");
+    if (clock && st.remainingMs != null) {
+      const elapsed = Math.max(
+        0,
+        (st.config?.targetDurationMin || 12) * 60000 - (st.remainingMs || 0)
+      );
+      clock.textContent = formatUiMs(elapsed) + " · noch " + formatUiMs(st.remainingMs);
+    }
+    const eta = document.getElementById("ad-fs-eta");
+    if (eta) eta.textContent = formatUiMs(st.remainingMs);
+    const relL = document.getElementById("ad-fs-rel-label");
+    if (relL) relL.textContent = `${Math.round((st.relStrength || 0) * 100)}%`;
+  }
+
   paintTimeline(st);
   refreshHomeSummary();
   paintCoach();
+}
+
+function formatUiMs(ms) {
+  if (!ms || ms < 0) return "0:00";
+  const s = Math.ceil(ms / 1000);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, "0")}`;
 }
 
 function paintCoach() {
@@ -370,6 +405,29 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("ad-fs-stop")?.addEventListener("click", () => {
     document.getElementById("btn-autodrive-stop")?.click();
   });
+  document.getElementById("ad-fs-nudge-up")?.addEventListener("click", () => {
+    if (isAutodriveActive()) injectFeedback("nudge_up");
+  });
+  document.getElementById("ad-fs-nudge-down")?.addEventListener("click", () => {
+    if (isAutodriveActive()) injectFeedback("nudge_down");
+  });
+  document.getElementById("autodrive-btn-connect")?.addEventListener("click", () => {
+    document.getElementById("btn-connect")?.click();
+  });
+
+  // Auto-open fullscreen on push / edge; flash on phase change
+  window.addEventListener("stim:autodrive-phase", (ev) => {
+    const phase = ev.detail?.phase;
+    const fs = document.getElementById("autodrive-fullscreen");
+    if (phase === "CLIMAX_PUSH" || phase === "EDGE_HOLD") {
+      if (fs && fs.style.display === "none") openFullscreen();
+    }
+    if (fs && fs.style.display !== "none") {
+      fs.classList.add("ad-fs-flash");
+      setTimeout(() => fs.classList.remove("ad-fs-flash"), 500);
+    }
+    if (phase === "CLIMAX_PUSH") hapticPulse([60, 40, 60, 40, 100]);
+  });
 
   // Debrief
   document.querySelectorAll(".ad-debrief-climax").forEach((b) => {
@@ -413,6 +471,10 @@ document.addEventListener("DOMContentLoaded", () => {
       KeyF: "almost",
       KeyJ: "now",
       KeyG: "climaxed",
+      Equal: "nudge_up",
+      NumpadAdd: "nudge_up",
+      Minus: "nudge_down",
+      NumpadSubtract: "nudge_down",
     };
     const fb = map[e.code];
     if (fb) {

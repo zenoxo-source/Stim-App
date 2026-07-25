@@ -2053,3 +2053,32 @@ textarea.text-input { resize: vertical; min-height: 100px; }
 .ad-debrief-summary { font-size: 13px; color: var(--text-secondary); margin: 0 0 12px; }
 .ad-debrief-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .home-ad-stats { line-height: 1.5; }
+
+.ad-fs-nudge { display: flex; gap: 10px; }
+.ad-fs-nudge .btn { flex: 1; min-height: 48px; font-weight: 600; }
+.ad-fs-clock { font-size: 14px; color: var(--text-muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.ad-fs.phase-EDGE_HOLD { background: radial-gradient(ellipse at top, #1a1028 0%, #0a0a0c 55%); }
+.ad-fs.phase-CLIMAX_PUSH { background: radial-gradient(ellipse at top, #2a1008 0%, #0a0a0c 50%); }
+.ad-fs.phase-SURGE { background: radial-gradient(ellipse at top, #1a1528 0%, #0a0a0c 55%); }
+.ad-fs.phase-AFTERCARE { background: radial-gradient(ellipse at top, #0c1a14 0%, #0a0a0c 55%); }
+.ad-fs.phase-TEASE .ad-fs-phase { color: #e8b4ff; }
+.ad-fs.phase-CLIMAX_PUSH .ad-fs-phase { color: #ffb080; }
+.ad-fs.phase-EDGE_HOLD .ad-fs-phase { color: #c9a0ff; }
+.autodrive-conn-banner {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: rgba(216, 59, 1, 0.15);
+  border-radius: 8px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ad-fs-flash {
+  animation: ad-fs-flash 0.45s ease;
+}
+@keyframes ad-fs-flash {
+  0% { filter: brightness(1.35); }
+  100% { filter: brightness(1); }
+}

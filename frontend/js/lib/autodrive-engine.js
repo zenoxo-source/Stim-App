@@ -207,6 +207,8 @@ const VALID_FEEDBACK = new Set([
   "now",
   "climaxed",
   "not_yet",
+  "nudge_up",
+  "nudge_down",
 ]);
 
 const PHASE_LABELS_DE = Object.freeze({
@@ -498,6 +500,7 @@ export function reduceAutodrive(state, event) {
     s = applyHabituation(s, now);
     s = applyClimaxWave(s, now);
     s = applyMicroMod(s, now);
+    s = applyTimePressure(s, now);
     s = applyFeedbackPrompts(s, now);
     if (s.phaseDeadlineAt && now >= s.phaseDeadlineAt) {
       s = applyPhaseTimeout(s, now);
@@ -1032,24 +1035,61 @@ function applyHabituation(s, now) {
   if (s.phase === "AFTERCARE" || s.phase === "COOLDOWN" || s.phase === "CALIBRATING") return s;
 
   const next = { ...s };
-  // Soft reset every ~60–90s
+  const progress = progressOf(s);
+  const allowSoftReset =
+    s.phase !== "CLIMAX_PUSH" &&
+    s.phase !== "EDGE_HOLD" &&
+    s.phase !== "SURGE" &&
+    progress < 0.75 &&
+    (s.effectiveElapsedMs || 0) > 45000;
+
   if (
+    allowSoftReset &&
     !s.softResetUntil &&
     (s.effectiveElapsedMs || 0) > 0 &&
     (s.effectiveElapsedMs || 0) % SOFT_RESET_MS < 120
   ) {
-    if ((s.effectiveElapsedMs || 0) > 45000 && s.phase !== "CLIMAX_PUSH") {
-      next.softResetUntil = now + randRange(2000, 5000);
-    }
+    next.softResetUntil = now + randRange(2000, 4500);
   }
   if (s.softResetUntil && now >= s.softResetUntil) {
     next.softResetUntil = 0;
   }
 
-  // Force pattern family change on habituation timer
   if (now >= (s.nextHabituationAt || 0)) {
     next.patternSegment = (s.patternSegment || 0) + 1;
     next.nextHabituationAt = now + randRange(HABITUATION_MS_MIN, HABITUATION_MS_MAX);
+  }
+  return next;
+}
+
+/** Late-session pressure: accelerate toward push when time runs out. */
+function applyTimePressure(s, now) {
+  const p = progressOf(s);
+  if (p < 0.72) return s;
+  if (
+    s.phase === "CLIMAX_PUSH" ||
+    s.phase === "AFTERCARE" ||
+    s.phase === "COOLDOWN" ||
+    s.phase === "SURGE"
+  ) {
+    return s;
+  }
+  const remain = (s.phaseDeadlineAt || now) - now;
+  let next = s;
+  if (remain > 8000) {
+    next = {
+      ...s,
+      phaseDeadlineAt: now + Math.max(4000, Math.round(remain * 0.55)),
+      climbRate: Math.min(1.8, (s.climbRate || 1) * 1.15),
+      feedbackBias: clamp((s.feedbackBias || 0) + 0.02, -0.2, 0.35),
+    };
+  }
+  if (
+    next.phase === "TEASE" &&
+    (next.edgeCountDone || 0) >= (next.edgeCountTarget || 0) &&
+    p >= 0.8
+  ) {
+    return setPhase(next, "SURGE", now, shareMs(next.targetDurationMs, "SURGE", next.config));
   }
   return next;
 }
@@ -1391,7 +1431,8 @@ function applyFeedback(s, feedback, now) {
       return enterHold(scoreUp, now);
     }
     if (s.phase === "CLIMAX_PUSH") {
-      // Drop then 2 reinforced crests (classic edge-then-over)
+      // Drop then 2 reinforced crests; extend push window (commit)
+      const extend = 20000;
       return {
         ...scoreUp,
         relStrength: clamp(s.relStrength * 0.72, 0.48, 0.82),
@@ -1400,9 +1441,30 @@ function applyFeedback(s, feedback, now) {
         pushBoostRemaining: 2,
         wireFreqTarget: clamp((s.wireFreqTarget || 80) + 15, 10, 240),
         dutyCycle: 0.9,
+        phaseDeadlineAt: Math.max(s.phaseDeadlineAt || now, now) + extend,
       };
     }
     return scoreUp;
+  }
+
+  // Manual intensity nudge from UI (±)
+  if (feedback === "nudge_up" || feedback === "nudge_down") {
+    const delta = feedback === "nudge_up" ? 0.06 : -0.07;
+    return {
+      ...s,
+      relStrength: clamp(s.relStrength + delta, 0.05, 1),
+      feedbackBias: clamp((s.feedbackBias || 0) + delta * 0.5, -0.35, 0.35),
+      peakLockRel: null,
+      peakLockUntil: 0,
+      lastFeedbackAt: now,
+      lastFeedback: feedback,
+      sessionTooWeakCount:
+        feedback === "nudge_up" ? (s.sessionTooWeakCount || 0) + 1 : s.sessionTooWeakCount || 0,
+      sessionTooStrongCount:
+        feedback === "nudge_down"
+          ? (s.sessionTooStrongCount || 0) + 1
+          : s.sessionTooStrongCount || 0,
+    };
   }
 
   if (feedback === "now") {

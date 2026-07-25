@@ -29,8 +29,12 @@
         <p>Rote Taste <strong>STOPP</strong>, <strong>Strg+Leertaste</strong> oder <strong>ESC lang</strong> setzen die Ausgabe sofort auf 0 – die Verbindung bleibt bestehen.</p>
       </div>
       <div class="onboarding-step" data-step="4" style="display:none;">
+        <h2>4 · Autodrive</h2>
+        <p><strong>1-Tap Klassisch</strong> auf Home startet eine adaptive Session. Im Fullscreen: große Buttons <em>Fast</em>, <em>Jetzt</em>, <em>Fertig</em>. Soft-Limits setzen, niedrig starten. Feedback verbessert die nächste Runde.</p>
+      </div>
+      <div class="onboarding-step" data-step="5" style="display:none;">
         <h2>Fertig</h2>
-        <p>Du kannst Control Deck, STIM Player, Spiele und AI nutzen. Viel Spaß – und bleib im sicheren Bereich.</p>
+        <p>Home · Autodrive · Manual. Viel Spaß – und bleib im sicheren Bereich.</p>
       </div>
       <div class="onboarding-actions">
         <button type="button" id="onboarding-skip" class="btn btn-secondary">Überspringen</button>
@@ -296,6 +300,9 @@
               <button type="button" id="btn-autodrive-fs" class="btn btn-secondary">⛶ Fullscreen</button>
             </div>
             <div id="autodrive-status-msg" class="autodrive-status-msg" aria-live="polite"></div>
+            <div id="autodrive-conn-banner" class="autodrive-conn-banner" style="display:none;">
+              Nicht verbunden — <button type="button" class="btn btn-secondary btn-sm" id="autodrive-btn-connect">Bluetooth</button>
+            </div>
             <div id="autodrive-coach" class="autodrive-coach" style="display:none;"></div>
           </div>
 
@@ -378,9 +385,12 @@
       </section>
 
       <!-- Autodrive Fullscreen Session Mode -->
-      <div id="autodrive-fullscreen" class="ad-fs" style="display:none;" aria-modal="true" role="dialog">
+      <div id="autodrive-fullscreen" class="ad-fs phase-idle" style="display:none;" aria-modal="true" role="dialog" data-phase="IDLE">
         <div class="ad-fs-top">
-          <div class="ad-fs-phase" id="ad-fs-phase">—</div>
+          <div>
+            <div class="ad-fs-phase" id="ad-fs-phase">—</div>
+            <div class="ad-fs-clock" id="ad-fs-clock">0:00</div>
+          </div>
           <div class="ad-fs-meta">
             <span id="ad-fs-next"></span>
             <span id="ad-fs-edges"></span>
@@ -389,9 +399,16 @@
           <button type="button" id="ad-fs-close" class="btn btn-secondary btn-sm">UI</button>
         </div>
         <div class="ad-fs-bars">
+          <div class="autodrive-bar-label"><span>Session</span><span id="ad-fs-eta">—</span></div>
           <div class="autodrive-bar-track tall"><div id="ad-fs-progress" class="autodrive-bar-fill session"></div></div>
+          <div class="autodrive-bar-label"><span>Intensität</span><span id="ad-fs-rel-label">0%</span></div>
           <div class="autodrive-bar-track tall"><div id="ad-fs-rel" class="autodrive-bar-fill rel"></div></div>
+          <div class="autodrive-bar-label"><span>Edge-Score</span></div>
           <div class="autodrive-bar-track tall"><div id="ad-fs-edge" class="autodrive-bar-fill edge"></div></div>
+        </div>
+        <div class="ad-fs-nudge">
+          <button type="button" id="ad-fs-nudge-down" class="btn btn-secondary">− Intensität</button>
+          <button type="button" id="ad-fs-nudge-up" class="btn btn-secondary">+ Intensität</button>
         </div>
         <p class="ad-fs-tip" id="ad-fs-tip"></p>
         <div class="ad-fs-feedback">

@@ -1,5 +1,20 @@
 # Changelog
 
+## 3.11.1 — Autodrive polish (pressure, nudge, wake-lock)
+
+### Verbesserungen
+- **Time-Pressure**: ab ~72% Session-Zeit Phase beschleunigen → eher Push
+- **Kein Soft-Reset** in Edge/Surge/Push und im letzten Viertel der Session
+- **Push-Commit**: „Fast“ im Push verlängert Fenster + Boost-Crests
+- **± Intensität** im Fullscreen (+ Tasten `-`/`=`)
+- **Wake-Lock** hält Display wach während Session
+- **Haptik** bei Prompt/Phase (wenn Browser erlaubt)
+- **Fullscreen Auto** bei Edge/Push + Phasen-Flash/Farben
+- **Session-Uhr** im Fullscreen (elapsed · remaining)
+- **Connect-Banner** im Autodrive-Tab wenn getrennt
+- **Onboarding**: Autodrive-Schritt
+- **1-Tap** überspringt Kalib nach erfolgreichen Sessions
+
 ## 3.11.0 — Autodrive UX Complete (Fullscreen, 1-Tap, Debrief)
 
 ### UX / Climax-Quote

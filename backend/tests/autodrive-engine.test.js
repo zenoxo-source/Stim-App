@@ -356,4 +356,34 @@ describe("autodrive-engine", () => {
     s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
     assert.ok(s.pendingPrompt);
   });
+
+  it("nudge_up raises intensity", () => {
+    let s = createInitialState(classicCfg(), t0);
+    s = {
+      ...s,
+      phase: "BUILD",
+      phaseDeadlineAt: t0 + 999999,
+      relStrength: 0.4,
+    };
+    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "nudge_up", nowMs: t0 + 100 });
+    assert.ok(s.relStrength > 0.4);
+  });
+
+  it("time pressure shortens long tease near end of session", () => {
+    let s = createInitialState(classicCfg(), t0);
+    s = {
+      ...s,
+      phase: "TEASE",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 120000,
+      effectiveElapsedMs: 0.85 * s.targetDurationMs,
+      targetDurationMs: s.targetDurationMs,
+      edgeCountDone: 2,
+      edgeCountTarget: 2,
+      lastTickAt: t0,
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    // either surged or deadline shortened
+    assert.ok(s.phase === "SURGE" || s.phaseDeadlineAt < t0 + 120000);
+  });
 });
