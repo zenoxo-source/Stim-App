@@ -2092,3 +2092,47 @@ textarea.text-input { resize: vertical; min-height: 100px; }
   display: block;
   border: 1px solid var(--border-color);
 }
+
+.home-readiness { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.ready-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 8px; font-size: 13px;
+  background: rgba(255,255,255,0.04);
+}
+.ready-row.ready-ok { border-left: 3px solid #107c41; }
+.ready-row.ready-warn { border-left: 3px solid #d83b01; }
+.ready-row.ready-bad { border-left: 3px solid #666; }
+.ready-icon { font-weight: 700; width: 1.2em; }
+.ready-label { flex: 1; }
+.home-stories { display: flex; flex-direction: column; gap: 8px; }
+.story-card {
+  text-align: left; padding: 12px; border-radius: 10px;
+  border: 1px solid var(--border-color); background: var(--bg-input);
+  color: var(--text-primary); cursor: pointer;
+}
+.story-card:hover { border-color: #d83b01; }
+.story-card strong { display: block; margin-bottom: 4px; }
+.story-card span { font-size: 12px; color: var(--text-muted); }
+.session-chrome {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+  z-index: 9000; display: flex; align-items: center; gap: 14px;
+  padding: 10px 16px; border-radius: 999px;
+  background: rgba(20,20,24,0.92); border: 1px solid var(--border-color);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45); max-width: 96vw; flex-wrap: wrap;
+}
+.sc-mode { font-weight: 700; font-size: 13px; white-space: nowrap; }
+.sc-stats { display: flex; gap: 10px; font-size: 12px; color: var(--text-secondary); }
+.sc-actions { display: flex; gap: 6px; }
+.partner-panel {
+  position: fixed; inset: 0; z-index: 10002;
+  background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.partner-card {
+  background: var(--bg-surface-solid); border-radius: 14px; padding: 18px;
+  max-width: 480px; width: 100%; border: 1px solid var(--border-color);
+}
+.partner-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;
+}
+.partner-grid .btn { min-height: 56px; font-weight: 600; }

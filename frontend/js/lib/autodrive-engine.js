@@ -142,6 +142,10 @@ export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
   /** @type {"sync"|"aRhythm_bSteady"|"aSteady_bRhythm"} */
   abRole: "sync",
   fullscreenPreferred: true,
+  /** When true and STIM audio plays, wave/freq from audio, strength from Autodrive */
+  hybridAudio: false,
+  /** Story id if started from story template */
+  storyId: null,
 });
 
 const SENSITIVITY_SCALE = Object.freeze({
@@ -307,6 +311,8 @@ export function sanitiseAutodriveConfig(input) {
   if (typeof raw.fullscreenPreferred === "boolean") {
     base.fullscreenPreferred = raw.fullscreenPreferred;
   }
+  if (typeof raw.hybridAudio === "boolean") base.hybridAudio = raw.hybridAudio;
+  if (typeof raw.storyId === "string") base.storyId = raw.storyId.slice(0, 64);
 
   if (base.autoStopMinutes == null) {
     base.autoStopMinutes = Math.max(base.targetDurationMin + 8, 30);
@@ -408,6 +414,9 @@ export function createInitialState(config, nowMs, learning = {}) {
     nextPromptAt: nowMs + 20000,
     lastPromptAt: 0,
     pendingPrompt: null,
+    /** Consecutive almost without climax — quality loop */
+    almostWithoutClimax: 0,
+    qualityBoost: 0,
   };
 }
 
@@ -484,7 +493,7 @@ export function reduceAutodrive(state, event) {
   if (s.phase === "PAUSED") return s;
 
   if (event.type === "FEEDBACK" && event.feedback === "climaxed") {
-    return enterAftercare(s, now, true);
+    return enterAftercare({ ...s, almostWithoutClimax: 0, qualityBoost: 0 }, now, true);
   }
   if (event.type === "USER_CLIMAX") {
     return enterAftercare(s, now, true);
@@ -1417,6 +1426,7 @@ function applyFeedback(s, feedback, now) {
       ...s,
       lastAlmostAt: now,
       consecutiveAlmost: (s.consecutiveAlmost || 0) + 1,
+      almostWithoutClimax: (s.almostWithoutClimax || 0) + 1,
       edgeScore: clamp((s.edgeScore || 0) + 20, 0, 100),
       feedbackBias: Math.min(s.feedbackBias || 0, 0.05),
       climbRate: Math.max(0.5, (s.climbRate || 1) * 0.8),
@@ -1431,17 +1441,25 @@ function applyFeedback(s, feedback, now) {
       return enterHold(scoreUp, now);
     }
     if (s.phase === "CLIMAX_PUSH") {
-      // Drop then 2 reinforced crests; extend push window (commit)
-      const extend = 20000;
+      const almostN = (s.almostWithoutClimax || 0) + 1;
+      // Quality loop: 3+ almost without climax → longer push + more boost
+      const boost = almostN >= 3 ? 3 : 2;
+      const extend = almostN >= 3 ? 35000 : 20000;
       return {
         ...scoreUp,
+        almostWithoutClimax: almostN,
+        qualityBoost: almostN >= 3 ? 1 : s.qualityBoost || 0,
         relStrength: clamp(s.relStrength * 0.72, 0.48, 0.82),
         climaxInDrop: true,
         climaxWaveStartedAt: now,
-        pushBoostRemaining: 2,
-        wireFreqTarget: clamp((s.wireFreqTarget || 80) + 15, 10, 240),
+        pushBoostRemaining: boost,
+        wireFreqTarget: clamp((s.wireFreqTarget || 80) + 15 + (almostN >= 3 ? 10 : 0), 10, 240),
         dutyCycle: 0.9,
         phaseDeadlineAt: Math.max(s.phaseDeadlineAt || now, now) + extend,
+        pendingPrompt:
+          almostN >= 3
+            ? "Mehrere × Fast — Push verlängert. Soft-Limits ok? Placement prüfen?"
+            : scoreUp.pendingPrompt,
       };
     }
     return scoreUp;

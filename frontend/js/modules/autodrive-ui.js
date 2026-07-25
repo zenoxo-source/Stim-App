@@ -1,6 +1,7 @@
 // autodrive-ui.js — Home 1-tap, fullscreen session, prompts, debrief, coach
 
 import { AppState, log } from "../state.js";
+// log used by stories
 import {
   startAutodrive,
   startQuickClassic,
@@ -24,6 +25,8 @@ import {
   AUTODRIVE_TEMPLATES,
 } from "./autodrive.js";
 import { getOutputOwner } from "./output-owner.js";
+import { renderReadinessList, renderHomeMetrics } from "./session-readiness.js";
+import { listStories, runStory } from "./session-stories.js";
 
 const TIMELINE = [
   { id: "CALIBRATING", label: "Kalib" },
@@ -213,6 +216,7 @@ function collectConfigFromUi() {
   const placement = document.getElementById("autodrive-placement")?.value || "soft_external";
   const abRole = document.getElementById("autodrive-ab-role")?.value || "sync";
   const fullscreenPreferred = !!document.getElementById("autodrive-fullscreen-pref")?.checked;
+  const hybridAudio = !!document.getElementById("autodrive-hybrid")?.checked;
 
   return saveAutodriveConfig({
     templateId,
@@ -228,7 +232,52 @@ function collectConfigFromUi() {
     placement,
     abRole,
     fullscreenPreferred,
+    hybridAudio,
   });
+}
+
+function paintHomeExtras() {
+  const ready = document.getElementById("home-readiness");
+  if (ready) {
+    renderReadinessList(ready);
+    ready.querySelectorAll(".ready-action").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const a = btn.getAttribute("data-action");
+        if (a === "connect") document.getElementById("btn-connect")?.click();
+        else if (a === "settings")
+          document.querySelector('.nav-item[data-tab="settings"]')?.click();
+        else if (a === "stim-calib") {
+          document.querySelector('.nav-item[data-tab="stim"]')?.click();
+          setTimeout(() => document.getElementById("btn-stim-calib-start")?.click(), 200);
+        }
+      });
+    });
+  }
+  renderHomeMetrics(document.getElementById("home-metrics-detail"));
+
+  const stories = document.getElementById("home-stories");
+  if (stories && !stories.dataset.wired) {
+    stories.dataset.wired = "1";
+    stories.innerHTML = listStories()
+      .map(
+        (s) =>
+          `<button type="button" class="story-card" data-story="${s.id}">
+            <strong>${s.label}</strong>
+            <span>${s.description}</span>
+          </button>`
+      )
+      .join("");
+    stories.querySelectorAll(".story-card").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const r = runStory(btn.getAttribute("data-story"));
+        if (!r.ok) log(`Story: ${r.error}`, "error");
+        else if (!r.stimOnly) {
+          wasRunning = true;
+          maybeOpenFullscreen();
+        }
+      });
+    });
+  }
 }
 
 function setStatusMsg(msg, isError) {
@@ -322,9 +371,17 @@ document.addEventListener("DOMContentLoaded", () => {
     if (ab && cfg.abRole) ab.value = cfg.abRole;
     const fsPref = document.getElementById("autodrive-fullscreen-pref");
     if (fsPref) fsPref.checked = cfg.fullscreenPreferred !== false;
+    const hybrid = document.getElementById("autodrive-hybrid");
+    if (hybrid) hybrid.checked = !!cfg.hybridAudio;
   } catch {
     buildTemplateGrid("classic");
   }
+
+  paintHomeExtras();
+  document.getElementById("stim-map-toggle")?.addEventListener("click", () => {
+    const body = document.getElementById("stim-map-body");
+    if (body) body.style.display = body.style.display === "none" ? "" : "none";
+  });
 
   document.getElementById("btn-autodrive-start")?.addEventListener("click", () => {
     handleStartResult(startAutodrive(collectConfigFromUi()));
@@ -495,7 +552,10 @@ document.addEventListener("DOMContentLoaded", () => {
     paintDashboard(st);
   });
 
-  setInterval(refreshHomeSummary, 1000);
+  setInterval(() => {
+    refreshHomeSummary();
+    paintHomeExtras();
+  }, 1000);
   paintDashboard(getAutodriveState());
   paintCoach();
 });

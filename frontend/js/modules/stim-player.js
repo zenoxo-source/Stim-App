@@ -9,6 +9,67 @@ const STIM_CFG_KEY = "stim_app_stim_player_v1";
 /** @typedef {"spectrum"|"fixed"|"with_intensity"|"inverse_intensity"} StimFreqMode */
 /** @typedef {"stereo"|"mono_l"|"mono_r"|"mono_sum"} StimChannelMode */
 
+/** Named audio mapping presets (XToys-style quick configs). */
+export const STIM_AUDIO_PRESETS = Object.freeze({
+  bass_power: {
+    id: "bass_power",
+    label: "Bass → Power",
+    strengthDrive: true,
+    freqMode: "with_intensity",
+    channelMode: "mono_sum",
+    smoothing: 0.45,
+    sensitivityA: 1.4,
+    sensitivityB: 1.4,
+    waveAmpMin: 20,
+    waveAmpMax: 100,
+  },
+  freq_follow: {
+    id: "freq_follow",
+    label: "Freq folgt Amp",
+    strengthDrive: true,
+    freqMode: "with_intensity",
+    channelMode: "stereo",
+    smoothing: 0.35,
+    sensitivityA: 1.2,
+    sensitivityB: 1.2,
+  },
+  soft_smooth: {
+    id: "soft_smooth",
+    label: "Sanft glatt",
+    strengthDrive: true,
+    freqMode: "fixed",
+    freqFixed: 40,
+    channelMode: "stereo",
+    smoothing: 0.65,
+    sensitivityA: 0.9,
+    sensitivityB: 0.9,
+    waveAmpMin: 10,
+    waveAmpMax: 70,
+  },
+  sharp_spectrum: {
+    id: "sharp_spectrum",
+    label: "Scharf spektral",
+    strengthDrive: true,
+    freqMode: "spectrum",
+    channelMode: "stereo",
+    smoothing: 0.2,
+    sensitivityA: 1.5,
+    sensitivityB: 1.5,
+    waveAmpMin: 25,
+    waveAmpMax: 100,
+  },
+  inverse_deep: {
+    id: "inverse_deep",
+    label: "Invers / deep",
+    strengthDrive: true,
+    freqMode: "inverse_intensity",
+    channelMode: "mono_sum",
+    smoothing: 0.4,
+    sensitivityA: 1.1,
+    sensitivityB: 1.1,
+  },
+});
+
 export const STIM_DEFAULTS = Object.freeze({
   sensitivityA: 1.2,
   sensitivityB: 1.2,
@@ -134,6 +195,37 @@ export function resetStimSmoothing() {
 
 export function getStimHistory() {
   return history.slice();
+}
+
+/**
+ * Apply a named audio preset (keeps strength min/max for calibration).
+ * @param {string} presetId
+ */
+export function applyStimAudioPreset(presetId) {
+  const p = STIM_AUDIO_PRESETS[presetId];
+  if (!p) return loadStimConfig();
+  const cur = loadStimConfig();
+  return saveStimConfig({
+    ...cur,
+    ...p,
+    // preserve user calibration range
+    strengthMin: cur.strengthMin,
+    strengthMax: cur.strengthMax,
+    baseStrength: cur.baseStrength,
+  });
+}
+
+/**
+ * Calib wizard state machine for STIM strength min/max.
+ * @returns {{ phase: string, strengthMin: number, strengthMax: number }}
+ */
+export function createStimCalibState() {
+  return {
+    phase: "idle", // idle | find_min | find_max | done
+    strengthMin: 15,
+    strengthMax: 80,
+    probeLevel: 10,
+  };
 }
 
 function peakFromTimeDomain(arr) {

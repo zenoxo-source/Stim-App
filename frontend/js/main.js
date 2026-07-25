@@ -116,6 +116,15 @@ import "./modules/ai-director.js";
 import "./modules/autodrive.js";
 import "./modules/autodrive-ui.js";
 
+// Session UX: readiness, chrome, stories, partner, shock, export
+import "./modules/session-readiness.js";
+import "./modules/session-chrome.js";
+import "./modules/session-stories.js";
+import "./modules/partner-ui.js";
+import "./modules/shock.js";
+import "./modules/session-export.js";
+import "./modules/stim-player.js";
+
 // LLM service (chat completion + tool dispatch)
 import "./llm-service.js";
 

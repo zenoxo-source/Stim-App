@@ -22,7 +22,11 @@ import {
 } from "./modules/bluetooth.js";
 import { updateOutputStatus } from "./modules/status-ui.js";
 import { i18nText } from "./modules/i18n.js";
-import { applyAutodriveWaveTick, isAutodriveActive } from "./modules/autodrive.js";
+import {
+  applyAutodriveWaveTick,
+  isAutodriveActive,
+  getAutodriveState,
+} from "./modules/autodrive.js";
 import { claimOutput, releaseOutput, registerOwnerStop } from "./modules/output-owner.js";
 import { processAudioToStim, loadStimConfig, getStimHistory } from "./modules/stim-player.js";
 
@@ -312,11 +316,37 @@ export function startWaveLoop() {
     updateHeartbeat();
 
     if (AppState.activePattern === "autodrive") {
-      await applyAutodriveWaveTick(
-        (fA, aA, fB, aB, opts) =>
-          sendWaveformCommand(fA, aA, fB, aB, opts || { writer: "wave-loop" }),
-        computeNamedPatternWave
-      );
+      const hybridOn =
+        !!getAutodriveState()?.config?.hybridAudio &&
+        AppState.isAudioPlaying &&
+        AppState.analyserA &&
+        AppState.analyserB;
+      await applyAutodriveWaveTick(async (fA, aA, fB, aB, opts) => {
+        if (hybridOn) {
+          const cfg = loadStimConfig();
+          if (AppState.sensitivityA) cfg.sensitivityA = AppState.sensitivityA;
+          if (AppState.sensitivityB) cfg.sensitivityB = AppState.sensitivityB;
+          const audio = processAudioToStim(AppState.analyserA, AppState.analyserB, {
+            ...cfg,
+            strengthDrive: false,
+          });
+          AppState.lastWaveFreqA = audio.fA;
+          AppState.lastWaveAmpA = audio.aA;
+          AppState.lastWaveFreqB = audio.fB;
+          AppState.lastWaveAmpB = audio.aB;
+          await sendWaveformCommand(
+            audio.fA,
+            audio.aA,
+            audio.fB,
+            audio.aB,
+            opts || {
+              writer: "wave-loop",
+            }
+          );
+          return;
+        }
+        await sendWaveformCommand(fA, aA, fB, aB, opts || { writer: "wave-loop" });
+      }, computeNamedPatternWave);
     } else if (AppState.activePattern === "session") {
       const tick = SESSION_STATE.computeTick();
       if (tick) {

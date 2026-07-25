@@ -124,6 +124,7 @@
         <div id="bt-device-list" class="bt-device-list" style="display:none;"></div>
         <button id="btn-connect" class="btn" aria-label="Bluetooth verbinden">🔌 Bluetooth Verbinden</button>
         <button id="btn-disconnect" class="btn btn-danger" style="display: none;" aria-label="Bluetooth trennen">🔌 Trennen</button>
+        <button type="button" id="btn-shock-sidebar" class="btn btn-secondary" style="margin-top:6px;" title="Kurzer Burst">⚡ Shock</button>
         <button id="btn-panic" class="btn btn-danger btn-panic" title="Notstopp (Strg+Leertaste)" aria-label="Notstopp – Ausgabe sofort stoppen">🛑 STOPP</button>
       </div>
     </aside>
@@ -197,9 +198,11 @@
           <div class="card">
             <div class="card-title">Willkommen</div>
             <p style="margin: 0 0 12px; color: var(--text-muted, #9aa); line-height: 1.5;">
-              Verbinde dein Coyote, prüfe Soft-Limits und starte Autodrive — die adaptive Session, die dich mit Feedback zum Höhepunkt führt.
+              Verbinde dein Coyote, prüfe Soft-Limits und starte — Autodrive oder STIM.
             </p>
-            <div id="home-connection-summary" style="margin-bottom: 12px; font-size: 14px;">
+            <div class="card-title" style="font-size:14px;">Session bereit</div>
+            <div id="home-readiness" class="home-readiness"></div>
+            <div id="home-connection-summary" style="margin: 12px 0; font-size: 14px;">
               <div>Verbindung: <strong id="home-conn-text">Getrennt</strong></div>
               <div>Soft-Limits: A <strong id="home-soft-a">—</strong> · B <strong id="home-soft-b">—</strong></div>
             </div>
@@ -207,22 +210,20 @@
               <button type="button" id="home-btn-connect" class="btn">🔌 Bluetooth</button>
               <button type="button" id="home-btn-quick-start" class="btn" style="background: linear-gradient(135deg, #d83b01, #a80000); font-weight: 700;">🚀 1-Tap Klassisch</button>
               <button type="button" id="home-btn-last-success" class="btn btn-secondary" style="display:none;">⭐ Letzte erfolgreiche</button>
-              <button type="button" id="home-btn-autodrive" class="btn btn-secondary">Autodrive anpassen</button>
+              <button type="button" id="home-btn-autodrive" class="btn btn-secondary">Autodrive</button>
               <button type="button" id="home-btn-manual" class="btn btn-secondary">Manual</button>
+              <button type="button" id="btn-partner-open" class="btn btn-secondary">👥 Partner</button>
+              <button type="button" id="btn-shock" class="btn btn-danger" title="Kurzer Burst">⚡ Shock</button>
             </div>
             <p style="margin: 14px 0 0; font-size: 12px; color: var(--text-muted, #888);">
-              Keine Garantie — biologische Varianz, Soft-Limits und Consent gelten. Panic (STOPP) jederzeit.
+              Keine Garantie — Soft-Limits, Consent, Panic (STOPP) jederzeit.
             </p>
             <div id="home-ad-stats" class="home-ad-stats" style="margin-top: 12px; font-size: 12px; color: var(--text-muted);"></div>
+            <div id="home-metrics-detail" class="home-ad-stats" style="margin-top: 6px;"></div>
           </div>
           <div class="card">
-            <div class="card-title">Schnellstart</div>
-            <ol style="margin: 0; padding-left: 18px; line-height: 1.7; font-size: 14px;">
-              <li>Soft-Limits unter Einstellungen setzen</li>
-              <li>Bluetooth verbinden</li>
-              <li><strong>1-Tap Klassisch</strong> oder Template wählen</li>
-              <li>Große Feedback-Buttons (Fullscreen) nutzen</li>
-            </ol>
+            <div class="card-title">Session-Stories</div>
+            <div id="home-stories" class="home-stories"></div>
             <div id="home-autodrive-mini" style="margin-top: 16px; display: none;">
               <div style="font-weight: 600; margin-bottom: 6px;">Autodrive läuft</div>
               <div>Phase: <span id="home-ad-phase">—</span></div>
@@ -230,6 +231,11 @@
                 <div id="home-ad-progress" style="height: 100%; width: 0%; background: #d83b01; transition: width 0.2s;"></div>
               </div>
               <button type="button" id="home-btn-fullscreen" class="btn" style="margin-top: 10px; width: 100%;">⛶ Session Fullscreen</button>
+            </div>
+            <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;">
+              <button type="button" id="btn-session-export" class="btn btn-secondary btn-sm">Export Session JSON</button>
+              <button type="button" id="btn-session-import" class="btn btn-secondary btn-sm">Import JSON</button>
+              <input type="file" id="input-session-import" accept="application/json,.json" style="display:none;">
             </div>
           </div>
         </div>
@@ -287,7 +293,8 @@
               </div>
               <div class="autodrive-check">
                 <label><input type="checkbox" id="autodrive-auto-climb" checked /> Auto-Climb</label>
-                <label style="margin-left: 12px;"><input type="checkbox" id="autodrive-fullscreen-pref" checked /> Fullscreen beim Start</label>
+                <label style="margin-left: 12px;"><input type="checkbox" id="autodrive-fullscreen-pref" checked /> Fullscreen</label>
+                <label style="margin-left: 12px;"><input type="checkbox" id="autodrive-hybrid" /> Hybrid: STIM-Audio für Wave</label>
               </div>
             </div>
 
@@ -424,6 +431,32 @@
           <button type="button" id="ad-fs-pause" class="btn btn-secondary">Pause</button>
           <button type="button" id="ad-fs-resume" class="btn btn-secondary">Weiter</button>
           <button type="button" id="ad-fs-stop" class="btn btn-danger">Stop</button>
+        </div>
+      </div>
+
+      <!-- Partner panel -->
+      <div id="partner-panel" class="partner-panel" style="display:none;" aria-modal="true" role="dialog">
+        <div class="partner-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h2 style="margin:0;">Partner-Steuerung</h2>
+            <button type="button" id="partner-close" class="btn btn-secondary btn-sm">×</button>
+          </div>
+          <p id="partner-status" style="font-size:13px;color:var(--text-muted);">—</p>
+          <p style="font-size:12px;color:var(--text-muted);">Lokal oder per Remote: <code>autodrive_feedback</code></p>
+          <div class="partner-grid">
+            <button type="button" class="btn partner-fb" data-fb="too_weak">Zu schwach</button>
+            <button type="button" class="btn partner-fb" data-fb="good">Gut</button>
+            <button type="button" class="btn partner-fb" data-fb="too_strong">Zu stark</button>
+            <button type="button" class="btn partner-fb" data-fb="almost" style="background:linear-gradient(135deg,#8660a9,#d83b01);">🔥 Fast</button>
+            <button type="button" class="btn partner-fb" data-fb="now" style="background:#d83b01;">⚡ Jetzt</button>
+            <button type="button" class="btn partner-fb" data-fb="climaxed" style="background:#107c41;">✓ Fertig</button>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+            <button type="button" id="partner-start" class="btn">Start Klassisch</button>
+            <button type="button" id="partner-pause" class="btn btn-secondary">Pause</button>
+            <button type="button" id="partner-stop" class="btn btn-danger">Stop</button>
+            <button type="button" id="partner-shock" class="btn btn-secondary">⚡ Shock</button>
+          </div>
         </div>
       </div>
 
@@ -764,8 +797,27 @@
           </div>
 
           <div class="card">
-            <div class="card-title">Mapping &amp; Kalibrierung (XToys-Style)</div>
-            <div class="stim-map-grid">
+            <div class="card-title">Audio-Presets</div>
+            <div id="stim-preset-grid" class="stim-preset-grid" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">STIM-Kalibrierung</div>
+            <p id="stim-calib-status" style="font-size:13px;color:var(--text-muted);min-height:2.5em;">Min = fühlbar, Max = Cap. Soft-Limits bleiben hart.</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <button type="button" id="btn-stim-calib-start" class="btn">Kalib starten</button>
+              <button type="button" id="btn-stim-calib-up" class="btn btn-secondary">+5</button>
+              <button type="button" id="btn-stim-calib-feel" class="btn btn-secondary">Fühlbar</button>
+              <button type="button" id="btn-stim-calib-strong" class="btn btn-secondary">Zu stark / Speichern</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              Mapping (erweitert)
+              <button type="button" id="stim-map-toggle" class="btn btn-secondary btn-sm" style="float:right;">Ein-/Ausklappen</button>
+            </div>
+            <div id="stim-map-body" class="stim-map-grid">
               <div>
                 <label class="field-label">Strength steuern (Audio→Intensität)</label>
                 <label style="font-size:13px;"><input type="checkbox" id="stim-strength-drive" checked> Strength-Drive an</label>

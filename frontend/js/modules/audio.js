@@ -1,11 +1,17 @@
 // audio.js - STIM Audio extraction player with playlist (XToys-inspired mapping)
 import { AppState, DOM, CONSTANTS, log } from "../state.js";
 import * as ProtocolUtils from "../lib/protocol-utils.js";
-import { sendSoftStop } from "./bluetooth.js";
+import { sendSoftStop, sendStrengthCommand, sendWaveformCommand } from "./bluetooth.js";
 import { updateOutputStatus } from "./status-ui.js";
 import { ensureGameStrength } from "./games-extra.js";
 import { claimOutput, releaseOutput, registerOwnerStop } from "./output-owner.js";
-import { loadStimConfig, saveStimConfig, resetStimSmoothing } from "./stim-player.js";
+import {
+  loadStimConfig,
+  saveStimConfig,
+  resetStimSmoothing,
+  applyStimAudioPreset,
+  STIM_AUDIO_PRESETS,
+} from "./stim-player.js";
 
 registerOwnerStop("audio", () => {
   if (AppState.isAudioPlaying) pauseSTIMAudio();
@@ -539,5 +545,94 @@ document.addEventListener("DOMContentLoaded", () => {
           sv.textContent = Number(document.getElementById("stim-smoothing")?.value || 0).toFixed(2);
       }
     });
+  });
+
+  // Audio presets
+  const presetBox = document.getElementById("stim-preset-grid");
+  if (presetBox) {
+    presetBox.innerHTML = Object.values(STIM_AUDIO_PRESETS)
+      .map(
+        (p) =>
+          `<button type="button" class="btn btn-secondary btn-sm stim-preset-btn" data-preset="${p.id}">${p.label}</button>`
+      )
+      .join("");
+    presetBox.querySelectorAll(".stim-preset-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        applyStimAudioPreset(btn.getAttribute("data-preset"));
+        bindStimCfg();
+        log(`STIM-Preset: ${btn.textContent}`, "success");
+      });
+    });
+  }
+
+  // STIM calibration wizard
+  let calib = { phase: "idle", min: 15, max: 80, probe: 10 };
+  const setCalibStatus = (t) => {
+    const el = document.getElementById("stim-calib-status");
+    if (el) el.textContent = t;
+  };
+
+  document.getElementById("btn-stim-calib-start")?.addEventListener("click", () => {
+    if (!AppState.isConnected) {
+      log("Kalib: Bluetooth verbinden.", "error");
+      return;
+    }
+    calib = { phase: "find_min", min: 15, max: 80, probe: 12 };
+    claimOutput("manual");
+    AppState.btPendingMode = CONSTANTS.V3_MODE_ABSOLUTE_BOTH;
+    sendStrengthCommand(calib.probe, calib.probe, { writer: "manual" });
+    sendWaveformCommand(45, 55, 45, 55, { writer: "wave-loop" });
+    setCalibStatus(`Fühlschwelle: ${calib.probe}. + erhöhen, dann „Fühlbar“.`);
+  });
+
+  document.getElementById("btn-stim-calib-up")?.addEventListener("click", () => {
+    if (calib.phase === "idle" || calib.phase === "done") return;
+    calib.probe = Math.min(AppState.softLimitA || 150, calib.probe + 5);
+    sendStrengthCommand(calib.probe, calib.probe, { writer: "manual" });
+    sendWaveformCommand(45, 60, 45, 60, { writer: "wave-loop" });
+    setCalibStatus(`Probe ${calib.probe} (${calib.phase})`);
+  });
+
+  document.getElementById("btn-stim-calib-feel")?.addEventListener("click", () => {
+    if (calib.phase === "find_min") {
+      calib.min = calib.probe;
+      calib.phase = "find_max";
+      calib.probe = Math.min(AppState.softLimitA || 150, calib.min + 15);
+      sendStrengthCommand(calib.probe, calib.probe, { writer: "manual" });
+      setCalibStatus(`Min=${calib.min}. Cap suchen ab ${calib.probe}. + / „Zu stark“.`);
+    } else if (calib.phase === "find_max") {
+      calib.probe = Math.min(AppState.softLimitA || 150, calib.probe + 8);
+      sendStrengthCommand(calib.probe, calib.probe, { writer: "manual" });
+      setCalibStatus(`Weiter ${calib.probe}… „Zu stark“ speichert Cap.`);
+    }
+  });
+
+  document.getElementById("btn-stim-calib-strong")?.addEventListener("click", () => {
+    if (calib.phase === "find_min") {
+      calib.min = Math.max(5, calib.probe - 3);
+      calib.phase = "find_max";
+      calib.probe = Math.min(AppState.softLimitA || 150, calib.min + 20);
+      sendStrengthCommand(calib.probe, calib.probe, { writer: "manual" });
+      setCalibStatus(`Min≈${calib.min}. Max ab ${calib.probe}…`);
+      return;
+    }
+    if (calib.phase !== "find_max") {
+      setCalibStatus("Zuerst Kalib starten.");
+      return;
+    }
+    calib.max = Math.max(calib.min + 10, calib.probe - 3);
+    calib.phase = "done";
+    const maxC = Math.min(calib.max, AppState.softLimitA || 150);
+    saveStimConfig({
+      strengthMin: calib.min,
+      strengthMax: maxC,
+      baseStrength: Math.round((calib.min + maxC) / 3),
+      strengthDrive: true,
+    });
+    bindStimCfg();
+    sendSoftStop({ keepStrength: false, writer: "safety" });
+    releaseOutput("manual");
+    setCalibStatus(`Gespeichert: ${calib.min}–${maxC}.`);
+    log(`STIM-Kalib: min=${calib.min} max=${maxC}`, "success");
   });
 });

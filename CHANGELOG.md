@@ -1,5 +1,25 @@
 # Changelog
 
+## 3.13.0 — Experience A+B+C (Readiness, Hybrid, Partner, Shock)
+
+### Stufe A — Einstieg & Klarheit
+- **Session-bereit-Checkliste** auf Home (BT, Soft-Limits, STIM-Kalib) mit Fix-Buttons
+- **Session-Chrome** Floating-Bar bei aktivem Output (Modus, A/B, Pause/Stop/STOPP)
+- **STIM-Kalib-Wizard** (Fühlbar / Zu stark → Min/Max)
+- **Audio-Presets** (Bass→Power, Freq folgt, Sanft, Spektral, Invers)
+- Mapping-Block einklappbar
+
+### Stufe B — Session-Qualität
+- **Hybrid-Modus**: Autodrive steuert Strength, STIM-Audio Wave/Freq
+- **Fast-Quality-Loop**: 3× Fast im Push → längerer Push + Hinweis
+- **Session-Stories** auf Home (Quick, Edge-Abend, Hybrid, Deny, …)
+- **Partner-Panel** (große Feedback-Buttons, Start/Pause/Stop/Shock)
+- **Metriken** auf Home (Sessions, Climax-Rate)
+
+### Stufe C — Power-Features
+- **Shock-Taste** (kurzer Burst in Soft-Limits)
+- **Session JSON Export/Import** (Autodrive+STIM+Shock+Limits)
+
 ## 3.12.0 — STIM Player XToys-level mapping
 
 ### Vergleich XToys vs. Stim App (Coyote 3)
