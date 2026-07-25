@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.0.3 — Visual Upgrade & Cyberpunk Glassmorphism UI
+
+### App Icon & Branding
+- **Neues Dual-Puls App-Icon**: Vektor-Design mit Cyan & Magenta e-stim Impulswellen auf obsidianfarbenem Glasmorphismus-Schild
+- **Sidebar-Brand Update**: Neues hochauflösendes App-Icon im Sidebar-Header mit Hover-Scaling und Neonglow
+
+### UI & Aesthetics
+- **Cyberpunk Glassmorphism Design Tokens**: Obsidian-Glasflächen (`backdrop-filter: blur(20px)`), leuchtende Neon-Akzente & feine Glow-Borders
+- **Futuristische Buttons & Controls**: Überarbeitete Primary, Secondary & Danger-Button-Suite mit Klick-Skalierung, Neonglow und pulsierendem Panic-STOP-Knopf
+- **Tactile Sliders & Dials**: Leuchtende Schieberegler-Thumbs & veredelte Intensitäts-/Frequenz-Displays
+
 ## 4.0.2 — Manual: Frequency-Regler wie Strength
 
 ### UI
