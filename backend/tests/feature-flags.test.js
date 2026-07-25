@@ -17,6 +17,7 @@ describe("feature-flags", () => {
     const f = loadFlags();
     assert.equal(f.autodrive, FLAG_DEFAULTS.autodrive);
     assert.equal(f.newNav, FLAG_DEFAULTS.newNav);
+    assert.equal(f.navV4, true);
   });
 
   it("persists patch", () => {

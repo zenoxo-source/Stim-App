@@ -757,6 +757,13 @@ document.addEventListener("DOMContentLoaded", () => {
       // PR2 / v3.2.0 — persist last-open tab
       saveActiveTab(tabName);
 
+      // v4.0: control subnav + more-group expansion (nav-shell may also listen)
+      try {
+        document.body.dataset.activeTab = tabName || "";
+      } catch {
+        /* ignore */
+      }
+
       const headerTitle = DOM["view-title"];
       const headerSub = DOM["view-subtitle"];
 
@@ -771,11 +778,11 @@ document.addEventListener("DOMContentLoaded", () => {
         ],
         deck: [
           i18nText("nav_deck", "Manual"),
-          i18nText("view_subtitle_deck", "Stim App · DG-LAB Coyote 3.0"),
+          i18nText("view_subtitle_deck", "Slider · Patterns · Ramp · Sessions"),
         ],
         stim: [
           i18nText("nav_stim", "STIM Player"),
-          i18nText("view_stim_subtitle", "Audio · Playlist · Amplituden → A/B"),
+          i18nText("view_stim_subtitle", "Audio · Playlist · Strength/Freq-Mapping"),
         ],
         games: [
           i18nText("nav_games", "Play"),
@@ -795,7 +802,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ],
         settings: [
           i18nText("nav_settings", "Einstellungen"),
-          i18nText("view_settings_subtitle", "Sicherheit, Updates & Diagnose"),
+          i18nText("view_settings_subtitle", "Sicherheit zuerst · Erweitert einklappbar"),
         ],
       };
 

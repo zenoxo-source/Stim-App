@@ -5,7 +5,7 @@
 | **Titel** | Complete App Restructure + Autodrive Mode |
 | **Autor** | TBD (Design) |
 | **Datum** | 2026-07-25 |
-| **Status** | Draft (Rev 2.4 — open questions locked by product owner 2026-07-25) |
+| **Status** | Partially shipped through 3.14; **IA shell shipped in 4.0.0** (see `ROADMAP-4.0.md`) |
 | **Zielversion** | 4.0.0 (inkrementell ab 3.9.x → 3.10… → 4.0) |
 | **Repo** | `C:\opencode\CoyoteApp` (Stim App v3.9.3) |
 | **Scope** | Frontend-Produktarchitektur + neuer Autodrive-Engine; **kein** Electron-Rewrite |

@@ -125,6 +125,9 @@ import "./modules/shock.js";
 import "./modules/session-export.js";
 import "./modules/stim-player.js";
 
+// v4.0 IA shell: nav groups, settings advanced, compact header, Manual/STIM subnav
+import "./modules/nav-shell.js";
+
 // LLM service (chat completion + tool dispatch)
 import "./llm-service.js";
 

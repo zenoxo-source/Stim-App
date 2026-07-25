@@ -54,54 +54,70 @@
           <div class="brand-name">Stim App</div>
         </div>
         
-        <nav>
-          <ul class="nav-menu">
-            <li class="nav-item active" data-tab="home">
-              <button id="nav-btn-home">
-                <span class="nav-icon">🏠</span> Home
-              </button>
-            </li>
-            <li class="nav-item" data-tab="autodrive">
-              <button id="nav-btn-autodrive">
-                <span class="nav-icon">🚀</span> Autodrive
-              </button>
-            </li>
-            <li class="nav-item" data-tab="deck">
-              <button id="nav-btn-deck">
-                <span class="nav-icon">🎛️</span> Manual
-              </button>
-            </li>
-            <li class="nav-item" data-tab="stim">
-              <button id="nav-btn-stim">
-                <span class="nav-icon">🎵</span> STIM Player
-              </button>
-            </li>
-            <li class="nav-item" data-tab="games">
-              <button id="nav-btn-games">
-                <span class="nav-icon">🎮</span> Play
-              </button>
-            </li>
-            <li class="nav-item" data-tab="editor">
-              <button id="nav-btn-editor">
-                <span class="nav-icon">📚</span> Library
-              </button>
-            </li>
-            <li class="nav-item" data-tab="remote">
-              <button id="nav-btn-remote">
-                <span class="nav-icon">🌐</span> Connect
-              </button>
-            </li>
-            <li class="nav-item" data-tab="ai">
-              <button id="nav-btn-ai">
-                <span class="nav-icon">🤖</span> AI
-              </button>
-            </li>
-            <li class="nav-item" data-tab="settings">
-              <button id="nav-btn-settings">
-                <span class="nav-icon">⚙️</span> Einstellungen
-              </button>
-            </li>
-          </ul>
+        <nav class="app-nav" aria-label="Hauptnavigation">
+          <div class="nav-group">
+            <div class="nav-group-label">Session</div>
+            <ul class="nav-menu">
+              <li class="nav-item active" data-tab="home">
+                <button type="button" id="nav-btn-home">
+                  <span class="nav-icon" aria-hidden="true">🏠</span> Home
+                </button>
+              </li>
+              <li class="nav-item" data-tab="autodrive">
+                <button type="button" id="nav-btn-autodrive">
+                  <span class="nav-icon" aria-hidden="true">🚀</span> Autodrive
+                </button>
+              </li>
+            </ul>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-label">Steuerung</div>
+            <ul class="nav-menu">
+              <li class="nav-item" data-tab="deck">
+                <button type="button" id="nav-btn-deck">
+                  <span class="nav-icon" aria-hidden="true">🎛️</span> Manual
+                </button>
+              </li>
+              <li class="nav-item" data-tab="stim">
+                <button type="button" id="nav-btn-stim">
+                  <span class="nav-icon" aria-hidden="true">🎵</span> STIM
+                </button>
+              </li>
+            </ul>
+          </div>
+          <div class="nav-group nav-group-more">
+            <button type="button" id="nav-more-toggle" class="nav-more-toggle" aria-expanded="true" aria-controls="nav-more-menu">
+              <span>Mehr</span>
+              <span class="nav-chevron" aria-hidden="true">▾</span>
+            </button>
+            <ul class="nav-menu nav-more-menu" id="nav-more-menu">
+              <li class="nav-item" data-tab="games">
+                <button type="button" id="nav-btn-games">
+                  <span class="nav-icon" aria-hidden="true">🎮</span> Play
+                </button>
+              </li>
+              <li class="nav-item" data-tab="editor">
+                <button type="button" id="nav-btn-editor">
+                  <span class="nav-icon" aria-hidden="true">📚</span> Library
+                </button>
+              </li>
+              <li class="nav-item" data-tab="remote">
+                <button type="button" id="nav-btn-remote">
+                  <span class="nav-icon" aria-hidden="true">🌐</span> Connect
+                </button>
+              </li>
+              <li class="nav-item" data-tab="ai">
+                <button type="button" id="nav-btn-ai">
+                  <span class="nav-icon" aria-hidden="true">🤖</span> AI
+                </button>
+              </li>
+              <li class="nav-item" data-tab="settings">
+                <button type="button" id="nav-btn-settings">
+                  <span class="nav-icon" aria-hidden="true">⚙️</span> Einstellungen
+                </button>
+              </li>
+            </ul>
+          </div>
         </nav>
       </div>
       
@@ -135,8 +151,8 @@
       <!-- App Header -->
       <header class="app-header">
         <div class="header-title">
-          <h1 id="view-title">Control Deck</h1>
-          <p id="view-subtitle">Stim App · DG-LAB Coyote 3.0</p>
+          <h1 id="view-title">Home</h1>
+          <p id="view-subtitle">Verbinden · Soft-Limits · Autodrive</p>
         </div>
         
         <div class="header-controls">
@@ -150,27 +166,27 @@
             <span id="battery-text">--%</span>
           </div>
           
-          <div class="preset-bar">
+          <div class="preset-bar header-expandable">
             <button type="button" class="preset-btn" data-preset="gentle">Sanft</button>
             <button type="button" class="preset-btn" data-preset="medium">Mittel</button>
             <button type="button" class="preset-btn" data-preset="intense">Intensiv</button>
           </div>
-          <div class="timer-bar">
-            <select id="timer-minutes" class="select-control" style="width:auto;padding:4px 8px;font-size:12px;">
+          <div class="timer-bar header-expandable">
+            <select id="timer-minutes" class="select-control header-compact-control">
               <option value="5">5 Min</option>
               <option value="10">10 Min</option>
               <option value="15" selected>15 Min</option>
               <option value="30">30 Min</option>
             </select>
-            <button type="button" id="btn-timer-start" class="btn btn-secondary" style="padding:4px 10px;font-size:12px;">Timer</button>
-            <button type="button" id="btn-timer-stop" class="btn btn-secondary" style="padding:4px 10px;font-size:12px;">Stop</button>
+            <button type="button" id="btn-timer-start" class="btn btn-secondary btn-sm">Timer</button>
+            <button type="button" id="btn-timer-stop" class="btn btn-secondary btn-sm">Stop</button>
             <span id="safety-timer-display" class="timer-display">Timer aus</span>
           </div>
-          <button type="button" id="btn-hotkey-help" class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" title="Tastatur (?)">?</button>
+          <button type="button" id="btn-hotkey-help" class="btn btn-secondary btn-sm" title="Tastatur (?)">?</button>
           <div class="master-slider-container">
             <span class="master-slider-label">Master:</span>
             <input type="range" id="slider-master" min="0" max="100" value="100">
-            <span id="master-val-text" style="font-size: 13px; font-family: monospace; min-width: 30px;">100%</span>
+            <span id="master-val-text" class="master-val-text">100%</span>
           </div>
         </div>
       </header>
@@ -179,14 +195,14 @@
         <div class="hotkey-card">
           <h2>Tastatur</h2>
           <ul>
-            <li><kbd>1</kbd>–<kbd>7</kbd> Tabs</li>
+            <li><kbd>1</kbd> Home · <kbd>2</kbd> Autodrive · <kbd>3</kbd> Manual · <kbd>4</kbd> STIM</li>
+            <li><kbd>5</kbd> Play · <kbd>6</kbd> Library · <kbd>7</kbd> Connect · <kbd>8</kbd> AI · <kbd>9</kbd> Settings</li>
             <li><kbd>P</kbd> STIM Play/Pause</li>
             <li><kbd>↑</kbd><kbd>↓</kbd> Intensität A · <kbd>←</kbd><kbd>→</kbd> Intensität B</li>
             <li><kbd>Strg</kbd>+<kbd>Leertaste</kbd> / <kbd>ESC</kbd> lang / STOPP = Panic</li>
+            <li>Autodrive: <kbd>1</kbd>–<kbd>7</kbd> Feedback · <kbd>-</kbd>/<kbd>=</kbd> Intensität</li>
             <li><kbd>Leertaste</kbd> Rhythm-Tap · Edge halten</li>
-            <li><kbd>A</kbd>/<kbd>B</kbd> oder <kbd>←</kbd>/<kbd>→</kbd> Hot Potato</li>
-            <li><kbd>Q</kbd> Survival aufgeben</li>
-            <li><kbd>?</kbd> Diese Hilfe</li>
+            <li><kbd>Q</kbd> Survival aufgeben · <kbd>?</kbd> Diese Hilfe</li>
           </ul>
           <button type="button" id="hotkey-close" class="btn">Schließen</button>
         </div>
@@ -206,33 +222,33 @@
               <div>Verbindung: <strong id="home-conn-text">Getrennt</strong></div>
               <div>Soft-Limits: A <strong id="home-soft-a">—</strong> · B <strong id="home-soft-b">—</strong></div>
             </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+            <div class="home-cta-row">
               <button type="button" id="home-btn-connect" class="btn">🔌 Bluetooth</button>
-              <button type="button" id="home-btn-quick-start" class="btn" style="background: linear-gradient(135deg, #d83b01, #a80000); font-weight: 700;">🚀 1-Tap Klassisch</button>
+              <button type="button" id="home-btn-quick-start" class="btn btn-cta-primary">🚀 1-Tap Klassisch</button>
               <button type="button" id="home-btn-last-success" class="btn btn-secondary" style="display:none;">⭐ Letzte erfolgreiche</button>
               <button type="button" id="home-btn-autodrive" class="btn btn-secondary">Autodrive</button>
               <button type="button" id="home-btn-manual" class="btn btn-secondary">Manual</button>
               <button type="button" id="btn-partner-open" class="btn btn-secondary">👥 Partner</button>
               <button type="button" id="btn-shock" class="btn btn-danger" title="Kurzer Burst">⚡ Shock</button>
             </div>
-            <p style="margin: 14px 0 0; font-size: 12px; color: var(--text-muted, #888);">
+            <p class="home-disclaimer">
               Keine Garantie — Soft-Limits, Consent, Panic (STOPP) jederzeit.
             </p>
-            <div id="home-ad-stats" class="home-ad-stats" style="margin-top: 12px; font-size: 12px; color: var(--text-muted);"></div>
-            <div id="home-metrics-detail" class="home-ad-stats" style="margin-top: 6px;"></div>
+            <div id="home-ad-stats" class="home-ad-stats"></div>
+            <div id="home-metrics-detail" class="home-ad-stats home-metrics-detail"></div>
           </div>
           <div class="card">
             <div class="card-title">Session-Stories</div>
             <div id="home-stories" class="home-stories"></div>
-            <div id="home-autodrive-mini" style="margin-top: 16px; display: none;">
-              <div style="font-weight: 600; margin-bottom: 6px;">Autodrive läuft</div>
+            <div id="home-autodrive-mini" class="home-autodrive-mini" style="display: none;">
+              <div class="home-ad-mini-title">Autodrive läuft</div>
               <div>Phase: <span id="home-ad-phase">—</span></div>
-              <div class="progress-bar" style="height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 8px; overflow: hidden;">
-                <div id="home-ad-progress" style="height: 100%; width: 0%; background: #d83b01; transition: width 0.2s;"></div>
+              <div class="progress-bar home-ad-progress-track">
+                <div id="home-ad-progress" class="home-ad-progress-fill"></div>
               </div>
-              <button type="button" id="home-btn-fullscreen" class="btn" style="margin-top: 10px; width: 100%;">⛶ Session Fullscreen</button>
+              <button type="button" id="home-btn-fullscreen" class="btn home-btn-fs">⛶ Session Fullscreen</button>
             </div>
-            <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;">
+            <div class="home-export-row">
               <button type="button" id="btn-session-export" class="btn btn-secondary btn-sm">Export Session JSON</button>
               <button type="button" id="btn-session-import" class="btn btn-secondary btn-sm">Import JSON</button>
               <input type="file" id="input-session-import" accept="application/json,.json" style="display:none;">

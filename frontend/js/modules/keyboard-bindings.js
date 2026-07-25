@@ -1,9 +1,9 @@
 // keyboard-bindings.js - Register the app's default hotkey actions.
 //
-// Wires existing global shortcuts (tabs 1-7, audio P, intensity arrows,
-// roulette, etc.) through the hotkeys.js customization system. Panic
-// shortcuts (Ctrl+Space, ESC long-press) stay in safety.js — they are
-// life-critical and not user-rebindable.
+// Wires global shortcuts (tabs 1-9, audio P, intensity arrows, etc.)
+// through the hotkeys.js customization system. Panic shortcuts
+// (Ctrl+Space, ESC long-press) stay in safety.js — life-critical,
+// not user-rebindable.
 
 import { AppState, DOM, CONSTANTS } from "../state.js";
 import { registerHotkey } from "./hotkeys.js";
@@ -50,11 +50,22 @@ function clickTab(tabName) {
  * id).
  */
 export function registerDefaultHotkeys() {
-  // Tabs 1-7
+  // Tabs 1-9 (v4.0 IA: Home…Settings)
+  const TAB_LABELS = {
+    home: "Home",
+    autodrive: "Autodrive",
+    deck: "Manual",
+    stim: "STIM",
+    games: "Play",
+    editor: "Library",
+    remote: "Connect",
+    ai: "AI",
+    settings: "Einstellungen",
+  };
   Object.entries(TAB_MAP).forEach(([digit, tabName]) => {
     registerHotkey({
       id: `tab-${tabName}`,
-      label: `Tab: ${tabName[0].toUpperCase() + tabName.slice(1)}`,
+      label: `Tab: ${TAB_LABELS[tabName] || tabName}`,
       defaultCombo: digit,
       handler: () => clickTab(tabName),
     });

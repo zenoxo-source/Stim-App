@@ -18,14 +18,36 @@ import { log } from "../state.js";
 // -------------------------------------------------------------------------
 
 const MAP = [
-  // -- sidebar / navigation --------------------------------------------
-  { key: "nav_deck", de: "Control Deck", en: "Control Deck" },
-  { key: "nav_stim", de: "STIM Player", en: "STIM Player" },
-  { key: "nav_games", de: "Mini-Spiele", en: "Mini-Games" },
-  { key: "nav_editor", de: "Pattern Editor", en: "Pattern Editor" },
-  { key: "nav_remote", de: "Remote", en: "Remote" },
-  { key: "nav_ai", de: "AI Chat", en: "AI Chat" },
+  // -- sidebar / navigation (v4.0 IA) ----------------------------------
+  { key: "nav_home", de: "Home", en: "Home" },
+  { key: "nav_autodrive", de: "Autodrive", en: "Autodrive" },
+  { key: "nav_deck", de: "Manual", en: "Manual" },
+  { key: "nav_stim", de: "STIM", en: "STIM" },
+  { key: "nav_stim_full", de: "STIM Player", en: "STIM Player" },
+  { key: "nav_games", de: "Play", en: "Play" },
+  { key: "nav_editor", de: "Library", en: "Library" },
+  { key: "nav_remote", de: "Connect", en: "Connect" },
+  { key: "nav_ai", de: "AI", en: "AI" },
   { key: "nav_settings", de: "Einstellungen", en: "Settings" },
+  { key: "nav_group_session", de: "Session", en: "Session" },
+  { key: "nav_group_control", de: "Steuerung", en: "Control" },
+  { key: "nav_group_more", de: "Mehr", en: "More" },
+  { key: "settings_advanced", de: "Erweitert", en: "Advanced" },
+  {
+    key: "view_home_subtitle",
+    de: "Verbinden · Soft-Limits · Autodrive",
+    en: "Connect · Soft limits · Autodrive",
+  },
+  {
+    key: "view_autodrive_subtitle",
+    de: "Adaptive Session · Feedback · Climax",
+    en: "Adaptive session · Feedback · Climax",
+  },
+  {
+    key: "view_settings_subtitle",
+    de: "Sicherheit zuerst · Erweitert einklappbar",
+    en: "Safety first · Advanced collapsible",
+  },
   { key: "btn_connect", de: "Bluetooth Verbinden", en: "Connect Bluetooth" },
   { key: "btn_disconnect", de: "Trennen", en: "Disconnect" },
   { key: "btn_panic", de: "STOPP", en: "STOP" },

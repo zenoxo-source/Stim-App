@@ -1,5 +1,29 @@
 # Changelog
 
+## 4.0.0 — Partial Redesign (Information Architecture)
+
+Session-zentrische Navigation und progressive Disclosure — **kein** Full-Rewrite.
+
+### Navigation
+- Gruppen: **Session** (Home, Autodrive) · **Steuerung** (Manual, STIM) · **Mehr** (Play, Library, Connect, AI, Settings)
+- „Mehr“ einklappbar (persistiert)
+- **Manual/STIM-Subnav** (Pills unter dem Header)
+- Hotkey-Hilfe: Tabs **1–9**, Autodrive-Feedback
+
+### Settings
+- Kern sichtbar: Sicherheit, Wellenform-Balance, Gerät, App
+- Power-Features unter **Erweitert** (Profile, Hotkeys, Recorder, Scheduler, Trigger, MIDI, PIN, AI, Stats, Diagnose)
+- Updates / About bleiben im Footer sichtbar
+
+### Session UX
+- Header **kompakt** bei aktiver Ausgabe (Presets/Timer ausgeblendet; Master + Safety bleiben)
+- Home-CTAs und Progress über CSS-Klassen statt Inline-Styles
+- Globales `:focus-visible` auch im Dark Theme
+
+### Docs / Flags
+- `docs/ROADMAP-4.0.md` — was 4.0 liefert und was bewusst später kommt
+- Feature-Flag `navV4` (Default an)
+
 ## 3.14.0 — UX Polish, Partner 2.0, macOS CI
 
 ### macOS Release CI
