@@ -106,7 +106,11 @@ export function clearPatternCeiling() {
  */
 export function clampStrengthWithCeiling(val, channel) {
   const soft = channel === "B" ? AppState.softLimitB : AppState.softLimitA;
-  let v = Math.min(soft, Math.max(0, Math.round(val)));
+  // Non-numeric input (a bad remote payload, an empty slider) must not leak a
+  // NaN into strengthA/B — it would travel all the way into the BLE frame.
+  const n = Math.round(Number(val));
+  if (!Number.isFinite(n)) return 0;
+  let v = Math.min(soft, Math.max(0, n));
   if (AppState.patternCeiling > 0) v = Math.min(v, AppState.patternCeiling);
   return v;
 }

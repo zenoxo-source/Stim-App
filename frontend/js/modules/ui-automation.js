@@ -1,4 +1,4 @@
-// ui-bindings-pr4.js - DOM glue for PR4 features.
+// ui-automation.js - DOM glue for the automation features.
 // 1. Dice toggle (uses active button label)
 // 2. Music-Sync toggle
 // 3. Trigger manager UI

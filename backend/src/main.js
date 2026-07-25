@@ -12,7 +12,13 @@ const {
 const path = require("path");
 const fs = require("fs");
 const { autoUpdater } = require("electron-updater");
-const { startRemoteServer, stopRemoteServer, getRemoteStatus } = require("./remote-server");
+const {
+  startRemoteServer,
+  stopRemoteServer,
+  getRemoteStatus,
+  handleRendererResponse,
+  broadcastState,
+} = require("./remote-server");
 
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
@@ -602,7 +608,7 @@ function registerIpc() {
   });
 
   // WebSocket remote server
-  ipcMain.handle("remote:start", (_event, port) => {
+  ipcMain.handle("remote:start", async (_event, port) => {
     if (!mainWindow || mainWindow.isDestroyed()) {
       return { ok: false, error: "window not ready" };
     }
@@ -615,6 +621,18 @@ function registerIpc() {
   });
   ipcMain.handle("remote:stop", () => stopRemoteServer());
   ipcMain.handle("remote:status", () => getRemoteStatus());
+
+  // Renderer answers a forwarded remote command — route it back to the socket.
+  ipcMain.on("remote:response", (_event, payload) => {
+    if (!payload || typeof payload !== "object") return;
+    handleRendererResponse(payload);
+  });
+
+  // Renderer pushes state changes to all connected remote clients.
+  ipcMain.on("remote:broadcast", (_event, state) => {
+    if (!state || typeof state !== "object") return;
+    broadcastState(state);
+  });
 }
 
 app.on("second-instance", () => {

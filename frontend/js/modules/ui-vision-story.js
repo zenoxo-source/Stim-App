@@ -1,4 +1,4 @@
-// ui-bindings-pr6.js - DOM glue for PR6 features.
+// ui-vision-story.js - DOM glue for webcam vision + story mode.
 // 1. Webcam-Vision enable/disable + consent dialog
 // 2. Story-Modus selection + scene display
 

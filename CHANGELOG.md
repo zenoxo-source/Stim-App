@@ -1,5 +1,40 @@
 # Changelog
 
+## 4.1.0 — Remote-API, i18n & Testabdeckung
+
+### Behoben
+- **Panic-Button wuchs bei jedem Sprach-Refresh** (`STOPP` → `STOPPP` → `STOPPPP`): Der i18n-Walker ersetzte per Substring und traf das englische `STOP` innerhalb des deutschen `STOPP`
+- **Remote-API hatte keinen Rückkanal**: `get_state`, `get_patterns`, `get_logs` und `autodrive_state` berechneten Ergebnisse, die verworfen wurden — die in der App angezeigten Codebeispiele warteten vergeblich auf eine Antwort
+- **`set_master: 0` setzte auf 100 %** statt auf Stille (`parseInt(0) || 100` — 0 ist falsy)
+- **Remote-Status meldete immer Port 8080**, unabhängig vom tatsächlichen Port
+- **Port-Konflikt wurde als Erfolg gemeldet**: `startRemoteServer` gab `ok: true` zurück, bevor das `listening`-Event feststand (EADDRINUSE fiel erst danach auf)
+- **`wave`-Pattern erzeugte negative Frequenzen** auf Kanal B (Phasenversatz schob den Sinus über π)
+- **NaN konnte bis in den BLE-Frame durchschlagen**: `clampStrengthWithCeiling` reichte nicht-numerische Eingaben ungeprüft weiter
+- **Doppelter i18n-Key** `view_settings_subtitle` — der veraltete v3-Text überschrieb den v4-Untertitel
+
+### Remote-API
+- Antwortkanal mit `id`-Korrelation: jeder Befehl bekommt `{type:"response", id, command, ok, …}` zurück
+- Push-Updates über `broadcastState` (vorher exportiert, aber nie aufgerufen)
+- `Origin`-Header wird abgelehnt — WebSockets unterliegen keiner Same-Origin-Policy, jede besuchte Webseite konnte den Handshake versuchen
+- Token-Vergleich in konstanter Zeit (`crypto.timingSafeEqual`), Token nicht mehr im Klartext geloggt
+
+### i18n
+- Umstellung auf `data-i18n` / `data-i18n-title` / `-placeholder` / `-aria-label` — 287 Annotationen
+- Deterministische Übersetzung per Key statt Substring-Scan über ~470 Strings alle 2 s
+- Icon-Präfixe bleiben erhalten (`🛑 STOPP` → `🛑 STOP`)
+- Von JS überschriebene Texte (Live-Status) werden beim Sprachwechsel nicht zurückgesetzt
+- `MutationObserver` statt Polling; ruht vollständig solange die UI deutsch ist
+- Sprachwähler in Einstellungen → App
+
+### Tests & Werkzeug
+- 563 Tests (vorher 464): neu für `remote-server`, `remote`-Befehle, `control-deck`, `autodrive`, `audio`, `i18n`
+- DOM-Mock kann jetzt `querySelectorAll` mit Selektoren, `getElementById`, `createTreeWalker`, `MutationObserver`
+- Source-Maps aktiv (Dev inline, Prod extern) — Stacktraces im Diagnose-Log sind wieder lesbar
+- `ui-bindings-pr2…pr6.js` nach Feature benannt (`ui-profiles-hotkeys`, `ui-library-tools`, `ui-automation`, `ui-midi-pin`, `ui-vision-story`)
+
+### Bekannte Grenze
+- EN-Abdeckung umfasst die annotierten Elemente; längere Fließtexte mit eingebettetem Markup und JS-Datenquellen (Session-Stories, Templates) sind noch nicht in der MAP
+
 ## 4.0.3 — Visual Upgrade & Cyberpunk Glassmorphism UI
 
 ### App Icon & Branding

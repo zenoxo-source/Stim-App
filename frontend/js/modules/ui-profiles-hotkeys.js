@@ -1,4 +1,4 @@
-// ui-bindings-pr2.js - DOM glue for PR2 features (profiles + hotkeys UI).
+// ui-profiles-hotkeys.js - DOM glue for the profiles + hotkeys UI.
 // Keeps the wiring out of the core modules so they stay DOM-optional (tests).
 
 import { log } from "../state.js";

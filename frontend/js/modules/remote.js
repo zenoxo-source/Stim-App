@@ -56,13 +56,11 @@ const REMOTE_COMMANDS = {
   },
 
   set_master: (msg) => {
-    if (isPanicCooldownActive()) {
-      return { ok: false, error: "panic cooldown active" };
-    }
-    if (isPinLocked()) {
-      return { ok: false, error: "session PIN locked" };
-    }
-    const val = Math.min(100, Math.max(0, parseInt(msg.value, 10) || 100));
+    // Panic-cooldown / PIN gating happens centrally in executeRemoteCommand.
+    // `|| 100` would be wrong here: 0 is falsy, so asking for 0 % master —
+    // the quietest setting — used to snap to full scale instead.
+    const raw = parseInt(msg.value, 10);
+    const val = Number.isFinite(raw) ? Math.min(100, Math.max(0, raw)) : 100;
     AppState.masterScale = val / 100;
     const slider = document.getElementById("slider-master");
     const label = document.getElementById("master-val-text");
@@ -85,12 +83,7 @@ const REMOTE_COMMANDS = {
     if (!AppState.isConnected) {
       return { ok: false, error: "not connected" };
     }
-    if (isPanicCooldownActive()) {
-      return { ok: false, error: "panic cooldown active" };
-    }
-    if (isPinLocked()) {
-      return { ok: false, error: "session PIN locked" };
-    }
+    // Panic-cooldown / PIN gating happens centrally in executeRemoteCommand.
     const chA = Array.isArray(msg.channelA) ? msg.channelA.slice(0, 32) : [];
     const chB = Array.isArray(msg.channelB) ? msg.channelB.slice(0, 32) : [];
     const interval = Math.min(2000, Math.max(50, parseInt(msg.interval, 10) || 100));
@@ -242,6 +235,10 @@ const REMOTE_COMMANDS = {
 
 var cmdLog = [];
 var remoteStats = { totalCmds: 0, okCmds: 0, errCmds: 0, connCount: 0, lastConn: null };
+/** Last status from the main process — the port here is authoritative. */
+var lastRemoteStatus = { running: false, port: null, clients: 0, token: null };
+/** Serialized snapshot of the last broadcast, to avoid pushing unchanged state. */
+var lastBroadcastJson = "";
 
 function addRemoteCmdLog(entry) {
   cmdLog.push(entry);
@@ -292,13 +289,14 @@ function updateRemoteCodeSnippet() {
   var lang = document.getElementById("remote-code-lang");
   var pre = document.getElementById("remote-code-snippet");
   var token = document.getElementById("editor-remote-token");
-  var portEl = document.getElementById("editor-remote-port");
   if (!pre || !token || !token.textContent) {
     if (pre) pre.textContent = "Server muss laufen, um Codebeispiele anzuzeigen.";
     return;
   }
   var t = token.textContent;
-  var port = portEl ? portEl.value : "8080";
+  // Use the port the server actually bound to, not the input field — they can
+  // differ when the user edited the field after starting.
+  var port = lastRemoteStatus.port || 8080;
   var langVal = lang ? lang.value : "python";
 
   var snippets = {
@@ -312,12 +310,14 @@ function updateRemoteCodeSnippet() {
       '?token=" + TOKEN\n\n' +
       "async def main():\n" +
       "    async with websockets.connect(URL) as ws:\n" +
-      "        # Intensität setzen\n" +
-      '        await ws.send(json.dumps({"type":"set_intensity","channel":"A","value":80}))\n' +
+      "        # Intensität setzen (id korreliert Antwort ↔ Befehl)\n" +
+      '        await ws.send(json.dumps({"id": 1, "type": "set_intensity",\n' +
+      '                                  "channel": "A", "value": 80}))\n' +
+      "        print(json.loads(await ws.recv()))\n\n" +
       "        # Status abfragen\n" +
-      '        await ws.send(json.dumps({"type":"get_state"}))\n' +
+      '        await ws.send(json.dumps({"id": 2, "type": "get_state"}))\n' +
       "        resp = json.loads(await ws.recv())\n" +
-      '        print("Status:", resp)\n\n' +
+      '        print("Status:", resp["state"])\n\n' +
       "asyncio.run(main())",
 
     js:
@@ -329,21 +329,21 @@ function updateRemoteCodeSnippet() {
       port +
       '?token=" + TOKEN);\n\n' +
       'ws.on("open", () => {\n' +
-      "  // Intensität setzen\n" +
-      '  ws.send(JSON.stringify({ type: "set_intensity", channel: "A", value: 80 }));\n' +
-      "  // Status abfragen\n" +
-      '  ws.send(JSON.stringify({ type: "get_state" }));\n' +
+      "  // id korreliert Antwort ↔ Befehl\n" +
+      '  ws.send(JSON.stringify({ id: 1, type: "set_intensity", channel: "A", value: 80 }));\n' +
+      '  ws.send(JSON.stringify({ id: 2, type: "get_state" }));\n' +
       "});\n\n" +
       'ws.on("message", (data) => {\n' +
       "  const msg = JSON.parse(data);\n" +
-      '  console.log("Antwort:", msg);\n' +
+      '  if (msg.type === "response") console.log(`#${msg.id} ${msg.command}:`, msg);\n' +
+      '  if (msg.type === "state") console.log("Push-Update:", msg.data);\n' +
       "});",
 
     curl:
       "# curl kann kein WebSocket direkt.\n" +
       "# Nutze websocat oder wscat zum Testen:\n\n" +
       "# Mit websocat (https://github.com/vi/websocat):\n" +
-      'echo \'{"type":"set_intensity","channel":"A","value":80}\' | \\\n' +
+      'echo \'{"id":1,"type":"get_state"}\' | \\\n' +
       '  websocat "ws://127.0.0.1:' +
       port +
       "?token=" +
@@ -360,7 +360,32 @@ function updateRemoteCodeSnippet() {
   pre.textContent = snippets[langVal] || snippets.python;
 }
 
+/**
+ * Send a command result back to the requesting WebSocket client.
+ * No-op for locally issued commands (test console — no __reqId present).
+ */
+function replyToRemote(msg, result) {
+  var reqId = msg && msg.__reqId;
+  if (!reqId) return;
+  if (!window.electronAPI || typeof window.electronAPI.sendRemoteResponse !== "function") return;
+  try {
+    window.electronAPI.sendRemoteResponse(reqId, result);
+  } catch (err) {
+    console.warn("sendRemoteResponse failed:", err);
+  }
+}
+
+/**
+ * Execute a remote command and deliver the result to the requesting client.
+ * @returns {{ok: boolean, error?: string}} always an object, never undefined
+ */
 function handleRemoteCommand(msg) {
+  var result = executeRemoteCommand(msg);
+  replyToRemote(msg, result);
+  return result;
+}
+
+function executeRemoteCommand(msg) {
   var type = String(msg.type || "");
   var handler = REMOTE_COMMANDS[type];
   var ts = new Date().toLocaleTimeString();
@@ -369,9 +394,10 @@ function handleRemoteCommand(msg) {
     remoteStats.errCmds++;
     log('Remote: unbekannter Befehl "' + type + '"', "warning");
     addRemoteCmdLog("[" + ts + '] WARN: unbekannter Befehl "' + type + '"');
-    return;
+    return { ok: false, error: 'unknown command: "' + type + '"' };
   }
-  // Safety: only stop/read commands during panic cooldown or PIN lock
+  // Safety gate: only stop/read commands during panic cooldown or PIN lock.
+  // Individual handlers rely on this and do not re-check.
   if (!REMOTE_ALWAYS_ALLOWED.has(type)) {
     if (isPanicCooldownActive()) {
       remoteStats.errCmds++;
@@ -389,7 +415,10 @@ function handleRemoteCommand(msg) {
   try {
     var result = handler(msg);
     trackStat("remote_command");
-    if (result && result.ok !== false) {
+    // Handlers that only act (no read-back) may return undefined \u2014 treat as ok.
+    if (!result || typeof result !== "object") result = { ok: true };
+
+    if (result.ok !== false) {
       remoteStats.okCmds++;
       log("Remote: " + type + " ausgef\u00fchrt", "info");
       addRemoteCmdLog(
@@ -400,15 +429,17 @@ function handleRemoteCommand(msg) {
           " " +
           (msg.channel ? msg.channel + "=" + msg.value : msg.name || "")
       );
-    } else if (result && result.error) {
+    } else {
       remoteStats.errCmds++;
       log("Remote: " + type + " fehlgeschlagen \u2014 " + result.error, "error");
       addRemoteCmdLog("[" + ts + "] ERR: " + type + " \u2014 " + result.error);
     }
+    return result;
   } catch (err) {
     remoteStats.errCmds++;
     log("Remote: " + type + " Fehler \u2014 " + err.message, "error");
     addRemoteCmdLog("[" + ts + "] ERR: " + type + " \u2014 " + err.message);
+    return { ok: false, error: err.message };
   }
 }
 
@@ -417,6 +448,7 @@ async function _updateRemoteUISettings() {
   if (!window.electronAPI || typeof window.electronAPI.getRemoteStatus !== "function") return;
   try {
     var status = await window.electronAPI.getRemoteStatus();
+    lastRemoteStatus = status;
     var el = document.getElementById("remote-status");
     var toggle = document.getElementById("btn-toggle-remote");
     var tokenEl = document.getElementById("remote-token");
@@ -453,6 +485,25 @@ async function _updateRemoteUISettings() {
 function updateRemoteUI() {
   _updateRemoteUISettings();
   updateEditorRemoteUI();
+  pushStateToRemoteClients();
+}
+
+/**
+ * Push a state snapshot to connected remote clients when something changed.
+ * Lets external tools follow along without polling get_state.
+ */
+function pushStateToRemoteClients() {
+  if (!lastRemoteStatus.running || lastRemoteStatus.clients < 1) return;
+  if (!window.electronAPI || typeof window.electronAPI.broadcastRemoteState !== "function") return;
+  var snapshot = REMOTE_COMMANDS.get_state().state;
+  var json = JSON.stringify(snapshot);
+  if (json === lastBroadcastJson) return;
+  lastBroadcastJson = json;
+  try {
+    window.electronAPI.broadcastRemoteState(snapshot);
+  } catch (err) {
+    console.warn("broadcastRemoteState failed:", err);
+  }
 }
 
 // Editor Remote tab UI
@@ -460,6 +511,7 @@ async function updateEditorRemoteUI() {
   if (!window.electronAPI || typeof window.electronAPI.getRemoteStatus !== "function") return;
   try {
     const status = await window.electronAPI.getRemoteStatus();
+    lastRemoteStatus = status;
     const el = document.getElementById("editor-remote-status");
     const toggle = document.getElementById("btn-editor-toggle-remote");
     const tokenEl = document.getElementById("editor-remote-token");

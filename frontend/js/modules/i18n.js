@@ -1,14 +1,23 @@
 // i18n.js - Internationalization (DE / EN).
 //
-// STRATEGY: rather than requiring data-i18n attributes on every element
-// (which would need ~200 manual annotations in index.html alone), we scan
-// ALL text-bearing DOM nodes on language switch and replace known German
-// strings with their English equivalents (and vice-versa). Dynamic strings
-// set via JS use the exported t() / i18nText() helpers.
+// STRATEGY — annotation first, DOM scan as a safety net:
 //
-// Translations are keyed by their German form (the default UI language).
-// When switching to EN we walk the DOM and replace each match; switching
-// back to DE reverses the lookup.
+//  1. Static markup carries data-i18n="<key>" (plus data-i18n-title /
+//     -placeholder / -aria-label for attributes). Translation is then a
+//     direct key lookup per annotated node: deterministic and cheap.
+//  2. Text that JS writes at runtime (log lines, status pills, AI output)
+//     has no annotation, so a text-node pass matches it EXACTLY against the
+//     index. Exact matching matters — an earlier substring-based version
+//     could rewrite fragments inside unrelated sentences.
+//  3. Both passes refuse to touch a node whose text is neither the German nor
+//     the English form: that means JS owns the content (e.g. a live
+//     connection status) and a language switch must not reset it.
+//
+// New content is picked up by a MutationObserver, and only while the UI is
+// not in its default German — so the common case does no work at all.
+//
+// Translations are keyed by a stable id; de/en hold the rendered strings.
+// JS that sets text programmatically should use i18nText(key, fallback).
 
 import { log } from "../state.js";
 
@@ -17,7 +26,7 @@ import { log } from "../state.js";
 // Keys are stable identifiers; DE/EN are the actual rendered strings.
 // -------------------------------------------------------------------------
 
-const MAP = [
+export const MAP = [
   // -- sidebar / navigation (v4.0 IA) ----------------------------------
   { key: "nav_home", de: "Home", en: "Home" },
   { key: "nav_autodrive", de: "Autodrive", en: "Autodrive" },
@@ -808,11 +817,6 @@ const MAP = [
     de: "Lass dich von einer KI verwöhnen",
     en: "Let an AI pamper you",
   },
-  {
-    key: "view_settings_subtitle",
-    de: "Sicherheit, Updates & Diagnose",
-    en: "Safety, updates & diagnostics",
-  },
 
   // -- common static log/toast messages ---------------------------------
   { key: "log_pattern_stopped", de: "Muster gestoppt.", en: "Pattern stopped." },
@@ -997,21 +1001,24 @@ export const I18N = {
     }
     this._currentMap = this.currentLang === "en" ? enIndex : deIndex;
     this.apply();
-    // Periodically re-apply translations to catch dynamically-added content
-    // (log messages, AI chat, Director narratives). Only walks the DOM when
-    // the user has actively switched away from the default German UI, so the
-    // common case incurs no overhead.
-    if (!I18N._refreshInterval) {
-      I18N._refreshInterval = setInterval(() => {
-        if (I18N.currentLang !== "de") {
-          try {
-            I18N.apply();
-          } catch {
-            /* DOM might be mid-teardown */
-          }
-        }
-      }, 2000);
-    }
+    this.observe();
+  },
+
+  /**
+   * Re-translate content that JS adds after load (log lines, AI output).
+   * Replaces the old 2s polling loop: nothing runs while the DOM is idle, and
+   * nothing runs at all while the UI is in its default German.
+   */
+  observe() {
+    if (I18N._observer || typeof MutationObserver !== "function") return;
+    I18N._observer = new MutationObserver(() => {
+      if (I18N.currentLang === "de") return;
+      // apply() rewrites textContent, which is itself a childList mutation —
+      // ignore our own writes so this cannot feed back on itself.
+      if (I18N._applying) return;
+      refreshI18n();
+    });
+    I18N._observer.observe(document.body, { childList: true, subtree: true });
   },
 
   setLang(lang) {
@@ -1041,23 +1048,34 @@ export const I18N = {
   },
 
   /**
-   * Walk the entire DOM tree and swap all known text nodes between DE ↔ EN.
-   * Called on language switch AND on first init.
+   * Render the UI in the current language.
    *
-   * Strategy: for every TEXT node in the document, check if its content
-   * appears in the source-language index and replace it with the
-   * target-language equivalent. This catches dynamically-set text too.
+   * Two passes:
+   *  1. Annotated elements (data-i18n / data-i18n-title / -placeholder /
+   *     -aria-label). Deterministic: the key names exactly which string to
+   *     swap, so no guessing and no collateral damage.
+   *  2. A fallback text-node pass for strings JS writes at runtime (log lines,
+   *     status pills, AI output) that carry no annotation.
    */
   apply() {
     document.documentElement.lang = this.currentLang;
 
-    const sourceIdx = this.currentLang === "en" ? deIndex : enIndex;
-    walkTextNodes(document.body, sourceIdx);
+    this._applying = true;
+    try {
+      applyAnnotated();
+      walkTextNodes(document.body);
+    } finally {
+      this._applying = false;
+    }
 
     // Also update the lang toggle button
     const toggle = document.getElementById("btn-lang-toggle");
     if (toggle) {
       toggle.textContent = this.currentLang === "de" ? "EN" : "DE";
+    }
+    const select = document.getElementById("setting-language");
+    if (select && select.value !== this.currentLang) {
+      select.value = this.currentLang;
     }
   },
 
@@ -1071,29 +1089,110 @@ export const I18N = {
 // -------------------------------------------------------------------------
 
 /**
- * Recursively walk all text nodes under `root` and replace known strings.
+ * Replace `sourceText` inside `current`, preserving anything around it.
+ * Lets "🛑 STOPP" become "🛑 STOP" without losing the icon.
+ *
+ * @returns {string|null} the new string, or null if sourceText is absent
+ */
+function replacePreservingAffix(current, sourceText, targetText) {
+  const idx = current.indexOf(sourceText);
+  if (idx < 0) return null;
+  return current.slice(0, idx) + targetText + current.slice(idx + sourceText.length);
+}
+
+/**
+ * Translate one annotated value.
+ *
+ * Only rewrites when the current value still holds one of the two known forms.
+ * If JS has replaced the text with something else (a live status, a device
+ * name), the node belongs to that code and we leave it alone — this is what
+ * keeps a language switch from clobbering "Verbunden" back to "Getrennt".
+ *
+ * @returns {string|null} new value, or null when nothing should change
+ */
+function translateValue(current, entry) {
+  if (typeof current !== "string") return null;
+  const target = I18N.currentLang === "en" ? entry.en : entry.de;
+  const source = I18N.currentLang === "en" ? entry.de : entry.en;
+  if (source === target) return null;
+
+  // One form can be a prefix of the other ("STOP" ⊂ "STOPP"), so a plain
+  // includes() check would misread "🛑 STOPP" as already-English and, worse,
+  // rewrite it to "🛑 STOPPP" on the way back. Test the longer form first:
+  // whichever long form is present is the one actually rendered.
+  const sourceIsLonger = source.length >= target.length;
+  const longer = sourceIsLonger ? source : target;
+  const shorter = sourceIsLonger ? target : source;
+
+  if (current.includes(longer)) {
+    return longer === target ? null : replacePreservingAffix(current, source, target);
+  }
+  if (current.includes(shorter)) {
+    return shorter === target ? null : replacePreservingAffix(current, source, target);
+  }
+  // Neither form present — JS owns this text now. Leave it alone.
+  return null;
+}
+
+const ATTR_BINDINGS = [
+  { selector: "[data-i18n-title]", data: "i18nTitle", attr: "title" },
+  { selector: "[data-i18n-placeholder]", data: "i18nPlaceholder", attr: "placeholder" },
+  { selector: "[data-i18n-aria-label]", data: "i18nAriaLabel", attr: "aria-label" },
+];
+
+/**
+ * Pass 1 — annotated elements. O(annotated elements), no string scanning.
+ */
+function applyAnnotated() {
+  for (const el of document.querySelectorAll("[data-i18n]")) {
+    const entry = byKey[el.dataset.i18n];
+    if (!entry) continue;
+    const next = translateValue(el.textContent, entry);
+    if (next !== null) el.textContent = next;
+  }
+
+  for (const { selector, data, attr } of ATTR_BINDINGS) {
+    for (const el of document.querySelectorAll(selector)) {
+      const entry = byKey[el.dataset[data]];
+      if (!entry) continue;
+      const next = translateValue(el.getAttribute(attr), entry);
+      if (next !== null) el.setAttribute(attr, next);
+    }
+  }
+}
+
+/**
+ * Pass 2 — unannotated text nodes written by JS at runtime.
+ *
+ * Exact match on the trimmed node text via an O(1) index lookup. The previous
+ * implementation ran `includes()` for all ~470 strings against every text node
+ * every 2s, which was both slow and prone to mangling text through partial
+ * matches ("Home" inside a longer sentence).
  *
  * @param {Node} root
- * @param {Record<string, object>} sourceIdx  map of old-text -> {key, de, en}
  */
-function walkTextNodes(root, sourceIdx) {
+function walkTextNodes(root) {
+  if (!root || typeof document.createTreeWalker !== "function") return;
+  const sourceIdx = I18N.currentLang === "en" ? deIndex : enIndex;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
   const toReplace = [];
-  // Collect first (don't mutate during walk)
+
   let node;
   while ((node = walker.nextNode())) {
     const text = node.textContent;
-    if (!text || !text.trim()) continue;
-    for (const sourceText of Object.keys(sourceIdx)) {
-      if (text.includes(sourceText)) {
-        toReplace.push({ node, sourceText, entry: sourceIdx[sourceText] });
-      }
-    }
+    if (!text) continue;
+    const trimmed = text.trim();
+    if (!trimmed) continue;
+    // Annotated elements were handled in pass 1 — don't touch them twice.
+    if (node.parentElement?.hasAttribute?.("data-i18n")) continue;
+    const entry = sourceIdx[trimmed];
+    if (entry) toReplace.push({ node, entry });
   }
-  // Replace (batch-apply to avoid modifying DOM during tree-walk)
-  for (const { node, sourceText, entry } of toReplace) {
-    const targetText = I18N.currentLang === "en" ? entry.en : entry.de;
-    node.textContent = node.textContent.replace(sourceText, targetText);
+
+  // Batch-apply so the tree is not mutated mid-walk.
+  for (const { node, entry } of toReplace) {
+    const next = translateValue(node.textContent, entry);
+    if (next !== null) node.textContent = next;
   }
 }
 
@@ -1132,4 +1231,7 @@ export function i18nText(key, fallback) {
 document.addEventListener("DOMContentLoaded", () => {
   I18N.init();
   document.getElementById("btn-lang-toggle")?.addEventListener("click", () => I18N.toggle());
+  document.getElementById("setting-language")?.addEventListener("change", (e) => {
+    I18N.setLang(e.target.value);
+  });
 });

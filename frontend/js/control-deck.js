@@ -180,14 +180,14 @@ export function computeNamedPatternWave(patternId, loopCounter) {
     case "wave": {
       const sweep = t % 80;
       const tt = sweep / 80;
-      fA = Math.round(
-        CONSTANTS.MIN_FREQUENCY +
-          (CONSTANTS.MAX_FREQUENCY - CONSTANTS.MIN_FREQUENCY) * Math.sin(tt * Math.PI)
-      );
-      fB = Math.round(
-        CONSTANTS.MIN_FREQUENCY +
-          (CONSTANTS.MAX_FREQUENCY - CONSTANTS.MIN_FREQUENCY) * Math.sin(tt * Math.PI + Math.PI / 4)
-      );
+      const span = CONSTANTS.MAX_FREQUENCY - CONSTANTS.MIN_FREQUENCY;
+      fA = Math.round(CONSTANTS.MIN_FREQUENCY + span * Math.sin(tt * Math.PI));
+      // B trails A by a quarter turn. Past tt=0.75 that pushes the argument
+      // beyond π, where sin() goes negative — clamp so the sweep bottoms out
+      // at the minimum instead of running to a negative wire frequency.
+      fB = Math.round(CONSTANTS.MIN_FREQUENCY + span * Math.sin(tt * Math.PI + Math.PI / 4));
+      fA = Math.max(CONSTANTS.MIN_FREQUENCY, Math.min(CONSTANTS.MAX_FREQUENCY, fA));
+      fB = Math.max(CONSTANTS.MIN_FREQUENCY, Math.min(CONSTANTS.MAX_FREQUENCY, fB));
       aA = 70;
       aB = 70;
       break;

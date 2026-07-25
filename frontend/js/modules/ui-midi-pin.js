@@ -1,4 +1,4 @@
-// ui-bindings-pr5.js - DOM glue for PR5 features.
+// ui-midi-pin.js - DOM glue for MIDI control + session PIN.
 // 1. MIDI controller manager (init + mapping editor)
 // 2. Session-PIN lock (set/change/lock/unlock UI)
 

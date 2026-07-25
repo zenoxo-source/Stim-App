@@ -35,33 +35,38 @@ const baseOptions = {
   format: "iife",
   target: ["chrome130"],
   platform: "browser",
-  sourcemap: false,
   logLevel: "info",
   absWorkingDir: frontendDir,
 };
 
 async function build() {
-  // Raw dev bundle (readable)
+  // Raw dev bundle (readable, inline map so a stray .js.map can't go stale)
   console.log("esbuild: dev bundle...");
   await esbuild.build({
     ...baseOptions,
     outfile: rawOut,
     minify: false,
+    sourcemap: "inline",
   });
   const rawSize = fs.statSync(rawOut).size;
   console.log(`esbuild: wrote ${rawOut} (${rawSize} bytes)`);
 
-  // Minified production bundle
+  // Minified production bundle. External map so exported diagnostic logs carry
+  // resolvable stack traces without inflating the shipped bundle.
   console.log("esbuild: production bundle...");
   await esbuild.build({
     ...baseOptions,
     outfile: minOut,
     minify: true,
     legalComments: "none",
+    sourcemap: "linked",
   });
   const minSize = fs.statSync(minOut).size;
-  const reduction = ((1 - minSize / rawSize) * 100).toFixed(1);
-  console.log(`esbuild: wrote ${minOut} (${minSize} bytes, -${reduction}% vs dev)`);
+  console.log(`esbuild: wrote ${minOut} (${minSize} bytes)`);
+  const mapOut = `${minOut}.map`;
+  if (fs.existsSync(mapOut)) {
+    console.log(`esbuild: wrote ${mapOut} (${fs.statSync(mapOut).size} bytes)`);
+  }
 }
 
 if (watch) {
@@ -70,6 +75,7 @@ if (watch) {
       ...baseOptions,
       outfile: minOut,
       minify: false,
+      sourcemap: "inline",
     });
     await ctx.watch();
     console.log("esbuild: watching for changes...");

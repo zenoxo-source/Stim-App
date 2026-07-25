@@ -6,7 +6,7 @@
 //     "Pattern Name B": { ... }
 //   }
 //
-// Pure functions for testing. UI glue lives in ui-bindings-pr3.js.
+// Pure functions for testing. UI glue lives in ui-library-tools.js.
 
 /**
  * Validate an imported pattern object (single entry).

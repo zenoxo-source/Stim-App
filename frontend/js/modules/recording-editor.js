@@ -1,7 +1,7 @@
 // recording-editor.js - Trim / loop / splice operations on RECORDER frames.
 //
 // All functions are pure (take a frames array, return a new array). UI glue
-// in ui-bindings-pr3.js.
+// in ui-library-tools.js.
 //
 // Frame format (matches RECORDER.captureTick):
 //   { t: number, fA: number, aA: number, fB: number, aB: number, strA: number, strB: number }

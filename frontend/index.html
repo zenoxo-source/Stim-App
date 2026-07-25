@@ -13,33 +13,33 @@
   <div id="onboarding-overlay" class="onboarding-overlay" style="display:none;" aria-modal="true" role="dialog">
     <div class="onboarding-card">
       <div class="onboarding-step" data-step="0">
-        <h2>Willkommen bei Stim App</h2>
-        <p>Kurzer Einstieg: Sicherheit, Bluetooth und Notstopp. Du kannst das jederzeit überspringen.</p>
+        <h2 data-i18n="onboarding_welcome">Willkommen bei Stim App</h2>
+        <p data-i18n="ob_intro_p">Kurzer Einstieg: Sicherheit, Bluetooth und Notstopp. Du kannst das jederzeit überspringen.</p>
       </div>
       <div class="onboarding-step" data-step="1" style="display:none;">
-        <h2>1 · Soft-Limits setzen</h2>
-        <p>Unter <strong>Einstellungen</strong> Soft-Limits festlegen und mit niedriger <strong>Intensität (Strength)</strong> starten. Wave-Freq ist ein Protokollwert 10–240 (kein Hertz). Master im Header skaliert den Output global.</p>
+        <h2 data-i18n="ob_step1_h">1 · Soft-Limits setzen</h2>
+        <p>Unter <strong data-i18n="nav_settings">Einstellungen</strong> Soft-Limits festlegen und mit niedriger <strong>Intensität (Strength)</strong> starten. Wave-Freq ist ein Protokollwert 10–240 (kein Hertz). Master im Header skaliert den Output global.</p>
       </div>
       <div class="onboarding-step" data-step="2" style="display:none;">
-        <h2>2 · Bluetooth verbinden</h2>
-        <p>In der Sidebar <strong>Bluetooth Verbinden</strong> tippen und dein Coyote-Gerät (Prefix 47L121) auswählen. Der Status zeigt Verbindung und Reconnects.</p>
+        <h2 data-i18n="ob_step2_h">2 · Bluetooth verbinden</h2>
+        <p>In der Sidebar <strong data-i18n="btn_connect">Bluetooth Verbinden</strong> tippen und dein Coyote-Gerät (Prefix 47L121) auswählen. Der Status zeigt Verbindung und Reconnects.</p>
       </div>
       <div class="onboarding-step" data-step="3" style="display:none;">
-        <h2>3 · Panic / STOPP</h2>
-        <p>Rote Taste <strong>STOPP</strong>, <strong>Strg+Leertaste</strong> oder <strong>ESC lang</strong> setzen die Ausgabe sofort auf 0 – die Verbindung bleibt bestehen.</p>
+        <h2 data-i18n="ob_step3_h">3 · Panic / STOPP</h2>
+        <p>Rote Taste <strong data-i18n="btn_panic">STOPP</strong>, <strong>Strg+Leertaste</strong> oder <strong>ESC lang</strong> setzen die Ausgabe sofort auf 0 – die Verbindung bleibt bestehen.</p>
       </div>
       <div class="onboarding-step" data-step="4" style="display:none;">
         <h2>4 · Autodrive</h2>
         <p><strong>1-Tap Klassisch</strong> auf Home startet eine adaptive Session. Im Fullscreen: große Buttons <em>Fast</em>, <em>Jetzt</em>, <em>Fertig</em>. Soft-Limits setzen, niedrig starten. Feedback verbessert die nächste Runde.</p>
       </div>
       <div class="onboarding-step" data-step="5" style="display:none;">
-        <h2>Fertig</h2>
+        <h2 data-i18n="onboarding_done">Fertig</h2>
         <p>Home · Autodrive · Manual. Viel Spaß – und bleib im sicheren Bereich.</p>
       </div>
       <div class="onboarding-actions">
-        <button type="button" id="onboarding-skip" class="btn btn-secondary">Überspringen</button>
+        <button type="button" id="onboarding-skip" class="btn btn-secondary" data-i18n="onboarding_skip">Überspringen</button>
         <div class="onboarding-dots" id="onboarding-dots"></div>
-        <button type="button" id="onboarding-next" class="btn">Weiter</button>
+        <button type="button" id="onboarding-next" class="btn" data-i18n="onboarding_next">Weiter</button>
       </div>
     </div>
   </div>
@@ -71,7 +71,7 @@
             </ul>
           </div>
           <div class="nav-group">
-            <div class="nav-group-label">Steuerung</div>
+            <div class="nav-group-label" data-i18n="nav_group_control">Steuerung</div>
             <ul class="nav-menu">
               <li class="nav-item" data-tab="deck">
                 <button type="button" id="nav-btn-deck">
@@ -87,7 +87,7 @@
           </div>
           <div class="nav-group nav-group-more">
             <button type="button" id="nav-more-toggle" class="nav-more-toggle" aria-expanded="true" aria-controls="nav-more-menu">
-              <span>Mehr</span>
+              <span data-i18n="nav_group_more">Mehr</span>
               <span class="nav-chevron" aria-hidden="true">▾</span>
             </button>
             <ul class="nav-menu nav-more-menu" id="nav-more-menu">
@@ -123,25 +123,25 @@
       
       <div class="sidebar-footer">
         <div style="display:flex; gap:6px; justify-content:center; margin-bottom: 4px;">
-          <button type="button" id="btn-lang-toggle" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 11px;" aria-label="Switch language" title="Sprache wechseln">EN</button>
-          <button type="button" id="btn-theme-toggle" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 11px;" aria-label="Theme wechseln" title="Theme wechseln">🌙</button>
+          <button type="button" id="btn-lang-toggle" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 11px;" aria-label="Switch language" title="Sprache wechseln" data-i18n-title="title_lang_switch">EN</button>
+          <button type="button" id="btn-theme-toggle" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 11px;" aria-label="Theme wechseln" data-i18n-aria-label="title_theme_switch" title="Theme wechseln" data-i18n-title="title_theme_switch">🌙</button>
         </div>
         <div id="update-banner" class="update-banner" style="display:none;" data-kind="info"></div>
-        <div id="output-status" class="output-status idle" title="Geräte-Ausgabe" role="status" aria-live="polite">
+        <div id="output-status" class="output-status idle" title="Geräte-Ausgabe" data-i18n-title="title_device_output" role="status" aria-live="polite">
           <span class="output-dot"></span>
-          <span id="output-status-text">Ausgabe: aus</span>
+          <span id="output-status-text" data-i18n="output_off">Ausgabe: aus</span>
         </div>
         <div class="device-status">
-          <span>Verbindung:</span>
-          <span id="connection-text">Getrennt</span>
-          <span id="connection-indicator" class="status-indicator" role="img" aria-label="Verbindungsstatus"></span>
+          <span data-i18n="conn_label">Verbindung:</span>
+          <span id="connection-text" data-i18n="conn_disconnected">Getrennt</span>
+          <span id="connection-indicator" class="status-indicator" role="img" aria-label="Verbindungsstatus" data-i18n-aria-label="aria_conn_status"></span>
         </div>
         <div id="reconnect-status" class="reconnect-status" style="display:none;" role="alert" aria-live="assertive"></div>
         <div id="bt-device-list" class="bt-device-list" style="display:none;"></div>
-        <button id="btn-connect" class="btn" aria-label="Bluetooth verbinden">🔌 Bluetooth Verbinden</button>
-        <button id="btn-disconnect" class="btn btn-danger" style="display: none;" aria-label="Bluetooth trennen">🔌 Trennen</button>
+        <button id="btn-connect" class="btn" aria-label="Bluetooth verbinden" data-i18n-aria-label="aria_bt_connect" data-i18n="btn_connect">🔌 Bluetooth Verbinden</button>
+        <button id="btn-disconnect" class="btn btn-danger" style="display: none;" aria-label="Bluetooth trennen" data-i18n-aria-label="aria_bt_disconnect" data-i18n="btn_disconnect">🔌 Trennen</button>
         <button type="button" id="btn-shock-sidebar" class="btn btn-secondary" style="margin-top:6px;" title="Kurzer Burst">⚡ Shock</button>
-        <button id="btn-panic" class="btn btn-danger btn-panic" title="Notstopp (Strg+Leertaste)" aria-label="Notstopp – Ausgabe sofort stoppen">🛑 STOPP</button>
+        <button id="btn-panic" class="btn btn-danger btn-panic" title="Notstopp (Strg+Leertaste)" data-i18n-title="title_panic" aria-label="Notstopp – Ausgabe sofort stoppen" data-i18n-aria-label="aria_panic" data-i18n="btn_panic">🛑 STOPP</button>
       </div>
     </aside>
 
@@ -152,12 +152,12 @@
       <header class="app-header">
         <div class="header-title">
           <h1 id="view-title">Home</h1>
-          <p id="view-subtitle">Verbinden · Soft-Limits · Autodrive</p>
+          <p id="view-subtitle" data-i18n="view_home_subtitle">Verbinden · Soft-Limits · Autodrive</p>
         </div>
         
         <div class="header-controls">
           <div id="safety-chip" class="safety-chip idle">
-            <span id="safety-chip-text">Bereit</span>
+            <span id="safety-chip-text" data-i18n="ready_chip">Bereit</span>
           </div>
           <div class="battery-badge">
             <span class="battery-icon">
@@ -167,9 +167,9 @@
           </div>
           
           <div class="preset-bar header-expandable">
-            <button type="button" class="preset-btn" data-preset="gentle">Sanft</button>
-            <button type="button" class="preset-btn" data-preset="medium">Mittel</button>
-            <button type="button" class="preset-btn" data-preset="intense">Intensiv</button>
+            <button type="button" class="preset-btn" data-preset="gentle" data-i18n="preset_gentle">Sanft</button>
+            <button type="button" class="preset-btn" data-preset="medium" data-i18n="preset_medium">Mittel</button>
+            <button type="button" class="preset-btn" data-preset="intense" data-i18n="preset_intense">Intensiv</button>
           </div>
           <div class="timer-bar header-expandable">
             <select id="timer-minutes" class="select-control header-compact-control">
@@ -180,9 +180,9 @@
             </select>
             <button type="button" id="btn-timer-start" class="btn btn-secondary btn-sm">Timer</button>
             <button type="button" id="btn-timer-stop" class="btn btn-secondary btn-sm">Stop</button>
-            <span id="safety-timer-display" class="timer-display">Timer aus</span>
+            <span id="safety-timer-display" class="timer-display" data-i18n="timer_out">Timer aus</span>
           </div>
-          <button type="button" id="btn-hotkey-help" class="btn btn-secondary btn-sm" title="Tastatur (?)">?</button>
+          <button type="button" id="btn-hotkey-help" class="btn btn-secondary btn-sm" title="Tastatur (?)" data-i18n-title="title_keyboard">?</button>
           <div class="master-slider-container">
             <span class="master-slider-label">Master:</span>
             <input type="range" id="slider-master" min="0" max="100" value="100">
@@ -193,7 +193,7 @@
 
       <div id="hotkey-overlay" class="hotkey-overlay" style="display:none;">
         <div class="hotkey-card">
-          <h2>Tastatur</h2>
+          <h2 data-i18n="hotkey_help">Tastatur</h2>
           <ul>
             <li><kbd>1</kbd> Home · <kbd>2</kbd> Autodrive · <kbd>3</kbd> Manual · <kbd>4</kbd> STIM</li>
             <li><kbd>5</kbd> Play · <kbd>6</kbd> Library · <kbd>7</kbd> Connect · <kbd>8</kbd> AI · <kbd>9</kbd> Settings</li>
@@ -204,7 +204,7 @@
             <li><kbd>Leertaste</kbd> Rhythm-Tap · Edge halten</li>
             <li><kbd>Q</kbd> Survival aufgeben · <kbd>?</kbd> Diese Hilfe</li>
           </ul>
-          <button type="button" id="hotkey-close" class="btn">Schließen</button>
+          <button type="button" id="hotkey-close" class="btn" data-i18n="hotkey_close">Schließen</button>
         </div>
       </div>
 
@@ -219,7 +219,7 @@
             <div class="card-title" style="font-size:14px;">Session bereit</div>
             <div id="home-readiness" class="home-readiness"></div>
             <div id="home-connection-summary" style="margin: 12px 0; font-size: 14px;">
-              <div>Verbindung: <strong id="home-conn-text">Getrennt</strong></div>
+              <div>Verbindung: <strong id="home-conn-text" data-i18n="conn_disconnected">Getrennt</strong></div>
               <div>Soft-Limits: A <strong id="home-soft-a">—</strong> · B <strong id="home-soft-b">—</strong></div>
             </div>
             <div class="home-cta-row">
@@ -274,7 +274,7 @@
               <div>
                 <label class="field-label" for="autodrive-focus">Kanal</label>
                 <select id="autodrive-focus" class="select-control">
-                  <option value="both">Beide</option>
+                  <option value="both" data-i18n="both_label">Beide</option>
                   <option value="A">Fokus A</option>
                   <option value="B">Fokus B</option>
                 </select>
@@ -282,13 +282,13 @@
               <div>
                 <label class="field-label" for="autodrive-sensitivity">Sensitivität</label>
                 <select id="autodrive-sensitivity" class="select-control">
-                  <option value="gentle">Sanft</option>
-                  <option value="medium" selected>Mittel</option>
-                  <option value="intense">Intensiv</option>
+                  <option value="gentle" data-i18n="preset_gentle">Sanft</option>
+                  <option value="medium" selected data-i18n="preset_medium">Mittel</option>
+                  <option value="intense" data-i18n="preset_intense">Intensiv</option>
                 </select>
               </div>
               <div>
-                <label class="field-label" for="autodrive-duration">Dauer (Min)</label>
+                <label class="field-label" for="autodrive-duration" data-i18n="ramp_duration">Dauer (Min)</label>
                 <input type="number" id="autodrive-duration" class="text-input" min="2" max="60" value="12" step="1" />
               </div>
               <div>
@@ -318,7 +318,7 @@
               <button type="button" id="btn-autodrive-start" class="btn btn-autodrive-go">🚀 Start</button>
               <button type="button" id="btn-autodrive-last" class="btn btn-secondary">⭐ Letzte Erfolg</button>
               <button type="button" id="btn-autodrive-pause" class="btn btn-secondary">Pause</button>
-              <button type="button" id="btn-autodrive-resume" class="btn btn-secondary">Weiter</button>
+              <button type="button" id="btn-autodrive-resume" class="btn btn-secondary" data-i18n="onboarding_next">Weiter</button>
               <button type="button" id="btn-autodrive-stop" class="btn btn-danger">Stop</button>
               <button type="button" id="btn-autodrive-fs" class="btn btn-secondary">⛶ Fullscreen</button>
             </div>
@@ -333,11 +333,11 @@
           <div class="card autodrive-live-card">
             <div class="card-title autodrive-live-title">
               <span>Live</span>
-              <span id="autodrive-running-badge" class="autodrive-badge idle">Bereit</span>
+              <span id="autodrive-running-badge" class="autodrive-badge idle" data-i18n="ready_chip">Bereit</span>
             </div>
 
             <div class="autodrive-phase-hero">
-              <div class="autodrive-phase-name" id="autodrive-phase">Bereit</div>
+              <div class="autodrive-phase-name" id="autodrive-phase" data-i18n="ready_chip">Bereit</div>
               <div class="autodrive-phase-meta">
                 <span>Gesamt <strong id="autodrive-eta">0:00</strong></span>
                 <span>Phase <strong id="autodrive-phase-eta">0:00</strong></span>
@@ -400,7 +400,7 @@
               <button type="button" class="btn btn-secondary autodrive-fb" data-fb="too_strong">⬆ Zu stark</button>
               <button type="button" class="btn btn-secondary autodrive-fb" data-fb="almost">🔥 Fast</button>
               <button type="button" class="btn autodrive-fb now" data-fb="now">⚡ Jetzt</button>
-              <button type="button" class="btn autodrive-fb done" data-fb="climaxed">✓ Fertig</button>
+              <button type="button" class="btn autodrive-fb done" data-fb="climaxed" data-i18n="onboarding_done">✓ Fertig</button>
               <button type="button" class="btn btn-secondary autodrive-fb wide" data-fb="not_yet">↩ Noch nicht</button>
             </div>
           </div>
@@ -424,14 +424,14 @@
         <div class="ad-fs-bars">
           <div class="autodrive-bar-label"><span>Session</span><span id="ad-fs-eta">—</span></div>
           <div class="autodrive-bar-track tall"><div id="ad-fs-progress" class="autodrive-bar-fill session"></div></div>
-          <div class="autodrive-bar-label"><span>Intensität</span><span id="ad-fs-rel-label">0%</span></div>
+          <div class="autodrive-bar-label"><span data-i18n="intensity">Intensität</span><span id="ad-fs-rel-label">0%</span></div>
           <div class="autodrive-bar-track tall"><div id="ad-fs-rel" class="autodrive-bar-fill rel"></div></div>
           <div class="autodrive-bar-label"><span>Edge-Score</span></div>
           <div class="autodrive-bar-track tall"><div id="ad-fs-edge" class="autodrive-bar-fill edge"></div></div>
         </div>
         <div class="ad-fs-nudge">
-          <button type="button" id="ad-fs-nudge-down" class="btn btn-secondary">− Intensität</button>
-          <button type="button" id="ad-fs-nudge-up" class="btn btn-secondary">+ Intensität</button>
+          <button type="button" id="ad-fs-nudge-down" class="btn btn-secondary" data-i18n="intensity">− Intensität</button>
+          <button type="button" id="ad-fs-nudge-up" class="btn btn-secondary" data-i18n="intensity">+ Intensität</button>
         </div>
         <p class="ad-fs-tip" id="ad-fs-tip"></p>
         <div class="ad-fs-feedback">
@@ -440,12 +440,12 @@
           <button type="button" class="ad-fs-btn strong autodrive-fb" data-fb="too_strong">Zu stark</button>
           <button type="button" class="ad-fs-btn almost autodrive-fb" data-fb="almost">🔥 Fast</button>
           <button type="button" class="ad-fs-btn now autodrive-fb" data-fb="now">⚡ Jetzt</button>
-          <button type="button" class="ad-fs-btn done autodrive-fb" data-fb="climaxed">✓ Fertig</button>
+          <button type="button" class="ad-fs-btn done autodrive-fb" data-fb="climaxed" data-i18n="onboarding_done">✓ Fertig</button>
           <button type="button" class="ad-fs-btn notyet autodrive-fb" data-fb="not_yet">↩ Noch nicht</button>
         </div>
         <div class="ad-fs-bottom">
           <button type="button" id="ad-fs-pause" class="btn btn-secondary">Pause</button>
-          <button type="button" id="ad-fs-resume" class="btn btn-secondary">Weiter</button>
+          <button type="button" id="ad-fs-resume" class="btn btn-secondary" data-i18n="onboarding_next">Weiter</button>
           <button type="button" id="ad-fs-stop" class="btn btn-danger">Stop</button>
         </div>
       </div>
@@ -468,10 +468,10 @@
             <button type="button" class="btn partner-fb" data-fb="too_strong">Zu stark</button>
             <button type="button" class="btn partner-fb" data-fb="almost" style="background:linear-gradient(135deg,#8660a9,#d83b01);">🔥 Fast</button>
             <button type="button" class="btn partner-fb" data-fb="now" style="background:#d83b01;">⚡ Jetzt</button>
-            <button type="button" class="btn partner-fb" data-fb="climaxed" style="background:#107c41;">✓ Fertig</button>
+            <button type="button" class="btn partner-fb" data-fb="climaxed" style="background:#107c41;" data-i18n="onboarding_done">✓ Fertig</button>
             <button type="button" class="btn partner-fb" data-fb="not_yet">↩ Noch nicht</button>
-            <button type="button" id="partner-nudge-down" class="btn btn-secondary">− Intensität</button>
-            <button type="button" id="partner-nudge-up" class="btn btn-secondary">+ Intensität</button>
+            <button type="button" id="partner-nudge-down" class="btn btn-secondary" data-i18n="intensity">− Intensität</button>
+            <button type="button" id="partner-nudge-up" class="btn btn-secondary" data-i18n="intensity">+ Intensität</button>
           </div>
           <div class="partner-story-row">
             <select id="partner-story" class="select-control" aria-label="Session-Story"></select>
@@ -505,7 +505,7 @@
             <button type="button" class="btn btn-secondary ad-debrief-overall" data-overall="ok">Passt</button>
             <button type="button" class="btn btn-secondary ad-debrief-overall" data-overall="strong">Stark</button>
           </div>
-          <button type="button" id="ad-debrief-skip" class="btn btn-secondary" style="margin-top:14px;width:100%;">Überspringen</button>
+          <button type="button" id="ad-debrief-skip" class="btn btn-secondary" style="margin-top:14px;width:100%;" data-i18n="onboarding_skip">Überspringen</button>
         </div>
       </div>
 
@@ -547,8 +547,8 @@
           <!-- Channel A controls -->
           <div class="card manual-channel-card">
             <div class="card-title">
-              <span>Kanal A</span>
-              <span id="badge-mode-a" class="channel-badge channel-badge-a">Direkt</span>
+              <span data-i18n="channel_a">Kanal A</span>
+              <span id="badge-mode-a" class="channel-badge channel-badge-a" data-i18n="direct">Direkt</span>
             </div>
             <div class="channel-box">
               <div class="intensity-section">
@@ -579,16 +579,16 @@
                     <input type="range" id="slider-freq-a" min="10" max="240" value="45" aria-label="Frequency Kanal A">
                     <button type="button" id="btn-freq-inc-a" class="slider-btn" aria-label="Frequency A +">+</button>
                   </div>
-                  <select id="select-freq-a" class="select-control freq-preset" title="Schnellwahl" aria-label="Frequency-Preset A">
-                    <option value="10">10 · sehr weich</option>
-                    <option value="20">20 · weich</option>
-                    <option value="30">30 · sanft</option>
+                  <select id="select-freq-a" class="select-control freq-preset" title="Schnellwahl" data-i18n-title="title_quick_select" aria-label="Frequency-Preset A">
+                    <option value="10" data-i18n="freq_10">10 · sehr weich</option>
+                    <option value="20" data-i18n="freq_20">20 · weich</option>
+                    <option value="30" data-i18n="freq_30">30 · sanft</option>
                     <option value="45" selected>45 · standard</option>
-                    <option value="60">60 · mittel</option>
-                    <option value="80">80 · kräftig</option>
-                    <option value="100">100 · hoch</option>
-                    <option value="150">150 · sehr hoch</option>
-                    <option value="200">200 · extrem</option>
+                    <option value="60" data-i18n="freq_60">60 · mittel</option>
+                    <option value="80" data-i18n="freq_80">80 · kräftig</option>
+                    <option value="100" data-i18n="freq_100">100 · hoch</option>
+                    <option value="150" data-i18n="freq_150">150 · sehr hoch</option>
+                    <option value="200" data-i18n="freq_200">200 · extrem</option>
                     <option value="240">240 · maximum</option>
                   </select>
                 </div>
@@ -615,8 +615,8 @@
           <!-- Channel B controls -->
           <div class="card manual-channel-card">
             <div class="card-title">
-              <span>Kanal B</span>
-              <span id="badge-mode-b" class="channel-badge channel-badge-b">Direkt</span>
+              <span data-i18n="channel_b">Kanal B</span>
+              <span id="badge-mode-b" class="channel-badge channel-badge-b" data-i18n="direct">Direkt</span>
             </div>
             <div class="channel-box">
               <div class="intensity-section">
@@ -646,16 +646,16 @@
                     <input type="range" id="slider-freq-b" min="10" max="240" value="45" aria-label="Frequency Kanal B">
                     <button type="button" id="btn-freq-inc-b" class="slider-btn" aria-label="Frequency B +">+</button>
                   </div>
-                  <select id="select-freq-b" class="select-control freq-preset" title="Schnellwahl" aria-label="Frequency-Preset B">
-                    <option value="10">10 · sehr weich</option>
-                    <option value="20">20 · weich</option>
-                    <option value="30">30 · sanft</option>
+                  <select id="select-freq-b" class="select-control freq-preset" title="Schnellwahl" data-i18n-title="title_quick_select" aria-label="Frequency-Preset B">
+                    <option value="10" data-i18n="freq_10">10 · sehr weich</option>
+                    <option value="20" data-i18n="freq_20">20 · weich</option>
+                    <option value="30" data-i18n="freq_30">30 · sanft</option>
                     <option value="45" selected>45 · standard</option>
-                    <option value="60">60 · mittel</option>
-                    <option value="80">80 · kräftig</option>
-                    <option value="100">100 · hoch</option>
-                    <option value="150">150 · sehr hoch</option>
-                    <option value="200">200 · extrem</option>
+                    <option value="60" data-i18n="freq_60">60 · mittel</option>
+                    <option value="80" data-i18n="freq_80">80 · kräftig</option>
+                    <option value="100" data-i18n="freq_100">100 · hoch</option>
+                    <option value="150" data-i18n="freq_150">150 · sehr hoch</option>
+                    <option value="200" data-i18n="freq_200">200 · extrem</option>
                     <option value="240">240 · maximum</option>
                   </select>
                 </div>
@@ -681,11 +681,11 @@
         <!-- Control Deck Visualizers -->
         <div class="grid-2" style="margin-top: 24px;">
           <div class="visualizer-container" style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 12px; border: 1px solid rgba(90, 179, 255, 0.2);">
-            <div class="channel-label" style="font-size: 13px; margin-bottom: 8px; color: #5ab3ff;">Oszilloskop Kanal A</div>
+            <div class="channel-label" style="font-size: 13px; margin-bottom: 8px; color: #5ab3ff;" data-i18n="scope_ch_a">Oszilloskop Kanal A</div>
             <canvas id="deck-visualizer-a" width="400" height="80" style="width: 100%; height: 80px;"></canvas>
           </div>
           <div class="visualizer-container" style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 12px; border: 1px solid rgba(215, 180, 243, 0.2);">
-            <div class="channel-label" style="font-size: 13px; margin-bottom: 8px; color: #d7b4f3;">Oszilloskop Kanal B</div>
+            <div class="channel-label" style="font-size: 13px; margin-bottom: 8px; color: #d7b4f3;" data-i18n="scope_ch_b">Oszilloskop Kanal B</div>
             <canvas id="deck-visualizer-b" width="400" height="80" style="width: 100%; height: 80px;"></canvas>
           </div>
         </div>
@@ -756,12 +756,12 @@
             </div>
           </div>
           <div class="manual-pattern-actions">
-            <button type="button" id="btn-pattern-roulette" class="btn" title="Zufälliges Pattern">🎲 Roulette</button>
-            <button type="button" id="btn-chance-pulse" class="btn btn-secondary" title="Würfel-Impuls">🎲 Zufallsimpuls</button>
+            <button type="button" id="btn-pattern-roulette" class="btn" title="Zufälliges Pattern" data-i18n-title="title_random_pattern">🎲 Roulette</button>
+            <button type="button" id="btn-chance-pulse" class="btn btn-secondary" title="Würfel-Impuls" data-i18n-title="title_dice_pulse" data-i18n="chance_pulse_btn">🎲 Zufallsimpuls</button>
             <button type="button" id="btn-dice-toggle" class="btn btn-secondary" title="Dice-Modus">🎲 Dice</button>
             <button type="button" id="btn-music-sync" class="btn btn-secondary" title="Music-Sync (Mikrofon BPM · XToys Sound-Level)">🎵 Music-Sync</button>
             <span id="music-bpm" class="music-bpm-label"></span>
-            <button type="button" id="btn-stop-pattern" class="btn btn-secondary">⏹️ Pattern stoppen</button>
+            <button type="button" id="btn-stop-pattern" class="btn btn-secondary" data-i18n="stop_pattern">⏹️ Pattern stoppen</button>
           </div>
         </div>
 
@@ -772,15 +772,15 @@
           </p>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; align-items: end;">
             <div>
-              <label for="ramp-target-a" style="font-size: 12px; color: var(--text-muted);">Ziel A</label>
+              <label for="ramp-target-a" style="font-size: 12px; color: var(--text-muted);" data-i18n="ramp_target_a">Ziel A</label>
               <input type="number" id="ramp-target-a" min="0" max="200" value="50" class="input" />
             </div>
             <div>
-              <label for="ramp-target-b" style="font-size: 12px; color: var(--text-muted);">Ziel B</label>
+              <label for="ramp-target-b" style="font-size: 12px; color: var(--text-muted);" data-i18n="ramp_target_b">Ziel B</label>
               <input type="number" id="ramp-target-b" min="0" max="200" value="50" class="input" />
             </div>
             <div>
-              <label for="ramp-duration" style="font-size: 12px; color: var(--text-muted);">Dauer (Min)</label>
+              <label for="ramp-duration" style="font-size: 12px; color: var(--text-muted);" data-i18n="ramp_duration">Dauer (Min)</label>
               <input type="number" id="ramp-duration" min="0.1" max="180" step="0.1" value="5" class="input" />
             </div>
             <div style="display: flex; gap: 6px;">
@@ -789,7 +789,7 @@
             </div>
           </div>
           <div style="margin-top: 12px;">
-            <div id="ramp-label" style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Keine aktive Ramp</div>
+            <div id="ramp-label" style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;" data-i18n="ramp_inactive">Keine aktive Ramp</div>
             <div style="background: var(--bg-darker); border-radius: 4px; overflow: hidden; height: 6px;">
               <div id="ramp-progress" style="background: var(--accent-primary); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
             </div>
@@ -856,7 +856,7 @@
             
             <div class="import-box" id="drop-zone">
               <span class="pattern-icon" style="font-size: 48px; display: block; margin-bottom: 12px;">📁</span>
-              <span class="import-text">Klicke zum Auswählen oder ziehe Audio-Dateien hierher</span>
+              <span class="import-text" data-i18n="stim_drop_text">Klicke zum Auswählen oder ziehe Audio-Dateien hierher</span>
               <span class="import-subtitle">MP3/WAV · Stereo L→A / R→B · Playlist</span>
               <input type="file" id="input-stim-file" accept="audio/mp3, audio/*" multiple>
             </div>
@@ -865,13 +865,13 @@
 
           <div class="audio-controls" id="audio-panel" style="opacity: 0.5; pointer-events: none;">
             <div class="audio-buttons">
-              <button id="btn-prev-track" class="btn btn-secondary" title="Vorheriger Track">⏮</button>
+              <button id="btn-prev-track" class="btn btn-secondary" title="Vorheriger Track" data-i18n-title="title_prev_track">⏮</button>
               <button id="btn-play-audio" class="btn">▶️ Play</button>
-              <button id="btn-next-track" class="btn btn-secondary" title="Nächster Track">⏭</button>
+              <button id="btn-next-track" class="btn btn-secondary" title="Nächster Track" data-i18n-title="title_next_track">⏭</button>
             </div>
             
             <div class="track-info">
-              <div id="audio-track-title" class="track-title">Keine Datei geladen</div>
+              <div id="audio-track-title" class="track-title" data-i18n="stim_no_file">Keine Datei geladen</div>
               <div class="track-timeline">
                 <span id="audio-time-elapsed" class="time-display">00:00</span>
                 <input type="range" id="audio-timeline-slider" min="0" max="100" value="0" style="flex-grow: 1;">
@@ -880,10 +880,10 @@
             </div>
 
             <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-              <span class="control-label" style="font-size: 12px;">Audio hören:</span>
+              <span class="control-label" style="font-size: 12px;" data-i18n="stim_hear_audio">Audio hören:</span>
               <input type="checkbox" id="check-hear-audio" checked style="width: 18px; height: 18px; cursor: pointer;">
-              <span class="control-label" style="font-size: 12px; margin-left: 8px;">Lautstärke×Master:</span>
-              <input type="checkbox" id="check-audio-master-link" checked style="width: 18px; height: 18px; cursor: pointer;" title="Hörlautstärke folgt dem Master-Slider">
+              <span class="control-label" style="font-size: 12px; margin-left: 8px;" data-i18n="vol_x_master">Lautstärke×Master:</span>
+              <input type="checkbox" id="check-audio-master-link" checked style="width: 18px; height: 18px; cursor: pointer;" title="Hörlautstärke folgt dem Master-Slider" data-i18n-title="title_vol_follows_master">
               <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="stim-loop"> Loop</label>
               <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="stim-shuffle"> Shuffle</label>
             </div>
@@ -979,24 +979,24 @@
           <div class="visualizer-container">
             <div class="visualizer-card">
               <div class="visualizer-title">
-                <span>Visualizer Kanal A (Links)</span>
+                <span data-i18n="vis_ch_a_left">Visualizer Kanal A (Links)</span>
                 <span id="visualizer-val-a">0%</span>
               </div>
               <canvas id="canvas-vis-a" class="visualizer-canvas"></canvas>
               <div style="margin-top: 12px; display: flex; align-items: center; justify-content: space-between;">
-                <span class="control-label" style="font-size: 11px;">Empfindlichkeit (A)</span>
+                <span class="control-label" style="font-size: 11px;" data-i18n="sensitivity_a">Empfindlichkeit (A)</span>
                 <input type="range" id="slider-sens-a" min="0.5" max="3" step="0.1" value="1.2" style="width: 120px;">
               </div>
             </div>
 
             <div class="visualizer-card">
               <div class="visualizer-title">
-                <span>Visualizer Kanal B (Rechts)</span>
+                <span data-i18n="vis_ch_b_right">Visualizer Kanal B (Rechts)</span>
                 <span id="visualizer-val-b">0%</span>
               </div>
               <canvas id="canvas-vis-b" class="visualizer-canvas"></canvas>
               <div style="margin-top: 12px; display: flex; align-items: center; justify-content: space-between;">
-                <span class="control-label" style="font-size: 11px;">Empfindlichkeit (B)</span>
+                <span class="control-label" style="font-size: 11px;" data-i18n="sensitivity_b">Empfindlichkeit (B)</span>
                 <input type="range" id="slider-sens-b" min="0.5" max="3" step="0.1" value="1.2" style="width: 120px;">
               </div>
             </div>
@@ -1016,11 +1016,11 @@
         <div class="games-toolbar">
           <div id="daily-challenge-card" class="daily-challenge-card">
             <div class="daily-challenge-main">
-              <span class="daily-badge">📅 Heute</span>
+              <span class="daily-badge" data-i18n="today_badge">📅 Heute</span>
               <strong id="daily-title">—</strong>
               <span id="daily-progress" class="daily-progress">—</span>
             </div>
-            <button type="button" id="btn-daily-start" class="btn">Challenge starten</button>
+            <button type="button" id="btn-daily-start" class="btn" data-i18n="challenge_start">Challenge starten</button>
           </div>
           <div class="games-toolbar-actions">
             <button type="button" id="btn-quick-play" class="btn">⚡ Quick Play</button>
@@ -1030,8 +1030,8 @@
         
         <!-- Game Config Bar -->
         <div class="game-config-bar">
-          <button type="button" id="btn-toggle-game-config" class="btn btn-secondary btn-sm">⚙️ Spiel-Einstellungen</button>
-          <button type="button" id="btn-reset-game-config" class="btn btn-secondary btn-sm" style="display:none;">Zurücksetzen</button>
+          <button type="button" id="btn-toggle-game-config" class="btn btn-secondary btn-sm" data-i18n="game_config_btn">⚙️ Spiel-Einstellungen</button>
+          <button type="button" id="btn-reset-game-config" class="btn btn-secondary btn-sm" style="display:none;" data-i18n="game_reset">Zurücksetzen</button>
         </div>
 
         <!-- Game Config Panel (collapsible) -->
@@ -1049,7 +1049,7 @@
               </p>
               <p class="game-hs">Highscore Level: <span id="hs-reflex">0</span></p>
             </div>
-            <button id="btn-start-reflex" class="btn" style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));">Spiel starten</button>
+            <button id="btn-start-reflex" class="btn" style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));" data-i18n="game_play_btn">Spiel starten</button>
           </div>
 
           <div class="game-card">
@@ -1061,7 +1061,7 @@
               </p>
               <p class="game-hs">Highscore: <span id="hs-rhythm">0</span></p>
             </div>
-            <button id="btn-start-rhythm" class="btn" style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));">Spiel starten</button>
+            <button id="btn-start-rhythm" class="btn" style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));" data-i18n="game_play_btn">Spiel starten</button>
           </div>
 
           <div class="game-card">
@@ -1073,7 +1073,7 @@
               </p>
               <p class="game-hs">Highscore: <span id="hs-edge">0</span></p>
             </div>
-            <button id="btn-start-edge" class="btn" style="background: linear-gradient(135deg, #d83b01, #a80000);">Spiel starten</button>
+            <button id="btn-start-edge" class="btn" style="background: linear-gradient(135deg, #d83b01, #a80000);" data-i18n="game_play_btn">Spiel starten</button>
           </div>
 
           <div class="game-card">
@@ -1085,7 +1085,7 @@
               </p>
               <p class="game-hs">Highscore: <span id="hs-potato">0</span></p>
             </div>
-            <button id="btn-start-potato" class="btn" style="background: linear-gradient(135deg, #8660a9, #0078d4);">Spiel starten</button>
+            <button id="btn-start-potato" class="btn" style="background: linear-gradient(135deg, #8660a9, #0078d4);" data-i18n="game_play_btn">Spiel starten</button>
           </div>
 
           <div class="game-card">
@@ -1097,7 +1097,7 @@
               </p>
               <p class="game-hs">Highscore: <span id="hs-survival">0</span>s</p>
             </div>
-            <button id="btn-start-survival" class="btn" style="background: linear-gradient(135deg, #107c41, #0078d4);">Spiel starten</button>
+            <button id="btn-start-survival" class="btn" style="background: linear-gradient(135deg, #107c41, #0078d4);" data-i18n="game_play_btn">Spiel starten</button>
           </div>
         </div>
 
@@ -1114,13 +1114,13 @@
           </div>
 
           <div id="reflex-tap-box" class="reflex-box">
-            <div id="reflex-text" class="reflex-text">Klicke um zu starten</div>
-            <div id="reflex-subtext" class="reflex-subtext">Warte nach dem Start auf das grüne Signal</div>
+            <div id="reflex-text" class="reflex-text" data-i18n="game_start_prompt">Klicke um zu starten</div>
+            <div id="reflex-subtext" class="reflex-subtext" data-i18n="wait_for_green">Warte nach dem Start auf das grüne Signal</div>
           </div>
 
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span id="reflex-feedback-message" style="font-weight: 500; font-size: 14px;"></span>
-            <button id="btn-exit-reflex" class="btn btn-secondary">Beenden</button>
+            <button id="btn-exit-reflex" class="btn btn-secondary" data-i18n="game_exit">Beenden</button>
           </div>
         </div>
 
@@ -1146,12 +1146,12 @@
               <div class="rhythm-beat-node" id="rhythm-node-3"></div>
             </div>
             
-            <button id="rhythm-tap-area" class="rhythm-tap-zone" disabled>JETZT TAPPEN! (Space)</button>
+            <button id="rhythm-tap-area" class="rhythm-tap-zone" disabled data-i18n="tap_now_space">JETZT TAPPEN! (Space)</button>
           </div>
 
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span id="rhythm-feedback-message" style="font-weight: 500; font-size: 14px;"></span>
-            <button id="btn-exit-rhythm" class="btn btn-secondary">Beenden</button>
+            <button id="btn-exit-rhythm" class="btn btn-secondary" data-i18n="game_exit">Beenden</button>
           </div>
         </div>
 
@@ -1169,11 +1169,11 @@
               <div id="edge-zone" class="edge-zone"></div>
               <div id="edge-fill" class="edge-fill"></div>
             </div>
-            <button type="button" id="edge-hold-btn" class="btn edge-hold-btn">GEDRÜCKT HALTEN</button>
+            <button type="button" id="edge-hold-btn" class="btn edge-hold-btn" data-i18n="game_hold">GEDRÜCKT HALTEN</button>
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span id="edge-feedback" style="font-weight: 500; font-size: 14px;"></span>
-            <button id="btn-exit-edge" class="btn btn-secondary">Beenden</button>
+            <button id="btn-exit-edge" class="btn btn-secondary" data-i18n="game_exit">Beenden</button>
           </div>
         </div>
 
@@ -1193,7 +1193,7 @@
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span id="potato-feedback" style="font-weight: 500; font-size: 14px;"></span>
-            <button id="btn-exit-potato" class="btn btn-secondary">Beenden</button>
+            <button id="btn-exit-potato" class="btn btn-secondary" data-i18n="game_exit">Beenden</button>
           </div>
         </div>
 
@@ -1213,14 +1213,14 @@
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
             <span id="survival-feedback" style="font-weight: 500; font-size: 14px;"></span>
             <div style="display:flex; gap:8px;">
-              <button type="button" id="btn-survival-bail" class="btn">Aufgeben (Score)</button>
-              <button id="btn-exit-survival" class="btn btn-secondary">Beenden</button>
+              <button type="button" id="btn-survival-bail" class="btn" data-i18n="surrender_score">Aufgeben (Score)</button>
+              <button id="btn-exit-survival" class="btn btn-secondary" data-i18n="game_exit">Beenden</button>
             </div>
           </div>
         </div>
         <!-- Achievements Card -->
         <div class="card" style="margin-top: 20px;">
-          <div class="card-title">Erfolge</div>
+          <div class="card-title" data-i18n="achievements">Erfolge</div>
           <div id="achievements-list" class="achievements-list"></div>
         </div>
 
@@ -1233,11 +1233,11 @@
           <!-- Oscilloscope Row -->
           <div class="grid-2">
             <div class="visualizer-container" style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 12px; border: 1px solid rgba(90, 179, 255, 0.2);">
-              <div class="channel-label" style="font-size: 13px; margin-bottom: 8px; color: #5ab3ff;">Oszilloskop Kanal A</div>
+              <div class="channel-label" style="font-size: 13px; margin-bottom: 8px; color: #5ab3ff;" data-i18n="scope_ch_a">Oszilloskop Kanal A</div>
               <canvas id="editor-visualizer-a" width="500" height="100" style="width: 100%; height: 100px;"></canvas>
             </div>
             <div class="visualizer-container" style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 12px; border: 1px solid rgba(215, 180, 243, 0.2);">
-              <div class="channel-label" style="font-size: 13px; margin-bottom: 8px; color: #d7b4f3;">Oszilloskop Kanal B</div>
+              <div class="channel-label" style="font-size: 13px; margin-bottom: 8px; color: #d7b4f3;" data-i18n="scope_ch_b">Oszilloskop Kanal B</div>
               <canvas id="editor-visualizer-b" width="500" height="100" style="width: 100%; height: 100px;"></canvas>
             </div>
           </div>
@@ -1249,23 +1249,23 @@
               <div style="display:flex; flex-direction:column; gap:6px;">
                 <div class="editor-preset-btns" style="display:flex; gap:6px; flex-wrap:wrap;">
                   <span style="font-size:11px;opacity:0.6;align-self:center;">Presets:</span>
-                  <button type="button" id="btn-editor-preset-sine" class="btn btn-secondary btn-sm" title="Sinus">∿ Sinus</button>
-                  <button type="button" id="btn-editor-preset-saw" class="btn btn-secondary btn-sm" title="Sägezahn">⋰ Säge</button>
-                  <button type="button" id="btn-editor-preset-square" class="btn btn-secondary btn-sm" title="Rechteck">⊏ Rechteck</button>
-                  <button type="button" id="btn-editor-preset-ramp" class="btn btn-secondary btn-sm" title="Rampe">╱ Rampe</button>
-                  <button type="button" id="btn-editor-preset-triangle" class="btn btn-secondary btn-sm" title="Dreieck">△ Dreieck</button>
+                  <button type="button" id="btn-editor-preset-sine" class="btn btn-secondary btn-sm" title="Sinus" data-i18n-title="editor_preset_sine" data-i18n="editor_preset_sine">∿ Sinus</button>
+                  <button type="button" id="btn-editor-preset-saw" class="btn btn-secondary btn-sm" title="Sägezahn" data-i18n-title="editor_preset_saw" data-i18n="preset_saw">⋰ Säge</button>
+                  <button type="button" id="btn-editor-preset-square" class="btn btn-secondary btn-sm" title="Rechteck" data-i18n-title="editor_preset_square" data-i18n="editor_preset_square">⊏ Rechteck</button>
+                  <button type="button" id="btn-editor-preset-ramp" class="btn btn-secondary btn-sm" title="Rampe" data-i18n-title="editor_preset_ramp" data-i18n="editor_preset_ramp">╱ Rampe</button>
+                  <button type="button" id="btn-editor-preset-triangle" class="btn btn-secondary btn-sm" title="Dreieck" data-i18n-title="editor_preset_triangle" data-i18n="editor_preset_triangle">△ Dreieck</button>
                   <span style="font-size:11px;opacity:0.6;align-self:center;margin-left:8px;">Ops:</span>
-                  <button type="button" id="btn-editor-copy-ab" class="btn btn-secondary btn-sm" title="Kopiere A → B">A→B</button>
-                  <button type="button" id="btn-editor-copy-ba" class="btn btn-secondary btn-sm" title="Kopiere B → A">B→A</button>
-                  <button type="button" id="btn-editor-mirror" class="btn btn-secondary btn-sm" title="Spiegeln (reverse)">↔ Spiegeln</button>
-                  <button type="button" id="btn-editor-invert" class="btn btn-secondary btn-sm" title="Invertieren (100−val)">⇅ Invert.</button>
-                  <button type="button" id="btn-editor-shift-left" class="btn btn-secondary btn-sm" title="Nach links schieben">◁ Shift</button>
-                  <button type="button" id="btn-editor-shift-right" class="btn btn-secondary btn-sm" title="Nach rechts schieben">Shift ▷</button>
-                  <button type="button" id="btn-editor-fade-in" class="btn btn-secondary btn-sm" title="Einblenden (0→100)">◧ Fade In</button>
-                  <button type="button" id="btn-editor-fade-out" class="btn btn-secondary btn-sm" title="Ausblenden (100→0)">Fade Out ◨</button>
+                  <button type="button" id="btn-editor-copy-ab" class="btn btn-secondary btn-sm" title="Kopiere A → B" data-i18n-title="editor_copy_a2b">A→B</button>
+                  <button type="button" id="btn-editor-copy-ba" class="btn btn-secondary btn-sm" title="Kopiere B → A" data-i18n-title="editor_copy_b2a">B→A</button>
+                  <button type="button" id="btn-editor-mirror" class="btn btn-secondary btn-sm" title="Spiegeln (reverse)" data-i18n-title="title_mirror_reverse" data-i18n="editor_mirror">↔ Spiegeln</button>
+                  <button type="button" id="btn-editor-invert" class="btn btn-secondary btn-sm" title="Invertieren (100−val)" data-i18n-title="title_invert">⇅ Invert.</button>
+                  <button type="button" id="btn-editor-shift-left" class="btn btn-secondary btn-sm" title="Nach links schieben" data-i18n-title="editor_shift_left">◁ Shift</button>
+                  <button type="button" id="btn-editor-shift-right" class="btn btn-secondary btn-sm" title="Nach rechts schieben" data-i18n-title="editor_shift_right">Shift ▷</button>
+                  <button type="button" id="btn-editor-fade-in" class="btn btn-secondary btn-sm" title="Einblenden (0→100)" data-i18n-title="title_fade_in">◧ Fade In</button>
+                  <button type="button" id="btn-editor-fade-out" class="btn btn-secondary btn-sm" title="Ausblenden (100→0)" data-i18n-title="title_fade_out">Fade Out ◨</button>
                 </div>
                 <div style="display:flex; gap:10px; align-items:center; font-size:12px;">
-                  <span style="opacity:0.6;">Schritte:</span>
+                  <span style="opacity:0.6;" data-i18n="editor_steps">Schritte:</span>
                   <select id="editor-step-count" style="padding:2px 6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;font-size:11px;">
                     <option value="8">8</option>
                     <option value="16" selected>16</option>
@@ -1279,18 +1279,18 @@
             </div>
             <div class="channel-box" style="gap: 10px;">
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <input type="text" id="editor-name" placeholder="Pattern-Name" style="flex:1;min-width:120px;padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;">
-                <button type="button" id="btn-editor-clear" class="btn btn-secondary btn-sm">Leeren</button>
-                <button type="button" id="btn-editor-random" class="btn btn-secondary btn-sm">Zufall</button>
-                <button type="button" id="btn-editor-smooth" class="btn btn-secondary btn-sm">Glätten</button>
-                <button type="button" id="btn-editor-save" class="btn btn-secondary btn-sm">Speichern</button>
-                <button type="button" id="btn-editor-play" class="btn btn-sm">▶ Abspielen</button>
+                <input type="text" id="editor-name" placeholder="Pattern-Name" data-i18n-placeholder="placeholder_pattern_name" style="flex:1;min-width:120px;padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;">
+                <button type="button" id="btn-editor-clear" class="btn btn-secondary btn-sm" data-i18n="editor_clear">Leeren</button>
+                <button type="button" id="btn-editor-random" class="btn btn-secondary btn-sm" data-i18n="editor_random">Zufall</button>
+                <button type="button" id="btn-editor-smooth" class="btn btn-secondary btn-sm" data-i18n="editor_smooth">Glätten</button>
+                <button type="button" id="btn-editor-save" class="btn btn-secondary btn-sm" data-i18n="editor_save">Speichern</button>
+                <button type="button" id="btn-editor-play" class="btn btn-sm" data-i18n="editor_play">▶ Abspielen</button>
                 <button type="button" id="btn-editor-stop" class="btn btn-danger btn-sm">⏹ Stop</button>
               </div>
               <div id="editor-grid" class="pattern-editor-grid"></div>
               <div style="margin-top:10px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                  <h4 style="font-size:13px;margin:0;">Gespeicherte Patterns</h4>
+                  <h4 style="font-size:13px;margin:0;" data-i18n="editor_saved">Gespeicherte Patterns</h4>
                   <button type="button" id="btn-editor-export-all" class="btn btn-secondary btn-sm" style="font-size:10px;padding:2px 6px;">Export</button>
                   <button type="button" id="btn-pattern-import" class="btn btn-secondary btn-sm" style="font-size:10px;padding:2px 6px;">Import (Preview)</button>
                 </div>
@@ -1301,7 +1301,7 @@
 
           <!-- Live Preview Info -->
           <div id="editor-live-info" style="display:none; text-align:center; font-size:13px; padding:8px; background:rgba(0,120,212,0.1); border:1px solid rgba(0,120,212,0.2); border-radius:8px;">
-            <span style="color:#5ab3ff;">▶ Live: Pattern wird abgespielt</span>
+            <span style="color:#5ab3ff;" data-i18n="editor_live_playing">▶ Live: Pattern wird abgespielt</span>
             <span id="editor-live-step" style="margin-left:12px;opacity:0.75;">Schritt 0/16</span>
           </div>
 
@@ -1315,7 +1315,7 @@
           <!-- Server Status & Control -->
           <div class="grid-2">
             <div class="card">
-              <div class="card-title">WebSocket-Server</div>
+              <div class="card-title" data-i18n="remote_server_title">WebSocket-Server</div>
               <div class="channel-box" style="gap: 12px; font-size: 14px;">
                 <p style="font-size: 13px; opacity: 0.75; margin: 0;">
                   WebSocket-Server für externe Steuerung (z.B. Python, Node, andere Geräte).
@@ -1323,18 +1323,18 @@
                 </p>
                 <div style="display: flex; align-items: center; gap: 10px;">
                   <span>Status:</span>
-                  <span id="editor-remote-status" class="remote-status">gestoppt</span>
+                  <span id="editor-remote-status" class="remote-status" data-i18n="remote_status">gestoppt</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:12px;">
                   <span style="font-size:12px; opacity:0.75; min-width:40px;">Port:</span>
                   <input type="number" id="editor-remote-port" value="8080" min="1024" max="65535" style="width:80px;padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;">
                 </div>
                 <div class="btn-row">
-                  <button type="button" id="btn-editor-toggle-remote" class="btn btn-secondary btn-sm">Server starten</button>
-                  <button type="button" id="btn-editor-copy-token" class="btn btn-secondary btn-sm" style="display:none;">Token kopieren</button>
+                  <button type="button" id="btn-editor-toggle-remote" class="btn btn-secondary btn-sm" data-i18n="remote_start">Server starten</button>
+                  <button type="button" id="btn-editor-copy-token" class="btn btn-secondary btn-sm" style="display:none;" data-i18n="remote_copy_token">Token kopieren</button>
                 </div>
                 <div id="editor-remote-token-wrap" style="display: none;">
-                  <p style="font-size: 12px; opacity: 0.75; margin: 4px 0;">Auth-Token (für externe Clients):</p>
+                  <p style="font-size: 12px; opacity: 0.75; margin: 4px 0;" data-i18n="auth_token_label">Auth-Token (für externe Clients):</p>
                   <code id="editor-remote-token" style="font-size: 11px; word-break: break-all; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; display: block;"></code>
                 </div>
               </div>
@@ -1342,9 +1342,9 @@
 
             <!-- Quick Test Panel -->
             <div class="card">
-              <div class="card-title">Befehls-Tester</div>
+              <div class="card-title" data-i18n="cmd_tester_title">Befehls-Tester</div>
               <div class="channel-box" style="gap:10px;font-size:13px;">
-                <p style="font-size:12px;opacity:0.65;margin:0;">Teste Remote-Befehle direkt aus der App heraus.</p>
+                <p style="font-size:12px;opacity:0.65;margin:0;" data-i18n="cmd_tester_desc">Teste Remote-Befehle direkt aus der App heraus.</p>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
                   <select id="editor-test-cmd" style="padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;">
                     <option value="set_intensity">set_intensity</option>
@@ -1360,7 +1360,7 @@
                     <option value="get_logs">get_logs</option>
                   </select>
                   <input type="text" id="editor-test-args" placeholder='{"channel":"A","value":50}' style="flex:1;min-width:140px;padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;font-size:12px;">
-                  <button type="button" id="btn-editor-test-cmd" class="btn btn-sm" style="font-size:11px;padding:4px 10px;">Senden</button>
+                  <button type="button" id="btn-editor-test-cmd" class="btn btn-sm" style="font-size:11px;padding:4px 10px;" data-i18n="remote_send">Senden</button>
                 </div>
                 <div id="editor-test-result" style="font-size:12px;opacity:0.75;min-height:18px;"></div>
               </div>
@@ -1370,7 +1370,7 @@
           <!-- Client Code Examples -->
           <div class="card" style="grid-column: 1 / -1;">
             <div class="card-title">
-              <span>Client-Codebeispiele</span>
+              <span data-i18n="remote_code_title">Client-Codebeispiele</span>
               <select id="remote-code-lang" style="padding:2px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;font-size:11px;">
                 <option value="python">Python</option>
                 <option value="js">JavaScript (Node)</option>
@@ -1382,7 +1382,7 @@
 
           <!-- Command Reference -->
           <div class="card" style="grid-column: 1 / -1;">
-            <div class="card-title">API-Referenz</div>
+            <div class="card-title" data-i18n="remote_api_title">API-Referenz</div>
             <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:10px; font-size:12px;">
               <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
                 <code style="color:#5ab3ff;">set_intensity</code>
@@ -1410,19 +1410,19 @@
               </div>
               <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
                 <code style="color:#5ab3ff;">stop_pattern</code>
-                <p style="margin:4px 0 0;opacity:0.7;">Stoppt aktuelles Pattern.</p>
+                <p style="margin:4px 0 0;opacity:0.7;" data-i18n="stops_pattern">Stoppt aktuelles Pattern.</p>
               </div>
               <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
                 <code style="color:#5ab3ff;">stop_all</code>
-                <p style="margin:4px 0 0;opacity:0.7;">Panic: Setzt alle Ausgaben auf 0.</p>
+                <p style="margin:4px 0 0;opacity:0.7;" data-i18n="panic_sets_zero">Panic: Setzt alle Ausgaben auf 0.</p>
               </div>
               <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
                 <code style="color:#5ab3ff;">get_state</code>
-                <p style="margin:4px 0 0;opacity:0.7;">Gibt aktuellen Gerätestatus zurück.</p>
+                <p style="margin:4px 0 0;opacity:0.7;" data-i18n="returns_status">Gibt aktuellen Gerätestatus zurück.</p>
               </div>
               <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
                 <code style="color:#5ab3ff;">get_patterns</code>
-                <p style="margin:4px 0 0;opacity:0.7;">Listet alle verfügbaren Pattern-Namen.</p>
+                <p style="margin:4px 0 0;opacity:0.7;" data-i18n="lists_patterns">Listet alle verfügbaren Pattern-Namen.</p>
               </div>
               <div class="api-cmd-card" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;">
                 <code style="color:#5ab3ff;">get_logs</code>
@@ -1434,16 +1434,16 @@
           <!-- Command Log -->
           <div class="card" style="grid-column: 1 / -1;">
             <div class="card-title">
-              <span>Befehls-Log</span>
+              <span data-i18n="cmd_log_title">Befehls-Log</span>
               <div style="display:flex;gap:8px;align-items:center;">
                 <select id="remote-log-filter" style="padding:2px 6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;font-size:11px;">
-                  <option value="all">Alle</option>
-                  <option value="OK">Nur OK</option>
-                  <option value="ERR">Nur Fehler</option>
-                  <option value="WARN">Nur Warnungen</option>
+                  <option value="all" data-i18n="remote_filter_all">Alle</option>
+                  <option value="OK" data-i18n="remote_filter_ok">Nur OK</option>
+                  <option value="ERR" data-i18n="remote_filter_err">Nur Fehler</option>
+                  <option value="WARN" data-i18n="remote_filter_warn">Nur Warnungen</option>
                 </select>
                 <span id="remote-conn-stats" style="font-size:11px;opacity:0.6;"></span>
-                <button type="button" id="btn-editor-clear-cmd-log" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;">Löschen</button>
+                <button type="button" id="btn-editor-clear-cmd-log" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" data-i18n="remote_log_clear">Löschen</button>
               </div>
             </div>
             <div id="editor-cmd-log" class="terminal-box" style="max-height:200px;overflow-y:auto;">[Remote] Warte auf Befehle...</div>
@@ -1461,13 +1461,13 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; cursor: pointer;" id="director-header">
               <div>
                 <div style="font-weight: 600; font-size: 16px;">🎬 AI Director <span style="font-size: 11px; color: var(--text-secondary); font-weight: 400;">— autonomer Regisseur</span></div>
-                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Läuft von selbst: generiert Narrative + Stim-Befehle im Rhythmus.</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" data-i18n="director_subtitle">Läuft von selbst: generiert Narrative + Stim-Befehle im Rhythmus.</div>
               </div>
               <div style="display: flex; gap: 8px; align-items: center;" onclick="event.stopPropagation()">
-                <span id="director-status-pill" class="director-pill director-pill-idle">inaktiv</span>
+                <span id="director-status-pill" class="director-pill director-pill-idle" data-i18n="director_inactive">inaktiv</span>
                 <button type="button" id="btn-director-toggle" class="btn btn-sm">▶ Start</button>
                 <button type="button" id="btn-director-pause" class="btn btn-sm btn-secondary" disabled>⏸ Pause</button>
-                <button type="button" id="btn-director-collapse" class="btn btn-sm btn-secondary" title="Ein-/ausklappen">▾</button>
+                <button type="button" id="btn-director-collapse" class="btn btn-sm btn-secondary" title="Ein-/ausklappen" data-i18n-title="director_collapse_title">▾</button>
               </div>
             </div>
 
@@ -1482,8 +1482,8 @@
                   </select>
                 </div>
                 <div style="grid-column: span 2;">
-                  <label class="director-label" for="director-theme">Thema / Stimmung (optional)</label>
-                  <input type="text" id="director-theme" class="text-input" placeholder="z.B. Verhör, sanfte Tease, Ausdauerprüfung...">
+                  <label class="director-label" for="director-theme" data-i18n="director_theme_label">Thema / Stimmung (optional)</label>
+                  <input type="text" id="director-theme" class="text-input" placeholder="z.B. Verhör, sanfte Tease, Ausdauerprüfung..." data-i18n-placeholder="director_theme_ph">
                 </div>
                 <div>
                   <label class="director-label" for="director-interval">Beat-Intervall: <span id="director-interval-val">30</span>s</label>
@@ -1500,12 +1500,12 @@
               </div>
 
               <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
-                <span id="director-meta">Bereit. LLM in den Einstellungen konfigurieren.</span>
-                <span style="color: var(--text-muted);">ESC lang / Strg+Leertaste = Panic stoppt auch den Director.</span>
+                <span id="director-meta" data-i18n="director_meta_ready">Bereit. LLM in den Einstellungen konfigurieren.</span>
+                <span style="color: var(--text-muted);" data-i18n="director_panic_hint">ESC lang / Strg+Leertaste = Panic stoppt auch den Director.</span>
               </div>
 
               <div id="director-log" style="max-height: 160px; overflow-y: auto; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 6px; display: flex; flex-direction: column; gap: 4px;" data-placeholder="1">
-                <div style="color: var(--text-muted); font-style: italic; font-size: 13px;">Director-Narrative erscheinen hier, sobald er läuft.</div>
+                <div style="color: var(--text-muted); font-style: italic; font-size: 13px;" data-i18n="director_log_placeholder">Director-Narrative erscheinen hier, sobald er läuft.</div>
               </div>
             </div>
           </div>
@@ -1513,13 +1513,13 @@
           <!-- Onboarding Overlay -->
           <div id="ai-onboarding" class="card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; gap: 24px;">
             <div>
-              <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 8px;">Willkommen im AI-Control Raum</h2>
-              <p style="color: var(--text-secondary); max-width: 500px; margin: 0 auto;">Wähle deine Begleitung für diese Session. Die KI übernimmt die Kontrolle über die Hardware-Intensität und entscheidet über dein Wohlbefinden.</p>
+              <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 8px;" data-i18n="ai_welcome">Willkommen im AI-Control Raum</h2>
+              <p style="color: var(--text-secondary); max-width: 500px; margin: 0 auto;" data-i18n="ai_welcome_desc">Wähle deine Begleitung für diese Session. Die KI übernimmt die Kontrolle über die Hardware-Intensität und entscheidet über dein Wohlbefinden.</p>
             </div>
             
             <div style="display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 300px;">
-              <span style="font-size: 13px; color: var(--text-secondary); text-align: left;">Wie darf die KI dich nennen?</span>
-              <input type="text" id="input-user-name" placeholder="Dein Name / Spitzname" style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.3); color: white; outline: none; width: 100%;">
+              <span style="font-size: 13px; color: var(--text-secondary); text-align: left;" data-i18n="ai_name_question">Wie darf die KI dich nennen?</span>
+              <input type="text" id="input-user-name" placeholder="Dein Name / Spitzname" data-i18n-placeholder="ai_name_placeholder" style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.3); color: white; outline: none; width: 100%;">
             </div>
 
             <div class="persona-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; max-width: 700px;">
@@ -1527,21 +1527,21 @@
               <div class="persona-card selected" data-persona="domina" style="border: 2px solid var(--accent-purple); border-radius: 12px; padding: 16px; cursor: pointer; background: rgba(0,0,0,0.2); transition: var(--transition-normal);">
                 <img src="assets/persona_domina.png" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 12px; border: 2px solid var(--accent-purple);">
                 <div style="font-weight: 600; font-size: 16px;">Mistress</div>
-                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Dominant, streng, fordernd.</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;" data-i18n="persona_domina_desc">Dominant, streng, fordernd.</div>
               </div>
               
               <!-- Persona 2 -->
               <div class="persona-card" data-persona="nurse" style="border: 2px solid transparent; border-radius: 12px; padding: 16px; cursor: pointer; background: rgba(0,0,0,0.2); transition: var(--transition-normal);">
                 <img src="assets/persona_nurse.png" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 12px; border: 2px solid #107c41;">
                 <div style="font-weight: 600; font-size: 16px;">Nurse Joy</div>
-                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Klinisch, neckend, experimentierfreudig.</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;" data-i18n="persona_nurse_desc">Klinisch, neckend, experimentierfreudig.</div>
               </div>
 
               <!-- Persona 3 -->
               <div class="persona-card" data-persona="master" style="border: 2px solid transparent; border-radius: 12px; padding: 16px; cursor: pointer; background: rgba(0,0,0,0.2); transition: var(--transition-normal);">
                 <img src="assets/persona_master.png" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 12px; border: 2px solid #a80000;">
                 <div style="font-weight: 600; font-size: 16px;">The Master</div>
-                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Kalt, sadistisch, berechnend.</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;" data-i18n="persona_master_desc">Kalt, sadistisch, berechnend.</div>
               </div>
             </div>
 
@@ -1558,7 +1558,7 @@
               <button id="btn-new-chat" class="btn" style="width: 100%; justify-content: center; margin-bottom: 16px;">
                 ➕ Neuer Chat
               </button>
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">Letzte Sessions</div>
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;" data-i18n="ai_last_sessions">Letzte Sessions</div>
               <div id="chat-sessions-list" style="flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
                 <!-- Session items will be injected here -->
               </div>
@@ -1572,7 +1572,7 @@
                   <img id="ai-current-avatar" src="assets/persona_domina.png" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);">
                   <div>
                     <div id="ai-current-name" style="font-weight: 600; font-size: 16px;">Mistress</div>
-                    <div id="ai-status-text" style="font-size: 12px; color: var(--text-muted);">Bereit.</div>
+                    <div id="ai-status-text" style="font-size: 12px; color: var(--text-muted);" data-i18n="ai_ready">Bereit.</div>
                   </div>
                 </div>
               </div>
@@ -1585,8 +1585,8 @@
               <!-- Chat Input Area -->
               <div style="padding: 16px; border-top: 1px solid var(--border-color); background: rgba(0,0,0,0.2);">
                 <div style="display: flex; gap: 12px;">
-                    <input type="text" id="ai-chat-input" placeholder="Schreibe eine Anweisung..." style="flex-grow: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: white; outline: none;">
-                    <button id="btn-ai-send" class="btn" style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple)); padding: 0 24px;">Senden</button>
+                    <input type="text" id="ai-chat-input" placeholder="Schreibe eine Anweisung..." data-i18n-placeholder="ai_placeholder" style="flex-grow: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: white; outline: none;">
+                    <button id="btn-ai-send" class="btn" style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple)); padding: 0 24px;" data-i18n="remote_send">Senden</button>
                   </div>
                 </div>
               </div>
@@ -1599,28 +1599,28 @@
               </button>
 
               <div style="display: flex; flex-direction: column; gap: 8px;">
-                <label style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Kanal-Routing Modus</label>
+                <label style="font-size: 12px; color: var(--text-secondary); font-weight: 600;" data-i18n="ai_channel_routing">Kanal-Routing Modus</label>
                 <select id="ai-channel-mode" class="select-control" style="background: var(--bg-surface); padding: 8px; font-size: 13px;">
-                  <option value="sync">A & B Synchron</option>
-                  <option value="independent">A & B Unabhängig</option>
-                  <option value="only_a">Nur Kanal A</option>
-                  <option value="only_b">Nur Kanal B</option>
+                  <option value="sync" data-i18n="ai_mode_sync">A & B Synchron</option>
+                  <option value="independent" data-i18n="ai_mode_indep">A & B Unabhängig</option>
+                  <option value="only_a" data-i18n="ai_mode_only_a">Nur Kanal A</option>
+                  <option value="only_b" data-i18n="ai_mode_only_b">Nur Kanal B</option>
                 </select>
               </div>
 
               <div style="width: 100%; height: 1px; background: var(--border-color); margin: 8px 0;"></div>
 
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: var(--text-secondary); font-size: 13px;">Aktuelles Muster:</span>
-                <span id="ai-dash-pattern" style="font-weight: 600; color: white; background: var(--bg-color); padding: 4px 8px; border-radius: 4px;">Keines</span>
+                <span style="color: var(--text-secondary); font-size: 13px;" data-i18n="ai_current_pattern">Aktuelles Muster:</span>
+                <span id="ai-dash-pattern" style="font-weight: 600; color: white; background: var(--bg-color); padding: 4px 8px; border-radius: 4px;" data-i18n="ai_none">Keines</span>
               </div>
               
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: var(--text-secondary); font-size: 13px;">Intensität A:</span>
+                <span style="color: var(--text-secondary); font-size: 13px;" data-i18n="ai_intensity_a">Intensität A:</span>
                 <span id="ai-dash-int-a" style="font-weight: bold; color: #5ab3ff; font-size: 16px;">0</span>
               </div>
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: var(--text-secondary); font-size: 13px;">Intensität B:</span>
+                <span style="color: var(--text-secondary); font-size: 13px;" data-i18n="ai_intensity_b">Intensität B:</span>
                 <span id="ai-dash-int-b" style="font-weight: bold; color: #d7b4f3; font-size: 16px;">0</span>
               </div>
 
@@ -1628,13 +1628,13 @@
 
               <!-- Channel A Visualizer -->
               <div class="visualizer-container" style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 8px; border: 1px solid rgba(90, 179, 255, 0.2);">
-                <div class="channel-label" style="font-size: 11px; margin-bottom: 4px;">CH A Oszilloskop</div>
+                <div class="channel-label" style="font-size: 11px; margin-bottom: 4px;" data-i18n="ch_a_scope">CH A Oszilloskop</div>
                 <canvas id="ai-visualizer-a" width="240" height="60" style="width: 100%; height: 60px;"></canvas>
               </div>
 
               <!-- Channel B Visualizer -->
               <div class="visualizer-container" style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 8px; border: 1px solid rgba(215, 180, 243, 0.2);">
-                <div class="channel-label" style="font-size: 11px; margin-bottom: 4px;">CH B Oszilloskop</div>
+                <div class="channel-label" style="font-size: 11px; margin-bottom: 4px;" data-i18n="ch_b_scope">CH B Oszilloskop</div>
                 <canvas id="ai-visualizer-b" width="240" height="60" style="width: 100%; height: 60px;"></canvas>
               </div>
 
@@ -1651,18 +1651,18 @@
           <div class="grid-2">
             <!-- Safety -->
             <div class="card">
-              <div class="card-title">Sicherheit</div>
+              <div class="card-title" data-i18n="settings_security">Sicherheit</div>
               <div class="channel-box">
                 <div class="intensity-slider-wrapper">
                   <div class="intensity-slider-header">
-                    <span>Soft-Limit A (max. Strength)</span>
+                    <span data-i18n="soft_limit_a_label">Soft-Limit A (max. Strength)</span>
                     <span id="label-limit-a">150</span>
                   </div>
                   <input type="range" id="slider-limit-a" min="10" max="200" value="150">
                 </div>
                 <div class="intensity-slider-wrapper">
                   <div class="intensity-slider-header">
-                    <span>Soft-Limit B (max. Strength)</span>
+                    <span data-i18n="soft_limit_b_label">Soft-Limit B (max. Strength)</span>
                     <span id="label-limit-b">150</span>
                   </div>
                   <input type="range" id="slider-limit-b" min="10" max="200" value="150">
@@ -1670,14 +1670,14 @@
                 <p class="settings-hint">
                   Soft-Limits gehen ans Gerät (<code>0xBF</code>) und begrenzen Slider, Patterns, Spiele und AI.
                   Master im Header skaliert den Output zusätzlich (0–100 %).
-                  <strong>STOPP</strong> / Strg+Leertaste = Panic (Ausgabe 0, BLE bleibt).
+                  <strong data-i18n="btn_panic">STOPP</strong> / Strg+Leertaste = Panic (Ausgabe 0, BLE bleibt).
                 </p>
               </div>
             </div>
 
             <!-- Wave / BF balance -->
             <div class="card">
-              <div class="card-title">Wellenform-Balance (Gerät)</div>
+              <div class="card-title" data-i18n="settings_balance_title">Wellenform-Balance (Gerät)</div>
               <div class="channel-box">
                 <p class="settings-hint" style="margin-top:0;">
                   Wird bei Verbinden und bei Limit-Änderung als <code>0xBF</code> gesendet.
@@ -1711,20 +1711,20 @@
                   </div>
                   <input type="range" id="slider-wave-bal-b" min="0" max="255" value="0">
                 </div>
-                <button type="button" id="btn-reset-balance" class="btn btn-secondary" style="padding:6px 12px;font-size:12px;align-self:flex-start;">Balance zurücksetzen</button>
+                <button type="button" id="btn-reset-balance" class="btn btn-secondary" style="padding:6px 12px;font-size:12px;align-self:flex-start;" data-i18n="settings_balance_reset">Balance zurücksetzen</button>
               </div>
             </div>
 
             <!-- Device info -->
             <div class="card">
-              <div class="card-title">Gerät</div>
+              <div class="card-title" data-i18n="settings_device">Gerät</div>
               <div class="channel-box settings-kv">
-                <div class="kv-row"><span>Name</span><span id="info-device-name">Nicht verbunden</span></div>
-                <div class="kv-row"><span>Hersteller-Daten</span><span id="info-manufacturer" class="mono">--</span></div>
-                <div class="kv-row"><span>Firmware-Daten</span><span id="info-firmware" class="mono">--</span></div>
-                <div class="kv-row"><span>Hardware-Daten</span><span id="info-hardware" class="mono">--</span></div>
-                <div class="kv-row"><span>BT-Prefix</span><span class="mono">47L121</span></div>
-                <div class="kv-row"><span>Protokoll</span><span>BLE V3 · 0xB0 / 0xBF</span></div>
+                <div class="kv-row"><span>Name</span><span id="info-device-name" data-i18n="panorama_protect">Nicht verbunden</span></div>
+                <div class="kv-row"><span data-i18n="kv_manufacturer">Hersteller-Daten</span><span id="info-manufacturer" class="mono">--</span></div>
+                <div class="kv-row"><span data-i18n="kv_firmware">Firmware-Daten</span><span id="info-firmware" class="mono">--</span></div>
+                <div class="kv-row"><span data-i18n="kv_hardware">Hardware-Daten</span><span id="info-hardware" class="mono">--</span></div>
+                <div class="kv-row"><span data-i18n="kv_bt_prefix">BT-Prefix</span><span class="mono">47L121</span></div>
+                <div class="kv-row"><span data-i18n="kv_protocol">Protokoll</span><span>BLE V3 · 0xB0 / 0xBF</span></div>
               </div>
             </div>
 
@@ -1733,60 +1733,67 @@
               <div class="card-title">App</div>
               <div class="channel-box" style="gap: 12px; font-size: 14px;">
                 <label class="settings-check">
-                  <span>Kanäle tauschen (A ↔ B)</span>
+                  <span data-i18n="language">Sprache</span>
+                  <select id="setting-language" class="text-input" style="max-width: 140px;" aria-label="Sprache / Language">
+                    <option value="de">Deutsch</option>
+                    <option value="en">English</option>
+                  </select>
+                </label>
+                <label class="settings-check">
+                  <span data-i18n="settings_swap">Kanäle tauschen (A ↔ B)</span>
                   <input type="checkbox" id="check-swap-channels">
                 </label>
                 <label class="settings-check">
-                  <span>STIM-Audio hörbar</span>
+                  <span data-i18n="stim_ear_audio">STIM-Audio hörbar</span>
                   <input type="checkbox" id="check-settings-audio" checked>
                 </label>
                 <label class="settings-check">
-                  <span>BLE Debug-Modus (Hex-Dump im Log)</span>
+                  <span data-i18n="settings_debug">BLE Debug-Modus (Hex-Dump im Log)</span>
                   <input type="checkbox" id="check-debug-mode">
                 </label>
                 <div class="btn-row">
                   <button type="button" id="btn-export-settings" class="btn btn-secondary btn-sm">Export</button>
                   <button type="button" id="btn-import-settings" class="btn btn-secondary btn-sm">Import</button>
                   <input type="file" id="input-import-settings" accept="application/json,.json" style="display:none;">
-                  <button type="button" id="btn-show-onboarding" class="btn btn-secondary btn-sm">Einführung</button>
+                  <button type="button" id="btn-show-onboarding" class="btn btn-secondary btn-sm" data-i18n="settings_onboarding">Einführung</button>
                 </div>
-                <p class="settings-hint">Export ohne API-Keys. Import überschreibt Soft-Limits, Wave-Freq, Balance und AI-Endpoint.</p>
+                <p class="settings-hint" data-i18n="export_help">Export ohne API-Keys. Import überschreibt Soft-Limits, Wave-Freq, Balance und AI-Endpoint.</p>
               </div>
             </div>
 
             <!-- PR2 / v3.2.0 Profile Manager -->
             <div class="card">
-              <div class="card-title">Profile</div>
+              <div class="card-title" data-i18n="profiles_title">Profile</div>
               <div class="channel-box" style="gap: 12px;">
                 <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 8px 0;">
                   Mehrere Konfigurationen (z. B. für verschiedene Partner/Stimmungen). Speichert Soft-Limits, Master-Scale, Frequenzen, AI-Settings.
                 </p>
                 <div class="profile-row">
-                  <select id="profile-select" aria-label="Profil wählen" style="flex: 1; min-width: 180px;"></select>
-                  <button type="button" id="btn-profile-load" class="btn btn-secondary btn-sm">Laden</button>
-                  <button type="button" id="btn-profile-save" class="btn btn-secondary btn-sm">Aktualisieren</button>
-                  <button type="button" id="btn-profile-new" class="btn btn-sm">Neu</button>
-                  <button type="button" id="btn-profile-rename" class="btn btn-secondary btn-sm">Umbenennen</button>
-                  <button type="button" id="btn-profile-delete" class="btn btn-secondary btn-sm">Löschen</button>
+                  <select id="profile-select" aria-label="Profil wählen" data-i18n-aria-label="profile_select" style="flex: 1; min-width: 180px;"></select>
+                  <button type="button" id="btn-profile-load" class="btn btn-secondary btn-sm" data-i18n="profile_load">Laden</button>
+                  <button type="button" id="btn-profile-save" class="btn btn-secondary btn-sm" data-i18n="profile_update">Aktualisieren</button>
+                  <button type="button" id="btn-profile-new" class="btn btn-sm" data-i18n="profile_new">Neu</button>
+                  <button type="button" id="btn-profile-rename" class="btn btn-secondary btn-sm" data-i18n="profile_rename">Umbenennen</button>
+                  <button type="button" id="btn-profile-delete" class="btn btn-secondary btn-sm" data-i18n="remote_log_clear">Löschen</button>
                 </div>
                 <div class="profile-row" id="profile-new-row" style="display: none;">
-                  <input type="text" id="profile-new-name" placeholder="Profil-Name" style="flex: 1; min-width: 180px;">
-                  <button type="button" id="btn-profile-create" class="btn btn-sm">Erstellen</button>
-                  <button type="button" id="btn-profile-cancel" class="btn btn-secondary btn-sm">Abbrechen</button>
+                  <input type="text" id="profile-new-name" placeholder="Profil-Name" data-i18n-placeholder="profile_name_ph" style="flex: 1; min-width: 180px;">
+                  <button type="button" id="btn-profile-create" class="btn btn-sm" data-i18n="profile_create">Erstellen</button>
+                  <button type="button" id="btn-profile-cancel" class="btn btn-secondary btn-sm" data-i18n="profile_cancel">Abbrechen</button>
                 </div>
               </div>
             </div>
 
             <!-- PR2 / v3.2.0 Customizable Hotkeys -->
             <div class="card">
-              <div class="card-title">Tastatur-Shortcuts</div>
+              <div class="card-title" data-i18n="hotkeys_title">Tastatur-Shortcuts</div>
               <div class="channel-box" style="padding: 0;">
                 <p style="font-size: 13px; color: var(--text-muted); margin: 8px 12px;">
                   Klicke auf eine Kombination und drücke die neue Tasten. „Mod"" ist Strg auf Win/Linux, Cmd auf macOS.
                 </p>
                 <div id="hotkey-list"></div>
                 <div class="btn-row" style="padding: 8px 12px;">
-                  <button type="button" id="btn-hotkey-reset" class="btn btn-secondary btn-sm">Alle zurücksetzen</button>
+                  <button type="button" id="btn-hotkey-reset" class="btn btn-secondary btn-sm" data-i18n="hotkeys_reset">Alle zurücksetzen</button>
                 </div>
               </div>
             </div>
@@ -1800,21 +1807,21 @@
                 </p>
                 <div style="display: flex; align-items: center; gap: 10px;">
                   <span>Status:</span>
-                  <span id="recorder-status" class="remote-status">Bereit</span>
+                  <span id="recorder-status" class="remote-status" data-i18n="ready_chip">Bereit</span>
                 </div>
-                <div id="recorder-info" style="font-size: 12px; opacity: 0.65;">Keine Aufnahme</div>
+                <div id="recorder-info" style="font-size: 12px; opacity: 0.65;" data-i18n="rec_no_recording">Keine Aufnahme</div>
                 <div class="btn-row" style="flex-wrap: wrap; gap: 6px;">
-                  <button type="button" id="btn-recorder-toggle" class="btn btn-secondary btn-sm">Aufnahme starten</button>
-                  <button type="button" id="btn-recorder-play" class="btn btn-secondary btn-sm" disabled>Abspielen</button>
+                  <button type="button" id="btn-recorder-toggle" class="btn btn-secondary btn-sm" data-i18n="rec_start">Aufnahme starten</button>
+                  <button type="button" id="btn-recorder-play" class="btn btn-secondary btn-sm" disabled data-i18n="editor_play">Abspielen</button>
                   <button type="button" id="btn-recorder-stop" class="btn btn-secondary btn-sm" disabled>Stop</button>
                 </div>
                 <div class="btn-row" style="gap: 6px;">
-                  <button type="button" id="btn-recorder-save" class="btn btn-secondary btn-sm" disabled>Speichern</button>
-                  <button type="button" id="btn-recorder-load" class="btn btn-secondary btn-sm">Laden</button>
+                  <button type="button" id="btn-recorder-save" class="btn btn-secondary btn-sm" disabled data-i18n="editor_save">Speichern</button>
+                  <button type="button" id="btn-recorder-load" class="btn btn-secondary btn-sm" data-i18n="profile_load">Laden</button>
                   <input type="file" id="input-recorder-load" accept="application/json,.json" style="display:none;">
                 </div>
                 <details style="margin-top: 8px;">
-                  <summary style="font-size: 12px; cursor: pointer; color: var(--text-muted);">Aufnahme bearbeiten (PR3)</summary>
+                  <summary style="font-size: 12px; cursor: pointer; color: var(--text-muted);" data-i18n="edit_recording">Aufnahme bearbeiten (PR3)</summary>
                   <div style="margin-top: 8px; padding: 8px; background: var(--bg-input); border-radius: 4px;">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 12px;">
                       <label>Start (ms)<input type="number" id="rec-edit-start" min="0" value="0" class="input" style="width:100%;"></label>
@@ -1836,7 +1843,7 @@
 
             <!-- PR3 / v3.3.0 Session Scheduler -->
             <div class="card">
-              <div class="card-title">Session-Scheduler</div>
+              <div class="card-title" data-i18n="sched_title">Session-Scheduler</div>
               <div class="channel-box" style="gap: 10px;">
                 <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
                   Startet Sessions automatisch. Tage als Komma-Liste (0=So, 1=Mo, …, 6=Sa). Leer = einmalig.
@@ -1844,10 +1851,10 @@
                 <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 6px;">
                   <select id="scheduler-session" aria-label="Session wählen"></select>
                   <input type="time" id="scheduler-time" value="20:00" class="input">
-                  <input type="text" id="scheduler-days" placeholder="z.B. 1,3,5" class="input">
+                  <input type="text" id="scheduler-days" placeholder="z.B. 1,3,5" data-i18n-placeholder="scheduler_days_ph" class="input">
                 </div>
                 <div class="btn-row">
-                  <button type="button" id="btn-scheduler-add" class="btn btn-sm">Planen</button>
+                  <button type="button" id="btn-scheduler-add" class="btn btn-sm" data-i18n="sched_add">Planen</button>
                 </div>
                 <div id="scheduler-list"></div>
               </div>
@@ -1855,20 +1862,20 @@
 
             <!-- PR4 / v3.4.0 Trigger System -->
             <div class="card">
-              <div class="card-title">Trigger-System</div>
+              <div class="card-title" data-i18n="trig_title">Trigger-System</div>
               <div class="channel-box" style="gap: 10px;">
                 <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
                   Event-getriebene Regeln: „Wenn Stärke A &gt; 100 → Soft-Stop"".
                 </p>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px;">
                   <select id="trigger-cond-type" class="input">
-                    <option value="strength-above">Strength über</option>
-                    <option value="strength-below">Strength unter</option>
-                    <option value="time-elapsed">Zeit vergangen (s)</option>
-                    <option value="pattern-active">Pattern aktiv</option>
-                    <option value="audio-playing">Audio läuft</option>
+                    <option value="strength-above" data-i18n="cond_strength_above">Strength über</option>
+                    <option value="strength-below" data-i18n="cond_strength_below">Strength unter</option>
+                    <option value="time-elapsed" data-i18n="cond_time_elapsed">Zeit vergangen (s)</option>
+                    <option value="pattern-active" data-i18n="cond_pattern_active">Pattern aktiv</option>
+                    <option value="audio-playing" data-i18n="cond_audio_playing">Audio läuft</option>
                   </select>
-                  <input type="text" id="trigger-cond-value" placeholder="Wert" class="input">
+                  <input type="text" id="trigger-cond-value" placeholder="Wert" data-i18n-placeholder="value_ph" class="input">
                   <select id="trigger-action-type" class="input">
                     <option value="set-strength">Set Strength</option>
                     <option value="soft-stop">Soft-Stop</option>
@@ -1876,11 +1883,11 @@
                     <option value="start-pattern">Start Pattern</option>
                     <option value="toast">Toast</option>
                   </select>
-                  <input type="text" id="trigger-action-value" placeholder="Wert" class="input">
+                  <input type="text" id="trigger-action-value" placeholder="Wert" data-i18n-placeholder="value_ph" class="input">
                 </div>
                 <div class="btn-row">
-                  <button type="button" id="btn-trigger-add" class="btn btn-sm">Hinzufügen</button>
-                  <button type="button" id="btn-trigger-arm" class="btn btn-secondary btn-sm">Scharfstellen</button>
+                  <button type="button" id="btn-trigger-add" class="btn btn-sm" data-i18n="trig_add">Hinzufügen</button>
+                  <button type="button" id="btn-trigger-arm" class="btn btn-secondary btn-sm" data-i18n="trig_arm">Scharfstellen</button>
                 </div>
                 <div id="trigger-list"></div>
               </div>
@@ -1895,18 +1902,18 @@
                 </p>
                 <div style="display: grid; grid-template-columns: 1fr 3fr; gap: 6px;">
                   <select id="memory-category" class="input">
-                    <option value="like">Mag</option>
-                    <option value="dislike">Mag nicht</option>
-                    <option value="preference" selected>Präferenz</option>
-                    <option value="fact">Fakt</option>
-                    <option value="note">Notiz</option>
+                    <option value="like" data-i18n="mem_like">Mag</option>
+                    <option value="dislike" data-i18n="mem_dislike">Mag nicht</option>
+                    <option value="preference" selected data-i18n="mem_preference">Präferenz</option>
+                    <option value="fact" data-i18n="mem_fact">Fakt</option>
+                    <option value="note" data-i18n="mem_note">Notiz</option>
                   </select>
-                  <input type="text" id="memory-content" placeholder="Inhalt (max 500 Zeichen)" maxlength="500" class="input">
+                  <input type="text" id="memory-content" placeholder="Inhalt (max 500 Zeichen)" data-i18n-placeholder="memory_content_ph" maxlength="500" class="input">
                 </div>
                 <div class="btn-row">
-                  <button type="button" id="btn-memory-add" class="btn btn-sm">Hinzufügen</button>
-                  <button type="button" id="btn-memory-clear-unpinned" class="btn btn-secondary btn-sm">Unpinned löschen</button>
-                  <button type="button" id="btn-memory-clear-all" class="btn btn-secondary btn-sm">Alle löschen</button>
+                  <button type="button" id="btn-memory-add" class="btn btn-sm" data-i18n="trig_add">Hinzufügen</button>
+                  <button type="button" id="btn-memory-clear-unpinned" class="btn btn-secondary btn-sm" data-i18n="delete_unpinned">Unpinned löschen</button>
+                  <button type="button" id="btn-memory-clear-all" class="btn btn-secondary btn-sm" data-i18n="delete_all">Alle löschen</button>
                 </div>
                 <div id="ai-memory-list"></div>
               </div>
@@ -1914,29 +1921,29 @@
 
             <!-- PR5 / v3.5.0 MIDI Controller -->
             <div class="card">
-              <div class="card-title">MIDI-Controller</div>
+              <div class="card-title" data-i18n="midi_title">MIDI-Controller</div>
               <div class="channel-box" style="gap: 10px;">
                 <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
                   Hardware-Controller (Korg nanoKONTROL, Akai LPD8 etc.) für Strength / Frequency / Pattern.
                 </p>
                 <div class="btn-row">
-                  <button type="button" id="btn-midi-init" class="btn btn-sm">MIDI aktivieren</button>
-                  <span id="midi-status" style="font-size: 13px; color: var(--text-muted); align-self: center;">Nicht aktiv</span>
+                  <button type="button" id="btn-midi-init" class="btn btn-sm" data-i18n="midi_activate">MIDI aktivieren</button>
+                  <span id="midi-status" style="font-size: 13px; color: var(--text-muted); align-self: center;" data-i18n="midi_not_active">Nicht aktiv</span>
                 </div>
                 <details>
-                  <summary style="font-size: 12px; cursor: pointer; color: var(--text-muted);">Mapping hinzufügen</summary>
+                  <summary style="font-size: 12px; cursor: pointer; color: var(--text-muted);" data-i18n="add_mapping">Mapping hinzufügen</summary>
                   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 6px; margin-top: 6px;">
-                    <input type="text" id="midi-input-name" placeholder="Gerät (Substring)" class="input">
+                    <input type="text" id="midi-input-name" placeholder="Gerät (Substring)" data-i18n-placeholder="device_substring_ph" class="input">
                     <select id="midi-type" class="input">
                       <option value="cc">CC (Fader)</option>
-                      <option value="note">Note (Taste)</option>
+                      <option value="note" data-i18n="note_key">Note (Taste)</option>
                       <option value="program">Program</option>
                     </select>
-                    <input type="number" id="midi-channel" min="-1" max="15" value="-1" placeholder="Channel (-1 = alle)" class="input">
-                    <input type="number" id="midi-number" min="0" max="127" placeholder="Nummer" class="input">
+                    <input type="number" id="midi-channel" min="-1" max="15" value="-1" placeholder="Channel (-1 = alle)" data-i18n-placeholder="channel_ph" class="input">
+                    <input type="number" id="midi-number" min="0" max="127" placeholder="Nummer" data-i18n-placeholder="number_ph" class="input">
                     <select id="midi-action-type" class="input">
                       <option value="set-strength">Strength</option>
-                      <option value="set-frequency">Frequenz</option>
+                      <option value="set-frequency" data-i18n="frequency">Frequenz</option>
                       <option value="set-master">Master</option>
                       <option value="trigger-pattern">Pattern Start</option>
                       <option value="stop-pattern">Pattern Stop</option>
@@ -1944,14 +1951,14 @@
                     <select id="midi-action-channel" class="input">
                       <option value="A">A</option>
                       <option value="B">B</option>
-                      <option value="both" selected>Beide</option>
+                      <option value="both" selected data-i18n="both_label">Beide</option>
                     </select>
                     <input type="number" id="midi-min" placeholder="Min" value="0" class="input">
                     <input type="number" id="midi-max" placeholder="Max" value="200" class="input">
-                    <input type="text" id="midi-pattern-name" placeholder="Pattern-Name" class="input">
+                    <input type="text" id="midi-pattern-name" placeholder="Pattern-Name" data-i18n-placeholder="placeholder_pattern_name" class="input">
                   </div>
                   <div class="btn-row" style="margin-top: 6px;">
-                    <button type="button" id="btn-midi-add" class="btn btn-sm">Hinzufügen</button>
+                    <button type="button" id="btn-midi-add" class="btn btn-sm" data-i18n="trig_add">Hinzufügen</button>
                   </div>
                 </details>
                 <div id="midi-mapping-list"></div>
@@ -1966,11 +1973,11 @@
                   Sperrt Strength-/Slider-/Settings-Änderungen während einer Session. <strong>PANIC + Soft-Stop bleiben immer freigeschaltet.</strong>
                 </p>
                 <div class="profile-row">
-                  <span id="pin-status" style="flex: 1; font-size: 14px;">Kein PIN gesetzt</span>
-                  <button type="button" id="btn-pin-set" class="btn btn-sm">PIN setzen</button>
-                  <button type="button" id="btn-pin-clear" class="btn btn-secondary btn-sm">Entfernen</button>
-                  <button type="button" id="btn-pin-lock" class="btn btn-secondary btn-sm" disabled>Sperren</button>
-                  <button type="button" id="btn-pin-unlock" class="btn btn-secondary btn-sm" disabled>Entsperren</button>
+                  <span id="pin-status" style="flex: 1; font-size: 14px;" data-i18n="pin_not_set">Kein PIN gesetzt</span>
+                  <button type="button" id="btn-pin-set" class="btn btn-sm" data-i18n="pin_set">PIN setzen</button>
+                  <button type="button" id="btn-pin-clear" class="btn btn-secondary btn-sm" data-i18n="pin_remove">Entfernen</button>
+                  <button type="button" id="btn-pin-lock" class="btn btn-secondary btn-sm" disabled data-i18n="pin_lock">Sperren</button>
+                  <button type="button" id="btn-pin-unlock" class="btn btn-secondary btn-sm" disabled data-i18n="pin_unlock">Entsperren</button>
                 </div>
               </div>
             </div>
@@ -1980,9 +1987,9 @@
               <div class="card-title">AI (LLM)</div>
               <div class="channel-box ai-settings-grid">
                 <div class="control-row stacked">
-                  <span class="control-label">Anbieter</span>
+                  <span class="control-label" data-i18n="settings_anbieter">Anbieter</span>
                   <select id="ai-provider" class="select-control">
-                    <option value="ollama" selected>Ollama (lokal)</option>
+                    <option value="ollama" selected data-i18n="settings_ollama">Ollama (lokal)</option>
                     <option value="openrouter">OpenRouter (Cloud)</option>
                   </select>
                 </div>
@@ -1995,7 +2002,7 @@
                   <input type="password" id="ai-api-key" class="text-input" placeholder="sk-or-v1-… · safeStorage">
                 </div>
                 <div class="control-row stacked">
-                  <span class="control-label">Modell</span>
+                  <span class="control-label" data-i18n="settings_model">Modell</span>
                   <input type="text" id="ai-model" class="text-input" value="qwen2.5">
                 </div>
                 <div class="control-row stacked" style="grid-column: 1 / -1;">
@@ -2009,13 +2016,13 @@
           <!-- App Updates + About -->
           <div class="card">
             <div class="card-title">
-              <span>App-Updates</span>
+              <span data-i18n="app_updates_title">App-Updates</span>
               <span id="app-version-text" style="font-size:11px; opacity:0.7;">v1.9.0</span>
             </div>
             <p id="update-status-text" style="font-size:13px; margin: 0 0 10px;">—</p>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <button id="btn-check-update" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Nach Updates suchen</button>
-              <button id="btn-install-update" class="btn" style="padding: 6px 12px; font-size: 12px; display:none;">Jetzt installieren</button>
+              <button id="btn-check-update" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" data-i18n="settings_update_check">Nach Updates suchen</button>
+              <button id="btn-install-update" class="btn" style="padding: 6px 12px; font-size: 12px; display:none;" data-i18n="settings_update_install">Jetzt installieren</button>
             </div>
             <p style="font-size:12px; opacity:0.65; margin-top:10px;">
               Updates kommen automatisch von den öffentlichen GitHub Releases.
@@ -2026,15 +2033,15 @@
             <!-- Statistics -->
             <div class="card" style="grid-column: 1 / -1;">
               <div class="card-title">
-                <span>Statistiken</span>
-                <button type="button" id="btn-reset-stats" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;">Zurücksetzen</button>
+                <span data-i18n="settings_stats">Statistiken</span>
+                <button type="button" id="btn-reset-stats" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" data-i18n="game_reset">Zurücksetzen</button>
               </div>
               <div id="stats-content"></div>
             </div>
 
             <!-- About -->
             <div class="card">
-              <div class="card-title">Über Stim App</div>
+              <div class="card-title" data-i18n="settings_about">Über Stim App</div>
             <div class="about-block">
               <p><strong>Stim App</strong> · Control Deck für DG-LAB Coyote 3.0</p>
               <p id="about-version-line" style="opacity:0.8;">Version —</p>
@@ -2048,13 +2055,13 @@
           <!-- Diagnostic Logs -->
           <div class="card">
             <div class="card-title">
-              <span>Diagnose & Konsolen-Protokoll</span>
+              <span data-i18n="settings_diag_title">Diagnose & Konsolen-Protokoll</span>
               <div style="display:flex; gap:6px; align-items:center;">
                 <button id="btn-export-logs" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;">Export</button>
-                <button id="btn-clear-logs" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;">Löschen</button>
+                <button id="btn-clear-logs" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" data-i18n="remote_log_clear">Löschen</button>
               </div>
             </div>
-            <div id="terminal-log" class="terminal-box">[SYSTEM] Stim App gestartet.</div>
+            <div id="terminal-log" class="terminal-box" data-i18n="system_started">[SYSTEM] Stim App gestartet.</div>
             <p style="font-size:12px; opacity:0.65; margin-top:8px;">
               API-Keys werden verschlüsselt im App-Profil gespeichert (Electron safeStorage / Windows DPAPI), nicht im Klartext.
             </p>

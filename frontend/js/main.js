@@ -83,31 +83,31 @@ import "./modules/tab-persistence.js";
 import "./modules/hotkeys.js";
 import "./modules/keyboard-bindings.js";
 import "./modules/profiles.js";
-import "./modules/ui-bindings-pr2.js";
+import "./modules/ui-profiles-hotkeys.js";
 
 // PR3 / v3.3.0 content & sharing
 import "./modules/pattern-import.js";
 import "./modules/search.js";
 import "./modules/scheduler.js";
 import "./modules/recording-editor.js";
-import "./modules/ui-bindings-pr3.js";
+import "./modules/ui-library-tools.js";
 
 // PR4 / v3.4.0 fun + AI
 import "./modules/dice.js";
 import "./modules/music-sync.js";
 import "./modules/triggers.js";
 import "./modules/ai-memory.js";
-import "./modules/ui-bindings-pr4.js";
+import "./modules/ui-automation.js";
 
 // PR5 / v3.5.0 hardware + lock
 import "./modules/midi-controller.js";
 import "./modules/session-pin.js";
-import "./modules/ui-bindings-pr5.js";
+import "./modules/ui-midi-pin.js";
 
 // PR6 / v3.6.0 vision + story
 import "./modules/webcam-vision.js";
 import "./modules/story-mode.js";
-import "./modules/ui-bindings-pr6.js";
+import "./modules/ui-vision-story.js";
 
 // AI Director (autonomous conductor: LLM + ai-bridge + safety)
 import "./modules/ai-director.js";

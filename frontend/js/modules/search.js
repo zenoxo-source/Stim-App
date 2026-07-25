@@ -1,6 +1,6 @@
 // search.js - Lightweight full-text search across patterns, sessions, stats.
 //
-// Pure index/lookup functions. UI overlay wired in ui-bindings-pr3.js.
+// Pure index/lookup functions. UI overlay wired in ui-library-tools.js.
 // Designed to be cheap: builds a flat array of {category, label, sub, action}
 // entries and filters by substring (case-insensitive).
 

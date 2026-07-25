@@ -25,11 +25,41 @@ class FakeEventTarget {
   }
 }
 
+/**
+ * Match a single simple selector against an element.
+ * Supports the forms the frontend actually uses: "[attr]", "#id", ".class",
+ * "tag". Compound and descendant selectors are intentionally out of scope.
+ */
+function matchesSelector(el, selector) {
+  const sel = selector.trim();
+  if (!sel) return false;
+  if (sel.startsWith("[") && sel.endsWith("]")) {
+    const body = sel.slice(1, -1);
+    const eq = body.indexOf("=");
+    if (eq < 0) return el.hasAttribute(body);
+    const name = body.slice(0, eq);
+    const want = body.slice(eq + 1).replace(/^["']|["']$/g, "");
+    return el.getAttribute(name) === want;
+  }
+  if (sel.startsWith("#")) return el.attributes.id === sel.slice(1);
+  if (sel.startsWith(".")) return el.classList.contains(sel.slice(1));
+  return el.tagName === sel.toUpperCase();
+}
+
+/** Depth-first walk over an element subtree, including the root. */
+function* walkElements(el) {
+  yield el;
+  for (const child of el.children) {
+    if (child && Array.isArray(child.children)) yield* walkElements(child);
+  }
+}
+
 class FakeElement extends FakeEventTarget {
   constructor(tagName = "div") {
     super();
     this.tagName = String(tagName).toUpperCase();
     this.children = [];
+    this.parentElement = null;
     this.attributes = {};
     this.style = {};
     this.dataset = {};
@@ -57,18 +87,27 @@ class FakeElement extends FakeEventTarget {
   }
   appendChild(c) {
     this.children.push(c);
+    if (c && typeof c === "object") c.parentElement = this;
     return c;
   }
   removeChild(c) {
     const i = this.children.indexOf(c);
     if (i >= 0) this.children.splice(i, 1);
+    if (c && typeof c === "object") c.parentElement = null;
     return c;
   }
   remove() {
-    /* no-op */
+    if (this.parentElement) this.parentElement.removeChild(this);
   }
   setAttribute(k, v) {
     this.attributes[k] = String(v);
+    // Keep dataset in sync so modules can read el.dataset.i18n
+    if (k.startsWith("data-")) {
+      const prop = k
+        .slice(5)
+        .replace(/-([a-z])/g, (_, ch) => ch.toUpperCase());
+      this.dataset[prop] = String(v);
+    }
   }
   getAttribute(k) {
     return this.attributes[k] ?? null;
@@ -79,13 +118,21 @@ class FakeElement extends FakeEventTarget {
   removeAttribute(k) {
     delete this.attributes[k];
   }
-  querySelector() {
-    return null;
+  querySelector(sel) {
+    return this.querySelectorAll(sel)[0] ?? null;
   }
-  querySelectorAll() {
-    return [];
+  querySelectorAll(sel) {
+    if (!sel) return [];
+    const out = [];
+    for (const el of walkElements(this)) {
+      if (el !== this && matchesSelector(el, sel)) out.push(el);
+    }
+    return out;
   }
-  getElementById() {
+  getElementById(id) {
+    for (const el of walkElements(this)) {
+      if (el !== this && el.attributes.id === id) return el;
+    }
     return null;
   }
   getContext() {
@@ -109,14 +156,47 @@ class FakeDocument extends FakeEventTarget {
   createTextNode(t) {
     return { textContent: String(t) };
   }
-  getElementById() {
-    return null;
+  getElementById(id) {
+    return this.body.getElementById(id);
   }
-  querySelector() {
-    return null;
+  querySelector(sel) {
+    return this.body.querySelector(sel);
   }
-  querySelectorAll() {
-    return [];
+  querySelectorAll(sel) {
+    return this.body.querySelectorAll(sel);
+  }
+  /**
+   * Minimal TreeWalker for SHOW_TEXT.
+   *
+   * The mock has no separate text nodes — an element carries its text in
+   * `textContent`. So each leaf element with text yields one pseudo text node
+   * whose writes propagate back to the element. Enough to exercise text-node
+   * logic; not a substitute for a real DOM.
+   */
+  createTreeWalker(root, whatToShow) {
+    const nodes = [];
+    if (whatToShow === undefined || whatToShow & 4 /* SHOW_TEXT */) {
+      for (const el of walkElements(root)) {
+        if (el.children.length === 0 && el.textContent) {
+          nodes.push({
+            get textContent() {
+              return el.textContent;
+            },
+            set textContent(v) {
+              el.textContent = v;
+            },
+            parentElement: el,
+          });
+        }
+      }
+    }
+    let i = -1;
+    return {
+      nextNode() {
+        i += 1;
+        return i < nodes.length ? nodes[i] : null;
+      },
+    };
   }
   addEventListener() {
     /* swallow — many modules register DOMContentLoaded; we don't fire it */
@@ -177,6 +257,22 @@ function installDomMocks() {
   }
   if (!globalThis.navigator) {
     globalThis.navigator = { bluetooth: {} };
+  }
+  if (!globalThis.NodeFilter) {
+    globalThis.NodeFilter = { SHOW_TEXT: 4, SHOW_ELEMENT: 1, SHOW_ALL: 0xffffffff };
+  }
+  if (!globalThis.MutationObserver) {
+    // Inert by default — tests drive translation explicitly via apply().
+    globalThis.MutationObserver = class MutationObserver {
+      constructor(cb) {
+        this.callback = cb;
+      }
+      observe() {}
+      disconnect() {}
+      takeRecords() {
+        return [];
+      }
+    };
   }
   if (!globalThis.requestAnimationFrame) {
     globalThis.requestAnimationFrame = () => 0;

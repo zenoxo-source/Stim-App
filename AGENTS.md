@@ -51,7 +51,7 @@ npm run version:major    # Bump major version (3.0.0 → 4.0.0)
 
 ### Release Flow
 1. Bump version: `npm run version:patch` (or minor/major)
-2. Update `CHANGELOG.md`
+2. Update `CHANGELOG.md` **and the `**Version:**` line in `README.md`** (these drift easily)
 3. Commit: `git commit -m "feat: vX.Y.Z – ..."`
 4. Tag: `git tag -a vX.Y.Z -m "vX.Y.Z: ..."`
 5. Push: `git push origin main && git push origin vX.Y.Z`

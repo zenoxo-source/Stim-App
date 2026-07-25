@@ -1,4 +1,4 @@
-// ui-bindings-pr3.js - DOM glue for PR3 features.
+// ui-library-tools.js - DOM glue for the Library tab tooling.
 //
 // 1. Pattern import with preview dialog
 // 2. Search overlay (Ctrl+K)

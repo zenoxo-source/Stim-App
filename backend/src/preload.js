@@ -30,4 +30,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("remote-command", handler);
     return () => ipcRenderer.removeListener("remote-command", handler);
   },
+  /** Reply to a forwarded remote command (__reqId comes from the command). */
+  sendRemoteResponse: (reqId, result) =>
+    ipcRenderer.send("remote:response", { __reqId: reqId, result }),
+  /** Push a state snapshot to all connected remote clients. */
+  broadcastRemoteState: (state) => ipcRenderer.send("remote:broadcast", state),
 });
