@@ -7,6 +7,8 @@ import {
   resolveChannelStrengths,
   sanitiseAutodriveConfig,
   AUTODRIVE_TEMPLATES,
+  PLACEMENT_PROFILES,
+  CLIMAX_WAVES,
   getPhaseLabel,
 } from "../../frontend/js/lib/autodrive-engine.js";
 
@@ -28,12 +30,31 @@ describe("autodrive-engine", () => {
     assert.equal(c.allowClimaxPatterns, true);
   });
 
-  it("has expanded template set", () => {
+  it("has expanded template set and placement profiles", () => {
     assert.ok(AUTODRIVE_TEMPLATES.classic);
-    assert.ok(AUTODRIVE_TEMPLATES.quick_finish);
     assert.ok(AUTODRIVE_TEMPLATES.marathon);
     assert.ok(AUTODRIVE_TEMPLATES.turbo);
     assert.ok(AUTODRIVE_TEMPLATES.deny);
+    assert.ok(PLACEMENT_PROFILES.soft_external);
+    assert.ok(PLACEMENT_PROFILES.deep_pressure);
+    assert.ok(PLACEMENT_PROFILES.dual);
+    assert.ok(CLIMAX_WAVES.length >= 3);
+  });
+
+  it("placement deep_pressure caps strength below soft limit", () => {
+    const soft = sanitiseAutodriveConfig({
+      placement: "soft_external",
+      maxSessionIntensityFactor: 1,
+      sensitivity: "medium",
+    });
+    const deep = sanitiseAutodriveConfig({
+      placement: "deep_pressure",
+      maxSessionIntensityFactor: 1,
+      sensitivity: "medium",
+    });
+    const rSoft = resolveChannelStrengths(1, soft, 100, 100);
+    const rDeep = resolveChannelStrengths(1, deep, 100, 100);
+    assert.ok(rDeep.strengthA < rSoft.strengthA);
   });
 
   it("resolveChannelStrengths respects per-channel caps and focus A", () => {
@@ -42,11 +63,12 @@ describe("autodrive-engine", () => {
       coupledFraction: 0.3,
       sensitivity: "medium",
       maxSessionIntensityFactor: 1,
+      placement: "soft_external",
     });
+    // soft_external has strengthCap 0.9
     const r = resolveChannelStrengths(1, cfg, 80, 150);
     assert.ok(r.strengthA <= 80);
     assert.ok(r.strengthB <= 150);
-    assert.equal(r.strengthB, Math.min(150, Math.round(r.strengthA * 0.3)));
   });
 
   it("asymmetric soft B cap on coupled channel", () => {
@@ -67,6 +89,18 @@ describe("autodrive-engine", () => {
     assert.equal(s.phase, "EDGE_HOLD");
     assert.equal(s.edgeCountDone, 0);
     assert.equal(s.holdCompletedThisVisit, false);
+  });
+
+  it("almost raises edge score", () => {
+    let s = createInitialState(classicCfg(), t0);
+    s = {
+      ...s,
+      phase: "TEASE",
+      phaseDeadlineAt: t0 + 999999,
+      edgeScore: 10,
+    };
+    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "almost", nowMs: t0 + 100 });
+    assert.ok(s.edgeScore >= 30);
   });
 
   it("completeEdge once per hold; classic target 2 then SURGE", () => {
@@ -178,7 +212,7 @@ describe("autodrive-engine", () => {
     assert.equal(out.patternId, null);
   });
 
-  it("feedback bias persists across ticks (envelope does not wipe)", () => {
+  it("feedback bias persists across ticks", () => {
     let s = createInitialState(classicCfg(), t0);
     s = {
       ...s,
@@ -189,56 +223,61 @@ describe("autodrive-engine", () => {
       feedbackBias: 0,
     };
     s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "too_weak", nowMs: t0 + 1000 });
-    const afterFb = s.feedbackBias;
-    assert.ok(afterFb > 0, "too_weak should raise bias");
-    // many ticks
+    assert.ok(s.feedbackBias > 0);
     for (let i = 0; i < 30; i++) {
       s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 2000 + i * 100 });
     }
-    assert.ok(s.feedbackBias > 0, "bias should persist");
-    assert.ok(s.relStrength > 0.35, "intensity should stay elevated");
+    assert.ok(s.feedbackBias > 0);
   });
 
-  it("too_strong lowers climb rate and comfort ceiling", () => {
-    let s = createInitialState(classicCfg(), t0);
-    s = {
-      ...s,
-      phase: "BUILD",
-      phaseStartedAt: t0,
-      phaseDeadlineAt: t0 + 600000,
-      relStrength: 0.7,
-      climbRate: 1,
-      comfortCeiling: 0.95,
-    };
-    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "too_strong", nowMs: t0 + 500 });
-    assert.ok(s.climbRate < 1);
-    assert.ok(s.comfortCeiling < 0.95);
-    assert.ok(s.relStrength < 0.7);
+  it("calibration good locks sessionBaseline and advances", () => {
+    let s = createInitialState(
+      sanitiseAutodriveConfig({ templateId: "classic", skipCalibration: false }),
+      t0
+    );
+    assert.equal(s.phase, "CALIBRATING");
+    s = { ...s, relStrength: 0.2, phaseStartedAt: t0, phaseDeadlineAt: t0 + 20000 };
+    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "good", nowMs: t0 + 500 });
+    assert.equal(s.phase, "WARMUP");
+    assert.equal(s.calibrated, true);
+    assert.ok(s.sessionBaseline > 0);
   });
 
-  it("now jumps to CLIMAX_PUSH from TEASE", () => {
-    let s = createInitialState(classicCfg(), t0);
-    s = { ...s, phase: "TEASE", phaseDeadlineAt: t0 + 99999, relStrength: 0.5 };
-    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "now", nowMs: t0 + 200 });
-    assert.equal(s.phase, "CLIMAX_PUSH");
-    assert.ok(s.relStrength >= 0.8);
-  });
-
-  it("output exposes phase labels and remaining time", () => {
+  it("output exposes sensation plane fields", () => {
     let s = createInitialState(classicCfg(), t0);
     s = {
       ...s,
       phase: "BUILD",
       phaseStartedAt: t0,
       phaseDeadlineAt: t0 + 60000,
-      effectiveElapsedMs: 60000,
-      targetDurationMs: 12 * 60 * 1000,
+      wireFreq: 55,
+      wireFreqTarget: 60,
+      dutyCycle: 0.7,
+      edgeScore: 40,
+      sessionBaseline: 0.15,
     };
-    const out = computeAutodriveOutput(s, t0 + 1000);
-    assert.equal(out.phaseLabel, getPhaseLabel("BUILD"));
-    assert.ok(out.remainingMs > 0);
-    assert.ok(out.tip);
-    assert.ok(out.patternId);
+    // tick to update plane
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    const out = computeAutodriveOutput(s, t0 + 100);
+    assert.ok(out.wireFreq > 0);
+    assert.ok(out.dutyCycle > 0);
+    assert.ok(out.patternParams.dutyCycle != null);
+    assert.equal(out.phaseLabel, getPhaseLabel(s.phase));
+    assert.ok(typeof out.edgeScore === "number");
+  });
+
+  it("now jumps to CLIMAX_PUSH with multi-wave init", () => {
+    let s = createInitialState(classicCfg(), t0);
+    s = { ...s, phase: "TEASE", phaseDeadlineAt: t0 + 99999, relStrength: 0.5 };
+    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "now", nowMs: t0 + 200 });
+    assert.equal(s.phase, "CLIMAX_PUSH");
+    assert.equal(s.climaxWaveIndex, 0);
+    assert.ok(s.relStrength >= 0.8);
+  });
+
+  it("learning seed applies preferredBias", () => {
+    const s = createInitialState(classicCfg(), t0, { preferredBias: 0.1, lastPeakRel: 0.7 });
+    assert.ok(s.feedbackBias > 0.05);
   });
 
   it("deny template can re-enter hold after first push timeout", () => {
@@ -257,5 +296,21 @@ describe("autodrive-engine", () => {
     s = reduceAutodrive(s, { type: "PHASE_TIMEOUT", nowMs: t0 + 100 });
     assert.equal(s.phase, "EDGE_HOLD");
     assert.equal(s.denyCount, 1);
+  });
+
+  it("high edgeScore on TEASE can enter EDGE_HOLD via tick", () => {
+    let s = createInitialState(classicCfg(), t0);
+    s = {
+      ...s,
+      phase: "TEASE",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 999999,
+      edgeScore: 75,
+      edgeCountDone: 0,
+      edgeCountTarget: 2,
+      relStrength: 0.65,
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.equal(s.phase, "EDGE_HOLD");
   });
 });

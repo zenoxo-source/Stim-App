@@ -1933,3 +1933,9 @@ textarea.text-input { resize: vertical; min-height: 100px; }
 .autodrive-feedback-grid .autodrive-fb:active {
   transform: scale(0.98);
 }
+
+.autodrive-bar-fill.edge { background: linear-gradient(90deg, #8660a9, #d83b01); }
+.autodrive-options { grid-template-columns: 1fr 1fr 1fr 1fr; }
+@media (max-width: 1100px) {
+  .autodrive-options { grid-template-columns: 1fr 1fr; }
+}

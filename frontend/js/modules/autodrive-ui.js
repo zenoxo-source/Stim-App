@@ -131,6 +131,7 @@ function collectConfigFromUi() {
     ? Math.max(2, Math.min(60, durationRaw))
     : tpl.targetDurationMin;
   const autoClimb = !!document.getElementById("autodrive-auto-climb")?.checked;
+  const placement = document.getElementById("autodrive-placement")?.value || "soft_external";
 
   return saveAutodriveConfig({
     templateId,
@@ -143,6 +144,7 @@ function collectConfigFromUi() {
     channelFocus: focus,
     sensitivity,
     autoClimb,
+    placement,
   });
 }
 
@@ -167,6 +169,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (dur && cfg.targetDurationMin) dur.value = String(cfg.targetDurationMin);
     const climb = document.getElementById("autodrive-auto-climb");
     if (climb) climb.checked = cfg.autoClimb !== false;
+    const place = document.getElementById("autodrive-placement");
+    if (place && cfg.placement) place.value = cfg.placement;
   } catch {
     buildTemplateGrid("classic");
   }

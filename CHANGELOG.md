@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.10.2 — Autodrive E-Stim Sensation Plane
+
+### Autodrive (Research-driven)
+- **Sensation Plane**: steuert wire-Freq, Duty-Cycle und A/B-Channel-Mode (sync/alt/lead) pro Phase
+- **Kalibrierung**: Feedback setzt `sessionBaseline` — alle Phasen skalieren relativ dazu
+- **Edge-Score** (0–100): almost/idle-drift steuert Hold/Push; UI-Meter
+- **Multi-Wave Climax-Protokoll**: 4 Crest/Drop-Wellen statt nur Strength-Rampen
+- **Placement-Profile**: Soft/extern, Druck/deep, Dual-Kanal (Freq-Bias, Duty, Cap)
+- **Anti-Habituation**: Pattern-Wechsel-Timer + Soft-Reset-Pausen (Wave aus, Strength hält)
+- **Session-Learning**: Peak-Rel, Placement, Bias über Sessions
+- Duty-Gating im Wave-Loop; Freq-Lerp; Channel-Alternate
+
 ## 3.10.1 — Autodrive massiv verbessert
 
 ### Autodrive Engine

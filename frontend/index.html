@@ -261,6 +261,14 @@
                 <label class="field-label" for="autodrive-duration">Dauer (Min)</label>
                 <input type="number" id="autodrive-duration" class="text-input" min="2" max="60" value="12" step="1" />
               </div>
+              <div>
+                <label class="field-label" for="autodrive-placement">Placement-Profil</label>
+                <select id="autodrive-placement" class="select-control">
+                  <option value="soft_external">Soft / extern</option>
+                  <option value="deep_pressure">Druck / deep</option>
+                  <option value="dual">Dual-Kanal</option>
+                </select>
+              </div>
               <div class="autodrive-check">
                 <label><input type="checkbox" id="autodrive-auto-climb" checked /> Auto-Climb (ohne Feedback steigen)</label>
               </div>
@@ -318,9 +326,17 @@
               </div>
             </div>
 
+            <div>
+              <div class="autodrive-bar-label"><span>Edge-Score</span><span id="autodrive-edge-score">0</span></div>
+              <div class="autodrive-bar-track"><div id="autodrive-edge-bar" class="autodrive-bar-fill edge"></div></div>
+            </div>
+
             <div class="autodrive-stats-row">
               <div>Edges <strong id="autodrive-edges">0 / 0</strong></div>
               <div>Pattern <strong id="autodrive-pattern">—</strong></div>
+              <div>Freq <strong id="autodrive-freq">—</strong></div>
+              <div>Duty <strong id="autodrive-duty">—</strong></div>
+              <div>Baseline <strong id="autodrive-baseline">—</strong></div>
               <div>Owner <strong id="autodrive-owner">none</strong></div>
             </div>
 

@@ -23,9 +23,11 @@ import { isFlagEnabled } from "./feature-flags.js";
 export {
   AUTODRIVE_TEMPLATES,
   AUTODRIVE_CONFIG_DEFAULTS,
+  PLACEMENT_PROFILES,
   sanitiseAutodriveConfig,
   computeAutodriveOutput,
   getPhaseLabel,
+  CLIMAX_WAVES,
 } from "../lib/autodrive-engine.js";
 
 const CONFIG_KEY = "stim_app_autodrive_v1";
@@ -85,10 +87,26 @@ export function saveAutodriveConfig(patch = {}) {
 function loadLearning() {
   try {
     const raw = localStorage.getItem(LEARN_KEY);
-    if (!raw) return { preferredBias: 0, sessions: 0, climaxRate: 0 };
+    if (!raw) {
+      return {
+        preferredBias: 0,
+        sessions: 0,
+        climaxRate: 0,
+        lastPeakRel: 0,
+        preferredPlacement: null,
+        preferredPatternFamily: null,
+      };
+    }
     return JSON.parse(raw);
   } catch {
-    return { preferredBias: 0, sessions: 0, climaxRate: 0 };
+    return {
+      preferredBias: 0,
+      sessions: 0,
+      climaxRate: 0,
+      lastPeakRel: 0,
+      preferredPlacement: null,
+      preferredPatternFamily: null,
+    };
   }
 }
 
@@ -185,15 +203,10 @@ export function startAutodrive(patch = {}) {
   }
 
   const now = Date.now();
-  engineState = createInitialState(cfg, now);
+  const learn = loadLearning();
+  engineState = createInitialState(cfg, now, learn);
   engineState.softA = AppState.softLimitA;
   engineState.softB = AppState.softLimitB;
-
-  // Apply learned bias from prior sessions
-  const learn = loadLearning();
-  if (learn.preferredBias && Number.isFinite(learn.preferredBias)) {
-    engineState.feedbackBias = clamp(learn.preferredBias, -0.15, 0.2);
-  }
 
   const factor = cfg.maxSessionIntensityFactor ?? 0.95;
   const ceil = Math.max(
@@ -263,6 +276,9 @@ export function stopAutodrive(reason = "manuell") {
   const marked = engineState?.userMarkedClimax;
   const bias = engineState?.feedbackBias;
   const phase = engineState?.phase;
+  const peakRel = engineState?.peakRel;
+  const placement = engineState?.config?.placement;
+  const lastPattern = engineState?.lastPatternId;
 
   if (tickHandle) {
     clearInterval(tickHandle);
@@ -302,20 +318,29 @@ export function stopAutodrive(reason = "manuell") {
     try {
       trackStat("autodrive_stops");
       if (marked) trackStat("autodrive_success");
-      // Learn preferred bias slowly
-      if (typeof bias === "number") {
-        const learn = loadLearning();
-        const sessions = (learn.sessions || 0) + 1;
-        const climaxHits = (learn.climaxHits || 0) + (marked ? 1 : 0);
-        const preferredBias = clamp((learn.preferredBias || 0) * 0.7 + bias * 0.3, -0.15, 0.2);
-        saveLearning({
-          sessions,
-          climaxHits,
-          climaxRate: climaxHits / sessions,
-          preferredBias,
-          lastPhase: phase,
-        });
-      }
+      const learn = loadLearning();
+      const sessions = (learn.sessions || 0) + 1;
+      const climaxHits = (learn.climaxHits || 0) + (marked ? 1 : 0);
+      const preferredBias =
+        typeof bias === "number"
+          ? clamp((learn.preferredBias || 0) * 0.7 + bias * 0.3, -0.15, 0.2)
+          : learn.preferredBias || 0;
+      const lastPeakRel =
+        typeof peakRel === "number"
+          ? clamp((learn.lastPeakRel || 0.5) * 0.6 + peakRel * 0.4, 0.3, 0.95)
+          : learn.lastPeakRel || 0;
+      saveLearning({
+        sessions,
+        climaxHits,
+        climaxRate: climaxHits / sessions,
+        preferredBias,
+        lastPeakRel,
+        preferredPlacement: marked
+          ? placement || learn.preferredPlacement
+          : learn.preferredPlacement,
+        preferredPatternFamily: lastPattern || learn.preferredPatternFamily,
+        lastPhase: phase,
+      });
     } catch {
       /* ignore */
     }
@@ -429,6 +454,14 @@ export async function applyAutodriveWaveTick(sendWave, computePattern) {
   if (DOM["label-intensity-b"]) DOM["label-intensity-b"].textContent = String(nextB);
   if (DOM["intensity-circle-b"]) DOM["intensity-circle-b"].textContent = String(nextB);
 
+  // Soft-reset / wave silenced: hold strength, zero wave amps
+  if (out.waveSilenced || !out.patternId) {
+    AppState.lastWaveAmpA = 0;
+    AppState.lastWaveAmpB = 0;
+    await sendWave(0, 0, 0, 0, { writer: "wave-loop" });
+    return true;
+  }
+
   let fA = AppState.frequencyA;
   let aA = 70;
   let fB = AppState.frequencyB;
@@ -439,15 +472,37 @@ export async function applyAutodriveWaveTick(sendWave, computePattern) {
     aA = w.aA;
     fB = w.fB;
     aB = w.aB;
+    engineState.lastPatternId = out.patternId;
   }
-  // freqBias from engine
+
+  // Sensation plane: wire freq from engine (lerp already in reduce)
+  const wireF = Math.round(out.wireFreq || 45);
+  if (wireF >= 10) {
+    fA = wireF;
+    fB = wireF;
+  }
   if (out.patternParams?.freqBias) {
     fA = Math.max(10, Math.min(240, fA + out.patternParams.freqBias));
     fB = Math.max(10, Math.min(240, fB + out.patternParams.freqBias));
   }
+
   const scale = out.patternParams?.ampScale ?? 1;
-  aA = Math.round(Math.min(100, Math.max(0, aA * scale)));
-  aB = Math.round(Math.min(100, Math.max(0, aB * scale)));
+  const dutyGate = out.patternParams?.dutyGate;
+  const gate = dutyGate === 0 ? 0 : 1;
+  aA = Math.round(Math.min(100, Math.max(0, aA * scale * gate)));
+  aB = Math.round(Math.min(100, Math.max(0, aB * scale * gate)));
+
+  // Channel mode: alt / aLead / bLead
+  const mode = out.patternParams?.channelMode || out.channelMode || "both";
+  if (mode === "alt") {
+    const flip = (AppState.loopTimeCounter || 0) % 8 < 4;
+    if (flip) aB = Math.round(aB * 0.15);
+    else aA = Math.round(aA * 0.15);
+  } else if (mode === "aLead") {
+    aB = Math.round(aB * 0.35);
+  } else if (mode === "bLead") {
+    aA = Math.round(aA * 0.35);
+  }
 
   AppState.lastWaveFreqA = fA;
   AppState.lastWaveAmpA = aA;
@@ -489,6 +544,14 @@ function notifyUi() {
   setWidth("autodrive-meter-b", intensityPct(AppState.strengthB, AppState.softLimitB));
   setText("autodrive-str-a", String(AppState.strengthA || 0));
   setText("autodrive-str-b", String(AppState.strengthB || 0));
+  setText("autodrive-edge-score", String(Math.round(st.edgeScore || 0)));
+  setWidth("autodrive-edge-bar", st.edgeScore || 0);
+  setText("autodrive-freq", String(st.wireFreq || "—"));
+  setText("autodrive-duty", st.dutyCycle != null ? `${Math.round(st.dutyCycle * 100)}%` : "—");
+  setText(
+    "autodrive-baseline",
+    st.sessionBaseline != null ? `${Math.round(st.sessionBaseline * 100)}%` : "—"
+  );
 }
 
 function setText(id, text) {
