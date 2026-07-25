@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.0.2 — Manual: Frequency-Regler wie Strength
+
+### UI
+- **Frequency** pro Kanal wie XToys: großer Kreis + Slider + ±5 + Preset-Dropdown
+- Live-Anzeige im Freq-Kreis; bei „Freq folgt Strength“ visuell gelockt
+
+### Wave-Amp
+- **Default: vom Pattern** (Wave-Form/Amp automatisch)
+- Manueller Regler nur noch unter **„Wave-Amp Scale (optional)“**, Default 100 %
+- Empfehlung: Scale nur bei zu hart/flach anfassen — nicht primäre Steuerung
+
 ## 4.0.1 — Manual Player XToys-aligned
 
 ### Vergleich XToys Coyote-Block ↔ Manual Player

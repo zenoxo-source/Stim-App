@@ -712,6 +712,56 @@ body {
   font-weight: 700;
   color: var(--text-primary);
   background: var(--bg-app);
+  flex-shrink: 0;
+}
+
+/* Frequency dial matches Strength (XToys dual-slider layout) */
+.freq-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.freq-circle {
+  border-color: rgba(0, 120, 212, 0.45);
+  color: #5ab3ff;
+  font-size: 16px;
+}
+.freq-circle-b {
+  border-color: rgba(134, 96, 169, 0.5);
+  color: #d7b4f3;
+}
+.freq-preset {
+  margin-top: 4px;
+  font-size: 12px;
+}
+.freq-section.freq-follow-locked {
+  opacity: 0.72;
+}
+.freq-section.freq-follow-locked::after {
+  content: "Freq folgt Strength";
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.manual-wave-advanced {
+  margin-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 8px;
+  font-size: 13px;
+}
+.manual-wave-advanced summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
+  user-select: none;
+}
+.manual-wave-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin: 8px 0 10px;
 }
 
 .intensity-slider-wrapper {

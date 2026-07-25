@@ -287,10 +287,14 @@ export function applyManualFreqFollow(cfg = loadManualConfig()) {
   const sb = DOM["slider-freq-b"];
   const la = DOM["label-freq-a"];
   const lb = DOM["label-freq-b"];
+  const ca = document.getElementById("freq-circle-a");
+  const cb = document.getElementById("freq-circle-b");
   if (sa) sa.value = mapped.fA;
   if (sb) sb.value = mapped.fB;
   if (la) la.textContent = String(mapped.fA);
   if (lb) lb.textContent = String(mapped.fB);
+  if (ca) ca.textContent = String(mapped.fA);
+  if (cb) cb.textContent = String(mapped.fB);
   return mapped;
 }
 

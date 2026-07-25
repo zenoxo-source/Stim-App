@@ -689,15 +689,18 @@ export function syncFreqUI(channel) {
   const sel = DOM[channel === "A" ? "select-freq-a" : "select-freq-b"];
   const slider = DOM[channel === "A" ? "slider-freq-a" : "slider-freq-b"];
   const label = DOM[channel === "A" ? "label-freq-a" : "label-freq-b"];
+  const circle = document.getElementById(channel === "A" ? "freq-circle-a" : "freq-circle-b");
   if (slider) slider.value = f;
   if (label) label.textContent = freqLabel(f);
+  if (circle) circle.textContent = String(f);
   if (sel) {
     const opt = Array.from(sel.options).find((o) => parseInt(o.value, 10) === f);
-    sel.value = opt ? String(f) : sel.value; // keep custom if not in list
-    if (!opt) {
-      // show value via label only
-    }
+    if (opt) sel.value = String(f);
   }
+  // Dim manual freq when follow-intensity owns frequency (XToys script mode)
+  const follow = isManualFreqFollowOn();
+  const section = slider?.closest?.(".freq-section");
+  if (section) section.classList.toggle("freq-follow-locked", follow);
 }
 
 export function setChannelFreq(channel, value, source) {
@@ -892,6 +895,19 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   DOM["slider-freq-b"]?.addEventListener("input", (e) => {
     setChannelFreq("B", e.target.value);
+  });
+  // Frequency ± like Strength (XToys-style dial steps)
+  document.getElementById("btn-freq-dec-a")?.addEventListener("click", () => {
+    setChannelFreq("A", Math.max(10, (AppState.frequencyA || 45) - 5));
+  });
+  document.getElementById("btn-freq-inc-a")?.addEventListener("click", () => {
+    setChannelFreq("A", Math.min(240, (AppState.frequencyA || 45) + 5));
+  });
+  document.getElementById("btn-freq-dec-b")?.addEventListener("click", () => {
+    setChannelFreq("B", Math.max(10, (AppState.frequencyB || 45) - 5));
+  });
+  document.getElementById("btn-freq-inc-b")?.addEventListener("click", () => {
+    setChannelFreq("B", Math.min(240, (AppState.frequencyB || 45) + 5));
   });
 
   DOM["slider-width-a"]?.addEventListener("input", (e) => {

@@ -514,10 +514,9 @@
         <div class="card manual-intro-card">
           <div class="card-title">Manual Player · Coyote-Steuerung</div>
           <p class="manual-lead">
-            Entspricht dem <strong>XToys Coyote-Block</strong>: Strength A/B (0–Soft-Limit), Frequency (Wire 10–240, kein Hz),
-            Wave-Amp, Patterns und optionales <em>„Frequency follows Intensity“</em>.
-            Soft-Limits = dein Max (wie XToys Device Limit). Master im Header skaliert den Output zusätzlich.
-            Audio→Stim liegt unter <strong>STIM</strong> (XToys System-Audio / Audio-Pattern).
+            Wie der <strong>XToys Coyote-Block</strong>: große Regler für <strong>Strength</strong> und <strong>Frequency</strong> je Kanal.
+            Patterns liefern die Wave-Form (Amp) automatisch — Wave-Amp-Scale ist optional unter „Erweitert“.
+            Soft-Limits = Device-Max. Audio→Stim: Tab <strong>STIM</strong>.
           </p>
           <div class="manual-toolbar">
             <label class="manual-check"><input type="checkbox" id="manual-link-strength" /> Strength A↔B koppeln</label>
@@ -546,31 +545,41 @@
         <div class="grid-2">
           
           <!-- Channel A controls -->
-          <div class="card">
+          <div class="card manual-channel-card">
             <div class="card-title">
-              <span>Kanal A · Strength</span>
+              <span>Kanal A</span>
               <span id="badge-mode-a" class="channel-badge channel-badge-a">Direkt</span>
             </div>
             <div class="channel-box">
               <div class="intensity-section">
-                <div id="intensity-circle-a" class="intensity-circle" title="Anteil Soft-Limit oder Absolutwert">0</div>
+                <div id="intensity-circle-a" class="intensity-circle" title="Strength · Soft-Limit % oder Absolut">0</div>
                 <div class="intensity-slider-wrapper">
                   <div class="intensity-slider-header">
-                    <span>Strength (0–Soft-Limit, max 200)</span>
+                    <span>Strength</span>
                     <span id="label-intensity-a">0</span>
                   </div>
                   <div class="slider-controls">
-                    <button type="button" id="btn-dec-a" class="slider-btn">-</button>
+                    <button type="button" id="btn-dec-a" class="slider-btn" aria-label="Strength A −">−</button>
                     <input type="range" id="slider-intensity-a" min="0" max="200" value="0" aria-label="Strength Kanal A">
-                    <button type="button" id="btn-inc-a" class="slider-btn">+</button>
+                    <button type="button" id="btn-inc-a" class="slider-btn" aria-label="Strength A +">+</button>
                   </div>
                 </div>
               </div>
-              
-              <div class="control-row freq-row">
-                <span class="control-label">Frequency <span class="hint-muted">(Wire 10–240 · Sensation, kein Hz)</span></span>
-                <div class="freq-controls">
-                  <select id="select-freq-a" class="select-control" title="Schnellwahl Frequency">
+
+              <!-- Frequency like XToys: same layout as Strength -->
+              <div class="intensity-section freq-section">
+                <div id="freq-circle-a" class="intensity-circle freq-circle" title="Frequency Wire 10–240 (kein Hz)">45</div>
+                <div class="intensity-slider-wrapper">
+                  <div class="intensity-slider-header">
+                    <span>Frequency <span class="hint-muted">10–240 · Sensation</span></span>
+                    <span id="label-freq-a" class="mono-val">45 · standard</span>
+                  </div>
+                  <div class="slider-controls">
+                    <button type="button" id="btn-freq-dec-a" class="slider-btn" aria-label="Frequency A −">−</button>
+                    <input type="range" id="slider-freq-a" min="10" max="240" value="45" aria-label="Frequency Kanal A">
+                    <button type="button" id="btn-freq-inc-a" class="slider-btn" aria-label="Frequency A +">+</button>
+                  </div>
+                  <select id="select-freq-a" class="select-control freq-preset" title="Schnellwahl" aria-label="Frequency-Preset A">
                     <option value="10">10 · sehr weich</option>
                     <option value="20">20 · weich</option>
                     <option value="30">30 · sanft</option>
@@ -582,47 +591,62 @@
                     <option value="200">200 · extrem</option>
                     <option value="240">240 · maximum</option>
                   </select>
-                  <input type="range" id="slider-freq-a" min="10" max="240" value="45" title="Frequency A" aria-label="Frequency A">
-                  <span id="label-freq-a" class="mono-val">45 · standard</span>
                 </div>
               </div>
 
-              <div class="control-row">
-                <span class="control-label">Wave-Amp % <span class="hint-muted">(Pattern-Amplitude)</span></span>
-                <div class="freq-controls">
-                  <input type="range" id="slider-width-a" min="0" max="100" value="100" title="Wave amplitude scale A" aria-label="Wave-Amp A">
-                  <span id="label-width-a" class="mono-val">100%</span>
+              <details class="manual-wave-advanced">
+                <summary>Wave-Amp Scale (optional)</summary>
+                <p class="manual-wave-hint">
+                  Patterns setzen die Wave-Amplitude selbst (XToys: Pattern-Output).
+                  Dieser Regler skaliert nur zusätzlich (Default 100&nbsp;% = volles Pattern).
+                  Nur ändern, wenn Patterns zu „hart“ oder zu flach wirken.
+                </p>
+                <div class="control-row">
+                  <span class="control-label">Scale A</span>
+                  <div class="freq-controls">
+                    <input type="range" id="slider-width-a" min="0" max="100" value="100" aria-label="Wave-Amp Scale A">
+                    <span id="label-width-a" class="mono-val">100%</span>
+                  </div>
                 </div>
-              </div>
+              </details>
             </div>
           </div>
 
           <!-- Channel B controls -->
-          <div class="card">
+          <div class="card manual-channel-card">
             <div class="card-title">
-              <span>Kanal B · Strength</span>
+              <span>Kanal B</span>
               <span id="badge-mode-b" class="channel-badge channel-badge-b">Direkt</span>
             </div>
             <div class="channel-box">
               <div class="intensity-section">
-                <div id="intensity-circle-b" class="intensity-circle" title="Anteil Soft-Limit oder Absolutwert">0</div>
+                <div id="intensity-circle-b" class="intensity-circle" title="Strength · Soft-Limit % oder Absolut">0</div>
                 <div class="intensity-slider-wrapper">
                   <div class="intensity-slider-header">
-                    <span>Strength (0–Soft-Limit, max 200)</span>
+                    <span>Strength</span>
                     <span id="label-intensity-b">0</span>
                   </div>
                   <div class="slider-controls">
-                    <button type="button" id="btn-dec-b" class="slider-btn">-</button>
+                    <button type="button" id="btn-dec-b" class="slider-btn" aria-label="Strength B −">−</button>
                     <input type="range" id="slider-intensity-b" min="0" max="200" value="0" aria-label="Strength Kanal B">
-                    <button type="button" id="btn-inc-b" class="slider-btn">+</button>
+                    <button type="button" id="btn-inc-b" class="slider-btn" aria-label="Strength B +">+</button>
                   </div>
                 </div>
               </div>
 
-              <div class="control-row freq-row">
-                <span class="control-label">Frequency <span class="hint-muted">(Wire 10–240 · Sensation, kein Hz)</span></span>
-                <div class="freq-controls">
-                  <select id="select-freq-b" class="select-control" title="Schnellwahl Frequency">
+              <div class="intensity-section freq-section">
+                <div id="freq-circle-b" class="intensity-circle freq-circle freq-circle-b" title="Frequency Wire 10–240 (kein Hz)">45</div>
+                <div class="intensity-slider-wrapper">
+                  <div class="intensity-slider-header">
+                    <span>Frequency <span class="hint-muted">10–240 · Sensation</span></span>
+                    <span id="label-freq-b" class="mono-val">45 · standard</span>
+                  </div>
+                  <div class="slider-controls">
+                    <button type="button" id="btn-freq-dec-b" class="slider-btn" aria-label="Frequency B −">−</button>
+                    <input type="range" id="slider-freq-b" min="10" max="240" value="45" aria-label="Frequency Kanal B">
+                    <button type="button" id="btn-freq-inc-b" class="slider-btn" aria-label="Frequency B +">+</button>
+                  </div>
+                  <select id="select-freq-b" class="select-control freq-preset" title="Schnellwahl" aria-label="Frequency-Preset B">
                     <option value="10">10 · sehr weich</option>
                     <option value="20">20 · weich</option>
                     <option value="30">30 · sanft</option>
@@ -634,18 +658,22 @@
                     <option value="200">200 · extrem</option>
                     <option value="240">240 · maximum</option>
                   </select>
-                  <input type="range" id="slider-freq-b" min="10" max="240" value="45" title="Frequency B" aria-label="Frequency B">
-                  <span id="label-freq-b" class="mono-val">45 · standard</span>
                 </div>
               </div>
 
-              <div class="control-row">
-                <span class="control-label">Wave-Amp % <span class="hint-muted">(Pattern-Amplitude)</span></span>
-                <div class="freq-controls">
-                  <input type="range" id="slider-width-b" min="0" max="100" value="100" title="Wave amplitude scale B" aria-label="Wave-Amp B">
-                  <span id="label-width-b" class="mono-val">100%</span>
+              <details class="manual-wave-advanced">
+                <summary>Wave-Amp Scale (optional)</summary>
+                <p class="manual-wave-hint">
+                  Patterns setzen die Wave-Amplitude selbst. Scale = Zusatz-Dämpfung (Default 100&nbsp;%).
+                </p>
+                <div class="control-row">
+                  <span class="control-label">Scale B</span>
+                  <div class="freq-controls">
+                    <input type="range" id="slider-width-b" min="0" max="100" value="100" aria-label="Wave-Amp Scale B">
+                    <span id="label-width-b" class="mono-val">100%</span>
+                  </div>
                 </div>
-              </div>
+              </details>
             </div>
           </div>
         </div>
@@ -666,8 +694,8 @@
         <div class="card" style="margin-top: 24px;">
           <div class="card-title">Patterns (Waveform) · XToys Pattern-Select</div>
           <p class="manual-pattern-lead">
-            Patterns steuern die <strong>Wave-Amplitude</strong> (Form des Signals). Strength bleibt am Slider —
-            wie in XToys: Intensity-Slider × Pattern-Output. Mit Frequency-Update folgt die Freq der Strength.
+            <strong>Pattern = Wave-Form/Amp</strong> (automatisch). <strong>Strength</strong> und <strong>Frequency</strong> steuerst du mit den großen Reglern —
+            wie XToys: Intensity × Pattern-Output. Wave-Amp-Scale nur bei Bedarf (Erweitert, Default 100&nbsp;%).
           </p>
           <div class="pattern-grid">
             <div class="pattern-card" id="pattern-gentle" data-pattern="gentle">
