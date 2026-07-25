@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.0.1 — Manual Player XToys-aligned
+
+### Vergleich XToys Coyote-Block ↔ Manual Player
+| XToys | Stim App Manual |
+|-------|-----------------|
+| Intensity A/B (0–100% of device max) | Strength A/B (0–Soft-Limit, optional %) |
+| Frequency A/B | Frequency Wire 10–240 (Sensation, kein Hz) |
+| Pattern Select | 14 Waveform-Patterns + Beschreibungen |
+| „update frequency when intensity changes“ | Frequency-Update: fest / mit Intensität / invers |
+| Link channels | Strength A↔B · Frequency A↔B |
+| Soft stop / zero | Soft-Stop · Strength 0 |
+| System Audio | **STIM**-Tab (Audio-Pattern) |
+
+### Funktionen
+- Modul `manual-player.js`: Link, Freq-Follow, Pattern-Katalog, %-Anzeige
+- Patterns steuern Wave-Amp; Strength bleibt am Slider (XToys Intensity × Pattern)
+- Lead-Texte Manual + STIM an XToys-Terminologie angepasst
+
 ## 4.0.0 — Partial Redesign (Information Architecture)
 
 Session-zentrische Navigation und progressive Disclosure — **kein** Full-Rewrite.

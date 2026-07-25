@@ -29,6 +29,13 @@ import {
 } from "./modules/autodrive.js";
 import { claimOutput, releaseOutput, registerOwnerStop } from "./modules/output-owner.js";
 import { processAudioToStim, loadStimConfig, getStimHistory } from "./modules/stim-player.js";
+import {
+  onManualStrengthChanged,
+  onManualFreqChanged,
+  maybeOverridePatternFreq,
+  applyManualFreqFollow,
+  isManualFreqFollowOn,
+} from "./modules/manual-player.js";
 
 registerOwnerStop("pattern", () => {
   if (
@@ -513,6 +520,11 @@ export function startWaveLoop() {
         aB = Math.round(60 + 35 * Math.cos(duetT * 1.5));
       }
 
+      // XToys: optional "update frequency when intensity changes"
+      const ov = maybeOverridePatternFreq(fA, fB);
+      fA = ov.fA;
+      fB = ov.fB;
+
       AppState.lastWaveFreqA = fA;
       AppState.lastWaveAmpA = aA;
       AppState.lastWaveFreqB = fB;
@@ -632,10 +644,9 @@ export function updateAIDashboard() {
 export function updateSlidersA(val) {
   if (blockDuringPanicCooldown("Slider A")) return;
   if (blockIfPinLocked("Slider A")) return;
-  AppState.strengthA = clampStrengthWithCeiling(parseInt(val), "A");
+  AppState.strengthA = clampStrengthWithCeiling(parseInt(val, 10), "A");
   if (DOM["slider-intensity-a"]) DOM["slider-intensity-a"].value = AppState.strengthA;
-  if (DOM["intensity-circle-a"]) DOM["intensity-circle-a"].textContent = AppState.strengthA;
-  if (DOM["label-intensity-a"]) DOM["label-intensity-a"].textContent = AppState.strengthA;
+  onManualStrengthChanged("A");
   if (
     AppState.softLimitA > 0 &&
     AppState.strengthA >= AppState.softLimitA &&
@@ -651,10 +662,9 @@ export function updateSlidersA(val) {
 export function updateSlidersB(val) {
   if (blockDuringPanicCooldown("Slider B")) return;
   if (blockIfPinLocked("Slider B")) return;
-  AppState.strengthB = clampStrengthWithCeiling(parseInt(val), "B");
+  AppState.strengthB = clampStrengthWithCeiling(parseInt(val, 10), "B");
   if (DOM["slider-intensity-b"]) DOM["slider-intensity-b"].value = AppState.strengthB;
-  if (DOM["intensity-circle-b"]) DOM["intensity-circle-b"].textContent = AppState.strengthB;
-  if (DOM["label-intensity-b"]) DOM["label-intensity-b"].textContent = AppState.strengthB;
+  onManualStrengthChanged("B");
   if (
     AppState.softLimitB > 0 &&
     AppState.strengthB >= AppState.softLimitB &&
@@ -691,12 +701,25 @@ export function syncFreqUI(channel) {
 }
 
 export function setChannelFreq(channel, value, source) {
+  // When XToys-style intensity→freq is on, manual freq edits are ignored until mode=fixed
+  if (isManualFreqFollowOn() && source !== "follow" && source !== "silent") {
+    log("Frequenz folgt Strength — Modus auf „Fest“ stellen zum manuellen Freq-Setzen.", "info");
+    applyManualFreqFollow();
+    syncFreqUI("A");
+    syncFreqUI("B");
+    return;
+  }
   const wire = ProtocolUtils.clampWireFreq
     ? ProtocolUtils.clampWireFreq(value)
     : Math.max(10, Math.min(240, Math.round(Number(value) || 45)));
   if (channel === "A") AppState.frequencyA = wire;
   else AppState.frequencyB = wire;
-  syncFreqUI(channel);
+  onManualFreqChanged(channel);
+  if (channel === "A") syncFreqUI("A");
+  else syncFreqUI("B");
+  // Re-sync peer if link-freq mirrored AppState
+  syncFreqUI("A");
+  syncFreqUI("B");
   if (source !== "silent") {
     log(`Wave-Freq ${channel}: ${freqLabel(wire)}`, "info");
   }
@@ -713,6 +736,21 @@ export function setChannelFreq(channel, value, source) {
 // ==========================================
 
 document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("manual:zero-strength", () => {
+    updateSlidersA(0);
+    updateSlidersB(0);
+  });
+  document.addEventListener("manual:soft-stop", () => {
+    updateSlidersA(0);
+    updateSlidersB(0);
+    if (AppState.activePattern && AppState.activePattern !== "autodrive") {
+      AppState.activePattern = null;
+      document.querySelectorAll?.(".pattern-card")?.forEach?.((c) => c.classList.remove("active"));
+    }
+    sendSoftStop({ keepStrength: false, writer: "safety" });
+    log("Manual Soft-Stop (XToys-ähnlich: Output 0).", "warning");
+  });
+
   DOM["btn-clear-logs"]?.addEventListener("click", () => {
     const terminal = DOM["terminal-log"];
     if (terminal) terminal.textContent = "[SYSTEM] Diagnose-Protokoll zur\u00fcckgesetzt.";
@@ -778,11 +816,11 @@ document.addEventListener("DOMContentLoaded", () => {
         ],
         deck: [
           i18nText("nav_deck", "Manual"),
-          i18nText("view_subtitle_deck", "Slider · Patterns · Ramp · Sessions"),
+          i18nText("view_subtitle_deck", "XToys-Coyote · Strength · Freq · Patterns"),
         ],
         stim: [
           i18nText("nav_stim", "STIM Player"),
-          i18nText("view_stim_subtitle", "Audio · Playlist · Strength/Freq-Mapping"),
+          i18nText("view_stim_subtitle", "XToys Audio-Pattern · Strength/Freq-Mapping"),
         ],
         games: [
           i18nText("nav_games", "Play"),
