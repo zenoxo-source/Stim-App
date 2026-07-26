@@ -130,6 +130,8 @@ export const AppState = {
   _lastSentFreqB: undefined,
   _lastSentAmpA: undefined,
   _lastSentAmpB: undefined,
+  /** Timestamp of last B0 queue (for short-window coalescing only). */
+  _lastB0SendMs: 0,
 
   btSeq: 0,
   btAwaitingAck: false,
@@ -180,6 +182,7 @@ export const AppState = {
     this._lastSentFreqA = undefined;
     this._lastSentFreqB = undefined;
     this._lastSentAmpA = undefined;
+    this._lastB0SendMs = 0;
     this._lastSentAmpB = undefined;
     this.reflexState = "IDLE";
     this.rhythmState = "IDLE";

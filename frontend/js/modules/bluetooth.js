@@ -249,19 +249,25 @@ export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
     }, timeout);
   }
 
-  // Fix 5: isDirty — skip if nothing changed
-  if (
-    !o.keepStrength &&
+  // Coyote V3 needs a fresh 0xB0 about every 100ms for continuous wave output
+  // (4×25ms segments). Skipping "identical" packets stops stimulation after one
+  // frame — users only feel a blip when moving a slider. Only coalesce true
+  // duplicate calls within a short window (e.g. strength + wave in same event).
+  // Wave-loop always passes force:true so the heartbeat is never skipped.
+  const nowMs = Date.now();
+  const lastSendMs = AppState._lastB0SendMs || 0;
+  const samePayload =
     mode === 0 &&
     AppState._lastSentStrA === strA &&
     AppState._lastSentStrB === strB &&
     AppState._lastSentFreqA === segA.freq &&
     AppState._lastSentAmpA === segA.intensity &&
     AppState._lastSentFreqB === segB.freq &&
-    AppState._lastSentAmpB === segB.intensity
-  ) {
+    AppState._lastSentAmpB === segB.intensity;
+  if (!o.force && !o.keepStrength && samePayload && nowMs - lastSendMs < 40) {
     return;
   }
+  AppState._lastB0SendMs = nowMs;
   AppState._lastSentStrA = strA;
   AppState._lastSentStrB = strB;
   AppState._lastSentFreqA = segA.freq;
@@ -311,7 +317,9 @@ export function sendStrengthCommand(valA, valB, opts = {}) {
   AppState.strengthB = clampStrengthWithCeiling(valB, "B");
   AppState.btPendingMode = CONSTANTS.V3_MODE_ABSOLUTE_BOTH;
 
-  // Immediately send combined B0 with current waveform values
+  // Immediately send combined B0 with current waveform values.
+  // Manual idle (no pattern): full wave amp so strength is felt continuously.
+  // Pattern/autodrive: re-use last logical wave (or 0 if not yet ticked).
   const fA = AppState.activePattern
     ? AppState.lastWaveFreqA || AppState.frequencyA
     : AppState.frequencyA;
@@ -320,7 +328,8 @@ export function sendStrengthCommand(valA, valB, opts = {}) {
     : AppState.frequencyB;
   const aA = AppState.activePattern ? AppState.lastWaveAmpA || 0 : 100;
   const aB = AppState.activePattern ? AppState.lastWaveAmpB || 0 : 100;
-  sendB0Now(fA, aA, fB, aB);
+  // force: master/strength changes must always hit the wire (not coalesced away)
+  sendB0Now(fA, aA, fB, aB, { force: true });
 }
 
 /**
@@ -330,10 +339,22 @@ export function sendStrengthCommand(valA, valB, opts = {}) {
  * @param {number} ampB
  * @param {{ writer?: string }} [opts]
  */
+/**
+ * @param {number} freqA
+ * @param {number} ampA
+ * @param {number} freqB
+ * @param {number} ampB
+ * @param {{ writer?: string, force?: boolean, keepStrength?: boolean }} [opts]
+ */
 export function sendWaveformCommand(freqA, ampA, freqB, ampB, opts = {}) {
   const writer = opts?.writer || "external";
   if (!assertCanWrite(writer, { kind: "wave" })) return;
-  sendB0Now(freqA, ampA, freqB, ampB);
+  // Wave-loop is the continuous V3 heartbeat — never skip as "duplicate".
+  const force = opts.force === true || writer === "wave-loop";
+  sendB0Now(freqA, ampA, freqB, ampB, {
+    force,
+    keepStrength: opts.keepStrength,
+  });
 }
 
 /**
@@ -640,6 +661,7 @@ function onDisconnected() {
   AppState._lastSentFreqB = undefined;
   AppState._lastSentAmpA = undefined;
   AppState._lastSentAmpB = undefined;
+  AppState._lastB0SendMs = 0;
   clearBatteryPolling();
   stopWaveLoop();
   disarmSignalLossWatcher();

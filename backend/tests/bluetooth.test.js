@@ -61,6 +61,7 @@ function resetAppState() {
   AppState._lastSentFreqB = undefined;
   AppState._lastSentAmpA = undefined;
   AppState._lastSentAmpB = undefined;
+  AppState._lastB0SendMs = 0;
   AppState.reconnectAttempts = 0;
   AppState.loopTimeCounter = 0;
   AppState.lastWaveFreqA = 45;
@@ -99,18 +100,42 @@ describe("bluetooth.js", () => {
       assert.equal(writes.length, 0);
     });
 
-    it("skips duplicate sends (isDirty)", () => {
+    it("coalesces only rapid identical duplicates (<40ms), not continuous heartbeat", async () => {
       connect();
       AppState.strengthA = 50;
       AppState.strengthB = 50;
+      AppState._lastB0SendMs = 0;
 
       sendB0Now(45, 100, 45, 100);
+      await Promise.resolve();
+      await Promise.resolve();
       assert.ok(writes.length > 0);
       const countAfterFirst = writes.length;
 
-      // Identical values → should be skipped
+      // Immediate identical call (slider thrash) → coalesce
       sendB0Now(45, 100, 45, 100);
+      await Promise.resolve();
       assert.equal(writes.length, countAfterFirst);
+
+      // force:true must queue another write (wave-loop heartbeat)
+      sendB0Now(45, 100, 45, 100, { force: true });
+      await Promise.resolve();
+      await Promise.resolve();
+      assert.ok(writes.length > countAfterFirst, "heartbeat/force must not skip");
+    });
+
+    it("sendWaveformCommand with wave-loop writer always forces send", async () => {
+      connect();
+      AppState.strengthA = 40;
+      const { sendWaveformCommand } = await import("../../frontend/js/modules/bluetooth.js");
+      sendWaveformCommand(45, 100, 45, 100, { writer: "wave-loop" });
+      await Promise.resolve();
+      await Promise.resolve();
+      const n = writes.length;
+      sendWaveformCommand(45, 100, 45, 100, { writer: "wave-loop" });
+      await Promise.resolve();
+      await Promise.resolve();
+      assert.ok(writes.length > n, "wave-loop must keep streaming B0");
     });
 
     it("applies pulse-width scaling to wave amplitude", () => {

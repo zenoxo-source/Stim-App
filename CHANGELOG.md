@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.1.3 — Manual: Dauerhafte Stimulation (B0-Heartbeat)
+
+### Behoben
+- **Manual nur kurz spürbar beim Freq-Drehen**: Coyote V3 braucht alle ~100 ms ein frisches `0xB0` (4×25 ms Wave-Segmente). Identische Pakete wurden als „dirty skip“ verworfen — Output starb nach einem Frame
+- **Wave-Loop im Manual nur alle 500 ms**: Bei Strength > 0 läuft der Loop jetzt durchgängig mit 100 ms
+- **Master wirkte nicht spürbar**: sofortiges Absolute-Strength-Reapply + Wave-Heartbeat; Wave-Loop `force:true` verhindert Coalescing des Dauerstroms
+
+### Intern
+- `isDirty` nur noch Kurzfenster-Coalesce (<40 ms, Slider-Thrash); Wave-Loop und Strength immer `force`
+- `hasLiveOutput()` steuert 100 ms vs. 500 ms Idle
+
 ## 4.1.2 — Coyote-3-Ansteuerung: B1, Master-Scale, Kanal-Swap
 
 ### Behoben

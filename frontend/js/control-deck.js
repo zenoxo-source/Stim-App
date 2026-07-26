@@ -296,9 +296,11 @@ export function startWaveLoop() {
     renderAIVisualizer();
   }
 
-  // Dynamic interval: 100ms when active, 500ms when idle (Fix 5)
-  function getLoopInterval() {
-    if (
+  // Coyote V3: B0 every ~100ms while outputting. Idle 500ms only when silent
+  // (no strength / no wave / no pattern) — otherwise manual strength "dies"
+  // after one frame.
+  function hasLiveOutput() {
+    return (
       AppState.activePattern ||
       AppState.isAudioPlaying ||
       AppState.reflexState === "SHOCKING" ||
@@ -307,11 +309,19 @@ export function startWaveLoop() {
       AppState.potatoState === "LIVE" ||
       AppState.potatoState === "BOOM" ||
       AppState.survivalState === "RUNNING" ||
-      isAutodriveActive()
-    ) {
+      isAutodriveActive() ||
+      AppState.strengthA > 0 ||
+      AppState.strengthB > 0 ||
+      (AppState.lastWaveAmpA || 0) > 0 ||
+      (AppState.lastWaveAmpB || 0) > 0
+    );
+  }
+
+  function getLoopInterval() {
+    if (hasLiveOutput()) {
       return CONSTANTS.WAVE_LOOP_INTERVAL_MS; // 100ms
     }
-    return CONSTANTS.WAVE_LOOP_IDLE_MS || 500; // idle
+    return CONSTANTS.WAVE_LOOP_IDLE_MS || 500; // silent idle only
   }
 
   async function waveLoopTick() {
@@ -938,11 +948,21 @@ document.addEventListener("DOMContentLoaded", () => {
   if (DOM["label-width-a"]) DOM["label-width-a"].textContent = `${AppState.pulseWidthA}%`;
   if (DOM["label-width-b"]) DOM["label-width-b"].textContent = `${AppState.pulseWidthB}%`;
 
-  // Master scale
+  // Master scale — scales wire strength + wave amp; re-apply absolute B0 immediately
   DOM["slider-master"]?.addEventListener("input", (e) => {
-    AppState.masterScale = parseFloat(e.target.value) / 100;
-    if (DOM["master-val-text"]) DOM["master-val-text"].textContent = `${e.target.value}%`;
-    sendStrengthCommand(AppState.strengthA, AppState.strengthB);
+    const pct = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
+    AppState.masterScale = pct / 100;
+    if (DOM["master-val-text"]) DOM["master-val-text"].textContent = `${Math.round(pct)}%`;
+    if (AppState.isConnected && AppState.writeChar) {
+      // Absolute strength re-scale + continuous wave so master is felt right away
+      sendStrengthCommand(AppState.strengthA, AppState.strengthB);
+      if (!AppState.activePattern && !AppState.isAudioPlaying) {
+        sendWaveformCommand(AppState.frequencyA, 100, AppState.frequencyB, 100, {
+          writer: "wave-loop",
+          force: true,
+        });
+      }
+    }
     applyAudioMasterLink();
     updateOutputStatus();
   });
