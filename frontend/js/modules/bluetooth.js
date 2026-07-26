@@ -469,8 +469,7 @@ export function processB1Notification(data) {
   // Our own strength write (current or late ACK after timeout).
   // Never overwrite logical AppState from our own echo — masterScale would desync.
   const isOurAck =
-    ackSeq !== 0 &&
-    (ackSeq === AppState.btSeq || ackSeq === (AppState._lastStrengthSeq || 0));
+    ackSeq !== 0 && (ackSeq === AppState.btSeq || ackSeq === (AppState._lastStrengthSeq || 0));
   if (isOurAck) {
     if (AppState.btAwaitingAck && (ackSeq === AppState.btSeq || AppState.btSeq === 0)) {
       AppState.btAwaitingAck = false;
@@ -493,7 +492,10 @@ export function processB1Notification(data) {
     return;
   }
 
-  log(`Ger\u00e4t-Strength extern ge\u00e4ndert: A=${logicalA} B=${logicalB} (wire ${deviceStrA}/${deviceStrB})`, "info");
+  log(
+    `Ger\u00e4t-Strength extern ge\u00e4ndert: A=${logicalA} B=${logicalB} (wire ${deviceStrA}/${deviceStrB})`,
+    "info"
+  );
   AppState.strengthA = logicalA;
   AppState.strengthB = logicalB;
   if (DOM["slider-intensity-a"]) DOM["slider-intensity-a"].value = logicalA;
