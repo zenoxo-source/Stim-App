@@ -269,15 +269,17 @@ body {
   outline-offset: 1px;
 }
 
-/* Compact header during active session */
+/* Compact header during active session — hide non-essentials, keep Master usable */
 .app-header.header-compact .header-expandable {
   display: none;
 }
-.app-header.header-compact .master-slider-container {
-  max-width: 140px;
-}
 .app-header.header-compact #view-subtitle {
   display: none;
+}
+/* Never squeeze Master: was max-width:140px which left only ~0px track after label/value */
+.app-header.header-compact .master-slider-container {
+  max-width: none;
+  flex-shrink: 0;
 }
 .header-compact-control {
   width: auto;
@@ -287,7 +289,10 @@ body {
 .master-val-text {
   font-size: 13px;
   font-family: monospace;
-  min-width: 30px;
+  min-width: 3.75ch; /* "100%" */
+  text-align: right;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /* Settings progressive disclosure */
@@ -589,21 +594,35 @@ body {
   background-color: var(--color-success);
 }
 
-/* Master slider styled */
+/* Master slider styled — must stay draggable even when header is crowded */
 .master-slider-container {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: var(--bg-input);
-  padding: 6px 16px;
+  padding: 6px 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
+  flex: 0 0 auto;
+  min-width: 220px;
+  max-width: 320px;
 }
 
 .master-slider-label {
   font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Fixed track width: global range { width:100% } would collapse inside flex */
+.master-slider-container input[type="range"]#slider-master,
+.master-slider-container #slider-master {
+  width: 140px;
+  min-width: 120px;
+  max-width: 180px;
+  flex: 1 1 140px;
 }
 
 /* View Sections */

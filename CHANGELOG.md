@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.1.4 — Master-Slider bleibt bedienbar
+
+### Behoben
+- **Master-Slider kollabierte auf ~0 % Breite** sobald Strength > 0: Session-Header (`header-compact`) setzte `max-width: 140px` auf den Container — Label + Prozent + Padding ließen für den Range-Track praktisch nichts übrig
+- Feste Track-Breite (min 120px) und kein Shrink im Compact-Header
+
 ## 4.1.3 — Manual: Dauerhafte Stimulation (B0-Heartbeat)
 
 ### Behoben
