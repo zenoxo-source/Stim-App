@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.1.5 — Autodrive: COOLDOWN-Strength & sauberer Stop
+
+### Behoben
+- **COOLDOWN/`silenced` brach vor Strength-Sync ab**: UI und `AppState` blieben auf alter Intensität; Gerät bekam keinen Absolute-Write auf 0
+- **Stop ließ UI-Strength stehen**: Residual konnte beim nächsten Absolute-B0 (Master/Slider) unerwartet stimmen — jetzt Soft-Stop mit `zeroUiStrength` + UI 0
+- Wave-Tick bei Silence: Strength (inkl. 0) + inaktive Wave zusammen senden
+
+### Tests
+- Autodrive: Stop nullt Strength; Wave-Tick-Arming; Storage-Key `stim_app_autodrive_v1` in Persistenz-Tests
+
 ## 4.1.4 — Master-Slider bleibt bedienbar
 
 ### Behoben

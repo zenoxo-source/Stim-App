@@ -3,7 +3,7 @@
 Electron-Desktop-App zur Bluetooth-Steuerung eines DG-LAB Coyote 3.0.
 
 **Repository:** [github.com/zenoxo-source/Stim-App](https://github.com/zenoxo-source/Stim-App)  
-**Version:** 4.1.4
+**Version:** 4.1.5
 
 ## Features
 
