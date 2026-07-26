@@ -25,8 +25,10 @@ import {
   AUTODRIVE_TEMPLATES,
   listPlacementProfiles,
   getPlacementProfile,
+  estimateWireFreqEnvelope,
   ESTIM_SAFETY_RULES,
 } from "./autodrive.js";
+import { waveFreqLabel } from "../lib/protocol-utils.js";
 import {
   listElectrodeKinds,
   listWiringModes,
@@ -157,6 +159,36 @@ function paintDashboard(st) {
     if (relL) relL.textContent = `${Math.round((st.relStrength || 0) * 100)}%`;
   }
 
+  // Compact freq envelope (current · max) — paintFreq lives in autodrive notifyUi;
+  // keep in sync when only UI listener paints.
+  const freqEl = document.getElementById("autodrive-freq");
+  if (freqEl && st.wireFreq != null) freqEl.textContent = String(st.wireFreq);
+  const env = st.wireFreqEnvelope || estimateWireFreqEnvelope(st.config || loadAutodriveConfig());
+  const maxEl = document.getElementById("autodrive-freq-max");
+  if (maxEl && env) maxEl.innerHTML = `· max <strong>${env.hi}</strong>`;
+  const fill = document.getElementById("autodrive-freq-meter-fill");
+  if (fill && env) {
+    const left = ((env.lo - 10) / 230) * 100;
+    const width = ((env.hi - env.lo) / 230) * 100;
+    fill.style.left = `${Math.max(0, left)}%`;
+    fill.style.width = `${Math.min(100 - left, Math.max(2, width))}%`;
+  }
+  const nowMk = document.getElementById("autodrive-freq-meter-now");
+  if (nowMk) {
+    const w = Number(st.wireFreq);
+    if (Number.isFinite(w) && w > 0) {
+      nowMk.style.display = "block";
+      nowMk.style.left = `${Math.max(0, Math.min(100, ((w - 10) / 230) * 100))}%`;
+    } else {
+      nowMk.style.display = "none";
+    }
+  }
+  const bandLab = document.getElementById("autodrive-freq-band-label");
+  if (bandLab && env) {
+    const feel = waveFreqLabel(env.hi);
+    bandLab.textContent = `${env.lo}–${env.hi} · max ${env.hi} · ${feel}`;
+  }
+
   paintTimeline(st);
   refreshHomeSummary();
   paintCoach();
@@ -285,9 +317,12 @@ export function updatePlacementGuide(placementId, opts = {}) {
       : (p.freqBias || 0) < 0
         ? `Wire-Freq ${p.freqBias} (weicher)`
         : "Wire-Freq neutral";
+  const cfg = { placement: id, ...(loadAutodriveConfig() || {}) };
+  const env = estimateWireFreqEnvelope({ ...cfg, placement: id });
+  const feel = waveFreqLabel(env.hi);
   set(
     "ad-place-engine",
-    `Autodrive: Soft-Cap ~${capPct}% · Duty ×${(p.dutyScale || 1).toFixed(2)} · ${freq}`
+    `Soft-Cap ~${capPct}% · Duty ×${(p.dutyScale || 1).toFixed(2)} · ${freq} · Freq max ${env.hi} (${feel})`
   );
 
   if (opts.applyRecommendations) {

@@ -479,6 +479,44 @@ export function listPlacementProfiles() {
 export function getPlacementProfile(id) {
   return PLACEMENT_PROFILES[id] || PLACEMENT_PROFILES.soft_external;
 }
+
+/**
+ * Session wire-freq envelope for UI (Coyote wire 10–240, not literal Hz).
+ * Includes placement bias + modest headroom for push/feedback boosts.
+ * @param {object} [config]
+ * @returns {{ lo: number, hi: number, bias: number, peakPhase: string }}
+ */
+export function estimateWireFreqEnvelope(config) {
+  const place = getPlacementProfile(config?.placement);
+  const bias = place.freqBias || 0;
+  /** Feedback / almost boosts can raise target by ~15–25 wire units. */
+  const BOOST_HEADROOM = 22;
+  let lo = 240;
+  let hi = 10;
+  for (const band of Object.values(PHASE_FREQ)) {
+    lo = Math.min(lo, band.lo + bias);
+    hi = Math.max(hi, band.hi + bias);
+  }
+  lo = Math.max(10, Math.min(240, Math.round(lo)));
+  hi = Math.max(10, Math.min(240, Math.round(hi + BOOST_HEADROOM)));
+  if (hi < lo) hi = lo;
+  return { lo, hi, bias, peakPhase: "CLIMAX_PUSH" };
+}
+
+/**
+ * Phase-local band (current phase only), for optional compact display.
+ * @param {string} phase
+ * @param {object} [config]
+ */
+export function estimatePhaseWireFreqBand(phase, config) {
+  const place = getPlacementProfile(config?.placement);
+  const bias = place.freqBias || 0;
+  const band = PHASE_FREQ[phase] || { lo: 40, hi: 60 };
+  return {
+    lo: Math.max(10, Math.min(240, Math.round(band.lo + bias))),
+    hi: Math.max(10, Math.min(240, Math.round(band.hi + bias))),
+  };
+}
 const VALID_FEEDBACK = new Set([
   "too_weak",
   "good",
@@ -973,6 +1011,8 @@ export function computeAutodriveOutput(state, nowMs) {
     calibrated: state.calibrated,
     wireFreq: Math.round(state.wireFreq || 45),
     wireFreqTarget: Math.round(state.wireFreqTarget || 45),
+    wireFreqEnvelope: estimateWireFreqEnvelope(state.config),
+    wireFreqPhaseBand: estimatePhaseWireFreqBand(state.phase, state.config),
     dutyCycle: duty,
     channelMode: state.channelMode,
     climaxWaveIndex: state.climaxWaveIndex || 0,

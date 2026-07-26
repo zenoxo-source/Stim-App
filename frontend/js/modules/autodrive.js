@@ -7,6 +7,7 @@ import {
   computeAutodriveOutput,
   sanitiseAutodriveConfig,
   getPhaseLabel,
+  estimateWireFreqEnvelope,
 } from "../lib/autodrive-engine.js";
 import { claimOutput, releaseOutput, registerOwnerStop, getOutputOwner } from "./output-owner.js";
 import {
@@ -27,6 +28,8 @@ export {
   ESTIM_SAFETY_RULES,
   listPlacementProfiles,
   getPlacementProfile,
+  estimateWireFreqEnvelope,
+  estimatePhaseWireFreqBand,
   sanitiseAutodriveConfig,
   computeAutodriveOutput,
   getPhaseLabel,
@@ -140,6 +143,7 @@ export function isAutodriveActive() {
 
 export function getAutodriveState() {
   if (!engineState) {
+    const config = loadAutodriveConfig();
     return {
       phase: "IDLE",
       phaseLabel: getPhaseLabel("IDLE"),
@@ -152,9 +156,11 @@ export function getAutodriveState() {
       relStrength: 0,
       remainingMs: 0,
       phaseRemainingMs: 0,
-      tip: "Template wählen und Start drücken",
+      tip: "Setup wählen und Start drücken",
       patternHint: null,
-      config: loadAutodriveConfig(),
+      wireFreq: 0,
+      wireFreqEnvelope: estimateWireFreqEnvelope(config),
+      config,
       learning: loadLearning(),
     };
   }
@@ -795,6 +801,12 @@ function notifyUi() {
   setText("autodrive-edge-score", String(Math.round(st.edgeScore || 0)));
   setWidth("autodrive-edge-bar", st.edgeScore || 0);
   setText("autodrive-freq", String(st.wireFreq || "—"));
+  {
+    const env = st.wireFreqEnvelope || estimateWireFreqEnvelope(st.config);
+    const maxEl = document.getElementById("autodrive-freq-max");
+    if (maxEl && env) maxEl.innerHTML = `· max <strong>${env.hi}</strong>`;
+    paintFreqMeter(st.wireFreq, env);
+  }
   setText("autodrive-duty", st.dutyCycle != null ? `${Math.round(st.dutyCycle * 100)}%` : "—");
   setText(
     "autodrive-baseline",
@@ -824,6 +836,32 @@ function notifyUi() {
 function setText(id, text) {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
+}
+
+/** Slim 10–240 wire-freq band meter (session envelope + current marker). */
+function paintFreqMeter(nowWire, env) {
+  if (!env) return;
+  const span = Math.max(1, env.hi - env.lo);
+  const fill = document.getElementById("autodrive-freq-meter-fill");
+  if (fill) {
+    // Full track represents protocol 10–240; fill shows session lo–hi window
+    const left = ((env.lo - 10) / 230) * 100;
+    const width = (span / 230) * 100;
+    fill.style.left = `${Math.max(0, left)}%`;
+    fill.style.width = `${Math.min(100 - left, width)}%`;
+  }
+  const nowEl = document.getElementById("autodrive-freq-meter-now");
+  if (nowEl) {
+    const w = Number(nowWire);
+    if (Number.isFinite(w) && w > 0) {
+      nowEl.style.display = "block";
+      nowEl.style.left = `${Math.max(0, Math.min(100, ((w - 10) / 230) * 100))}%`;
+    } else {
+      nowEl.style.display = "none";
+    }
+  }
+  const lab = document.getElementById("autodrive-freq-band-label");
+  if (lab) lab.textContent = `${env.lo}–${env.hi} · max ${env.hi}`;
 }
 
 function setWidth(id, pct) {

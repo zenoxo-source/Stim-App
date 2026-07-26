@@ -10,6 +10,7 @@ import {
   PLACEMENT_PROFILES,
   CLIMAX_WAVES,
   getPhaseLabel,
+  estimateWireFreqEnvelope,
 } from "../../frontend/js/lib/autodrive-engine.js";
 
 const t0 = 1_000_000;
@@ -58,6 +59,14 @@ describe("autodrive-engine", () => {
     assert.equal(c.abRole, "aRhythm_bSteady");
     assert.equal(c.channelFocus, "both");
     assert.ok(c.maxSessionIntensityFactor <= 0.92);
+  });
+
+  it("estimateWireFreqEnvelope reflects placement bias and stays in wire range", () => {
+    const soft = estimateWireFreqEnvelope({ placement: "soft_external" });
+    const loops = estimateWireFreqEnvelope({ placement: "loops_ab_glans_hot" });
+    assert.ok(soft.lo >= 10 && soft.hi <= 240);
+    assert.ok(loops.hi >= soft.hi, "higher freqBias placement peaks higher");
+    assert.ok(loops.hi > 120);
   });
 
   it("insertable placement is the most conservative strength cap", () => {

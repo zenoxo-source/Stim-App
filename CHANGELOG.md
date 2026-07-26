@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.1.9 — Autodrive Freq-Max sichtbar
+
+### UI
+- Live: aktuelle Wire-Freq + **max** (Session-Peak inkl. Placement/Push)
+- Schlanke Freq-Band-Leiste (10–240) mit Marker — ohne UI-Überladung
+- Setup-Guide: Freq max + Sensation-Label (z. B. kräftig)
+
 ## 4.1.8 — Autodrive UI-Umbau: Setup nach Elektroden & Körper
 
 ### UI

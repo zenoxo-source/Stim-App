@@ -458,9 +458,18 @@
               <div class="autodrive-stats-row">
                 <div>Edges <strong id="autodrive-edges">0 / 0</strong></div>
                 <div>Pattern <strong id="autodrive-pattern">—</strong></div>
-                <div>Freq <strong id="autodrive-freq">—</strong></div>
+                <div class="ad-freq-stat" title="Wire-Freq am Coyote (10–240), kein Hz — max. über die Session inkl. Push">
+                  Freq <strong id="autodrive-freq">—</strong><span class="ad-freq-max" id="autodrive-freq-max"></span>
+                </div>
                 <div>Duty <strong id="autodrive-duty">—</strong></div>
                 <div>Setup <strong id="autodrive-setup-label">—</strong></div>
+              </div>
+              <div class="ad-freq-meter" title="Session-Band der Wire-Freq (Setup + Phasen)">
+                <div class="ad-freq-meter-track">
+                  <div class="ad-freq-meter-fill" id="autodrive-freq-meter-fill"></div>
+                  <div class="ad-freq-meter-now" id="autodrive-freq-meter-now"></div>
+                </div>
+                <span class="ad-freq-meter-label" id="autodrive-freq-band-label">Freq-Band —</span>
               </div>
               <div id="autodrive-prompt" class="autodrive-prompt" style="display:none;" role="status"></div>
               <p id="autodrive-tip" class="autodrive-tip">Setup wählen und Start drücken</p>
