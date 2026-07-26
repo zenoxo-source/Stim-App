@@ -187,6 +187,59 @@ describe("autodrive-engine", () => {
     assert.ok(r.strengthB <= 20);
   });
 
+  it("single_channel_2 zeros unused channel (focus A)", () => {
+    const cfg = sanitiseAutodriveConfig({
+      wiringMode: "single_channel_2",
+      channelFocus: "A",
+      placement: "deep_pressure",
+      abRole: "aRhythm_bSteady",
+      sensitivity: "medium",
+      maxSessionIntensityFactor: 1,
+    });
+    assert.equal(cfg.abRole, "sync");
+    assert.equal(cfg.coupledFraction, 0);
+    assert.equal(cfg.channelFocus, "A");
+    const r = resolveChannelStrengths(1, cfg, 100, 100);
+    assert.ok(r.strengthA > 0);
+    assert.equal(r.strengthB, 0);
+  });
+
+  it("single_channel_2 focus B zeros channel A", () => {
+    const cfg = sanitiseAutodriveConfig({
+      wiringMode: "single_channel_2",
+      channelFocus: "B",
+      placement: "deep_pressure",
+      sensitivity: "medium",
+      maxSessionIntensityFactor: 1,
+    });
+    const r = resolveChannelStrengths(1, cfg, 100, 100);
+    assert.equal(r.strengthA, 0);
+    assert.ok(r.strengthB > 0);
+  });
+
+  it("single_channel_2 forces both channelMode (no alt)", () => {
+    let s = createInitialState(
+      sanitiseAutodriveConfig({
+        templateId: "loops_single",
+        wiringMode: "single_channel_2",
+        channelFocus: "A",
+        skipCalibration: true,
+      }),
+      t0
+    );
+    s = { ...s, phase: "TEASE", phaseDeadlineAt: t0 + 60000, loopCounter: 10 };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.equal(s.channelMode, "both");
+  });
+
+  it("finish_loops_single / loops_single templates exist", () => {
+    assert.ok(AUTODRIVE_TEMPLATES.loops_single);
+    assert.ok(AUTODRIVE_TEMPLATES.finish_loops_single);
+    const c = sanitiseAutodriveConfig({ templateId: "finish_loops_single" });
+    assert.equal(c.placement, "deep_pressure");
+    assert.equal(c.channelFocus, "A");
+  });
+
   it("TEASE almost alone does not increment edge count", () => {
     let s = createInitialState(classicCfg(), t0);
     s = { ...s, phase: "TEASE", phaseDeadlineAt: t0 + 60000, edgeCountDone: 0 };

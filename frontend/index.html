@@ -264,7 +264,7 @@
             <div class="ad-shell-hero-text">
               <h2 class="ad-shell-title">Autodrive</h2>
               <p class="ad-shell-sub">
-                Zuerst <strong>Elektroden &amp; Verkabelung</strong> wählen — dann Session.
+                In 3 Schritten starten: <strong>Setup → Session → Start</strong>.
                 Soft-Limit-relativ · Feedback steuert die Adaptation · keine Climax-Garantie.
               </p>
             </div>
@@ -297,8 +297,8 @@
               </li>
               <li data-step="setup">
                 <span class="ad-step-n">2</span>
-                Setup wählen (z. B. Loops A+B)
-                <button type="button" class="btn btn-secondary btn-sm" id="ad-onboard-loops">Loops Klassisch</button>
+                Setup wählen (2 Loops · 1 Kanal oder A+B)
+                <button type="button" class="btn btn-secondary btn-sm" id="ad-onboard-loops">2 Loops · A</button>
               </li>
               <li data-step="probe">
                 <span class="ad-step-n">3</span>
@@ -316,25 +316,66 @@
 
           <div class="ad-shell-grid">
             <div class="ad-config-col">
-              <nav class="ad-config-tabs" role="tablist">
-                <button type="button" class="ad-config-tab active" data-ad-panel="setup" role="tab">1 · Setup</button>
-                <button type="button" class="ad-config-tab" data-ad-panel="session" role="tab">2 · Session</button>
-                <button type="button" class="ad-config-tab" data-ad-panel="fine" role="tab">3 · Feintuning</button>
+              <nav class="ad-config-tabs ad-wizard-steps" role="tablist" aria-label="Autodrive Wizard">
+                <button type="button" class="ad-config-tab active" data-ad-panel="setup" role="tab" aria-selected="true">
+                  <span class="ad-wiz-num">1</span> Setup
+                </button>
+                <button type="button" class="ad-config-tab" data-ad-panel="session" role="tab" aria-selected="false">
+                  <span class="ad-wiz-num">2</span> Session
+                </button>
+                <button type="button" class="ad-config-tab" data-ad-panel="fine" role="tab" aria-selected="false">
+                  <span class="ad-wiz-num">3</span> Optionen
+                </button>
               </nav>
 
               <div class="card ad-panel active" id="ad-panel-setup" data-ad-panel-body="setup">
-                <div class="card-title">Elektroden &amp; Körper</div>
-                <p class="ad-panel-lead">Was steckt wo — steuert Cap, Freq und A/B-Balance automatisch.</p>
+                <div class="card-title">Schritt 1 · Elektroden &amp; Kanal</div>
+                <p class="ad-panel-lead">Wähle dein Layout — der Rest wird automatisch eingestellt.</p>
+
+                <div class="ad-layout-grid" id="ad-layout-grid" role="listbox" aria-label="Verkabelungs-Layout">
+                  <button type="button" class="ad-layout-card" data-layout="loops_single" data-wiring="single_channel_2" data-kind="loops">
+                    <span class="ad-layout-icon">①</span>
+                    <strong>2 Loops · 1 Kanal</strong>
+                    <small>Basis + unter Eichel · A oder B</small>
+                  </button>
+                  <button type="button" class="ad-layout-card" data-layout="loops_ab" data-wiring="independent_4" data-kind="loops">
+                    <span class="ad-layout-icon">②</span>
+                    <strong>4 Loops · A+B</strong>
+                    <small>Stereo am Schaft · beide Kanäle</small>
+                  </button>
+                  <button type="button" class="ad-layout-card" data-layout="loops_common" data-wiring="common_3" data-kind="loops">
+                    <span class="ad-layout-icon">③</span>
+                    <strong>3 Loops · Common</strong>
+                    <small>Geteilter Return · triphase-like</small>
+                  </button>
+                  <button type="button" class="ad-layout-card" data-layout="pads" data-wiring="independent_4" data-kind="pads">
+                    <span class="ad-layout-icon">▭</span>
+                    <strong>Pads</strong>
+                    <small>Weich · flächig · Dual A/B</small>
+                  </button>
+                </div>
+
+                <div class="ad-channel-pick" id="ad-channel-pick" style="display:none;" aria-label="Aktiver Kanal">
+                  <span class="ad-channel-pick-label">Welcher Coyote-Kanal?</span>
+                  <div class="ad-channel-tog">
+                    <button type="button" class="ad-ch-btn active" data-ch="A" id="ad-ch-a">Kanal A</button>
+                    <button type="button" class="ad-ch-btn" data-ch="B" id="ad-ch-b">Kanal B</button>
+                  </div>
+                  <p class="ad-field-hint">Beide Loops an <strong id="ad-ch-hint">A</strong> stecken — der andere Kanal bleibt aus.</p>
+                </div>
+
+                <div class="ad-preset-strip" id="ad-setup-presets" aria-label="Schnell-Setups"></div>
+
                 <div class="ad-probe-row">
                   <span class="ad-probe-label">Kontakt-Check</span>
                   <button type="button" class="btn btn-secondary btn-sm" id="ad-probe-a-main">Probe A</button>
                   <button type="button" class="btn btn-secondary btn-sm" id="ad-probe-b-main">Probe B</button>
                   <span class="ad-probe-hint">kurzer Puls · Soft-Limit-sicher</span>
                 </div>
-                <div class="ad-preset-strip" id="ad-setup-presets" aria-label="Schnell-Setups"></div>
+
                 <div class="ad-setup-split">
                   <div class="ad-body-map-wrap">
-                    <div class="ad-body-map-label">Kontakt-Karte (Penis)</div>
+                    <div class="ad-body-map-label">Kontakt-Karte</div>
                     <svg id="ad-penis-map" class="ad-penis-map" viewBox="0 0 100 100" role="img" aria-label="Körperzonen">
                       <defs>
                         <linearGradient id="ad-shaft-grad" x1="0" y1="0" x2="0" y2="1">
@@ -350,36 +391,39 @@
                     <div class="ad-map-legend" id="ad-map-legend"></div>
                   </div>
                   <div class="ad-setup-fields">
-                    <div class="ad-field">
-                      <label class="field-label" for="ad-electrode-kind">Elektroden-Typ</label>
-                      <select id="ad-electrode-kind" class="select-control"></select>
-                    </div>
-                    <div class="ad-field">
-                      <label class="field-label" for="ad-wiring-mode">Verkabelung</label>
-                      <select id="ad-wiring-mode" class="select-control"></select>
-                      <p class="ad-field-hint" id="ad-wiring-hint"></p>
-                    </div>
-                    <div class="ad-sites-grid">
-                      <div class="ad-site-card ch-a">
-                        <div class="ad-site-card-h">Kanal A</div>
-                        <label class="field-label" for="ad-site-a1">Kontakt 1</label>
-                        <select id="ad-site-a1" class="select-control"></select>
-                        <label class="field-label" for="ad-site-a2">Kontakt 2</label>
-                        <select id="ad-site-a2" class="select-control"></select>
+                    <details class="ad-advanced-details" id="ad-setup-advanced">
+                      <summary>Details anpassen (optional)</summary>
+                      <div class="ad-field">
+                        <label class="field-label" for="ad-electrode-kind">Elektroden-Typ</label>
+                        <select id="ad-electrode-kind" class="select-control"></select>
                       </div>
-                      <div class="ad-site-card ch-b">
-                        <div class="ad-site-card-h">Kanal B</div>
-                        <label class="field-label" for="ad-site-b1">Kontakt 1</label>
-                        <select id="ad-site-b1" class="select-control"></select>
-                        <label class="field-label" for="ad-site-b2">Kontakt 2</label>
-                        <select id="ad-site-b2" class="select-control"></select>
+                      <div class="ad-field">
+                        <label class="field-label" for="ad-wiring-mode">Verkabelung</label>
+                        <select id="ad-wiring-mode" class="select-control"></select>
+                        <p class="ad-field-hint" id="ad-wiring-hint"></p>
                       </div>
-                    </div>
-                    <div class="ad-field">
-                      <label class="field-label" for="ad-balance-b">Balance B (vs. A) <span id="ad-balance-b-val">85%</span></label>
-                      <input type="range" id="ad-balance-b" min="40" max="100" value="85" />
-                      <p class="ad-field-hint">Glans oft empfindlicher → B unter 100% halten.</p>
-                    </div>
+                      <div class="ad-sites-grid">
+                        <div class="ad-site-card ch-a" id="ad-site-card-a">
+                          <div class="ad-site-card-h" id="ad-site-card-a-h">Kanal A</div>
+                          <label class="field-label" for="ad-site-a1">Kontakt 1</label>
+                          <select id="ad-site-a1" class="select-control"></select>
+                          <label class="field-label" for="ad-site-a2">Kontakt 2</label>
+                          <select id="ad-site-a2" class="select-control"></select>
+                        </div>
+                        <div class="ad-site-card ch-b" id="ad-site-card-b">
+                          <div class="ad-site-card-h">Kanal B</div>
+                          <label class="field-label" for="ad-site-b1">Kontakt 1</label>
+                          <select id="ad-site-b1" class="select-control"></select>
+                          <label class="field-label" for="ad-site-b2">Kontakt 2</label>
+                          <select id="ad-site-b2" class="select-control"></select>
+                        </div>
+                      </div>
+                      <div class="ad-field" id="ad-balance-wrap">
+                        <label class="field-label" for="ad-balance-b">Balance B (vs. A) <span id="ad-balance-b-val">85%</span></label>
+                        <input type="range" id="ad-balance-b" min="40" max="100" value="85" />
+                        <p class="ad-field-hint">Glans oft empfindlicher → B unter 100% halten.</p>
+                      </div>
+                    </details>
                   </div>
                 </div>
                 <div class="ad-wiring-checklist card-inset" id="ad-wiring-checklist"></div>
@@ -390,11 +434,15 @@
                   <p class="ad-place-engine" id="ad-place-engine"></p>
                 </div>
                 <select id="autodrive-placement" class="select-control" style="display:none" aria-hidden="true"></select>
+                <div class="ad-wizard-nav">
+                  <span class="ad-wizard-hint">Setup ok? → Session wählen</span>
+                  <button type="button" class="btn btn-autodrive-go" id="ad-wiz-next-setup">Weiter · Session →</button>
+                </div>
               </div>
 
               <div class="card ad-panel" id="ad-panel-session" data-ad-panel-body="session" hidden>
-                <div class="card-title">Session-Verlauf</div>
-                <p class="ad-panel-lead">Template steuert Dauer, Edges und Aggression — Setup bleibt erhalten.</p>
+                <div class="card-title">Schritt 2 · Session-Verlauf</div>
+                <p class="ad-panel-lead">Template steuert Dauer, Edges und Aggression — dein Setup bleibt erhalten.</p>
                 <div id="autodrive-template-grid" class="autodrive-template-grid" role="listbox" aria-label="Autodrive Templates"></div>
                 <input type="hidden" id="autodrive-template" value="classic" />
                 <div class="autodrive-options ad-session-options">
@@ -411,11 +459,16 @@
                     </select>
                   </div>
                 </div>
+                <div class="ad-wizard-nav">
+                  <button type="button" class="btn btn-secondary" id="ad-wiz-back-session">← Setup</button>
+                  <button type="button" class="btn btn-autodrive-go" id="ad-wiz-next-session">Weiter · Optionen →</button>
+                </div>
               </div>
 
               <div class="card ad-panel" id="ad-panel-fine" data-ad-panel-body="fine" hidden>
-                <div class="card-title">Feintuning</div>
-                <div class="autodrive-options">
+                <div class="card-title">Schritt 3 · Optionen</div>
+                <p class="ad-panel-lead">Nur bei Bedarf — Standard ist bereits gut.</p>
+                <div class="autodrive-options" id="ad-dual-options">
                   <div>
                     <label class="field-label" for="autodrive-focus">Kanal-Fokus</label>
                     <select id="autodrive-focus" class="select-control">
@@ -424,7 +477,7 @@
                       <option value="B">Fokus B</option>
                     </select>
                   </div>
-                  <div>
+                  <div id="ad-ab-role-wrap">
                     <label class="field-label" for="autodrive-ab-role">A/B-Rollen</label>
                     <select id="autodrive-ab-role" class="select-control">
                       <option value="sync">Sync (beide gleich)</option>
@@ -433,6 +486,9 @@
                     </select>
                   </div>
                 </div>
+                <p class="ad-field-hint" id="ad-single-focus-hint" style="display:none;">
+                  1-Kanal-Setup: nur der gewählte Kanal wird angesteuert (Stärke 0 auf dem anderen).
+                </p>
                 <div class="autodrive-check ad-fine-checks">
                   <label><input type="checkbox" id="autodrive-auto-climb" checked /> Auto-Climb</label>
                   <label><input type="checkbox" id="autodrive-fullscreen-pref" checked /> Fullscreen bei Start</label>
@@ -447,6 +503,10 @@
                   </p>
                 </details>
                 <div id="autodrive-coach" class="autodrive-coach" style="display:none;"></div>
+                <div class="ad-wizard-nav">
+                  <button type="button" class="btn btn-secondary" id="ad-wiz-back-fine">← Session</button>
+                  <button type="button" class="btn btn-autodrive-go" id="ad-wiz-start">▶ Session starten</button>
+                </div>
               </div>
             </div>
 
@@ -477,12 +537,12 @@
                   <div class="autodrive-bar-label"><span>Rel. Intensität</span><span id="autodrive-rel">0%</span></div>
                   <div class="autodrive-bar-track"><div id="autodrive-rel-bar" class="autodrive-bar-fill rel"></div></div>
                 </div>
-                <div class="autodrive-channel-meters">
-                  <div>
+                <div class="autodrive-channel-meters" id="autodrive-channel-meters">
+                  <div id="autodrive-meter-wrap-a">
                     <div class="autodrive-bar-label"><span>A</span><span id="autodrive-str-a">0</span></div>
                     <div class="autodrive-bar-track"><div id="autodrive-meter-a" class="autodrive-bar-fill a"></div></div>
                   </div>
-                  <div>
+                  <div id="autodrive-meter-wrap-b">
                     <div class="autodrive-bar-label"><span>B</span><span id="autodrive-str-b">0</span></div>
                     <div class="autodrive-bar-track"><div id="autodrive-meter-b" class="autodrive-bar-fill b"></div></div>
                   </div>

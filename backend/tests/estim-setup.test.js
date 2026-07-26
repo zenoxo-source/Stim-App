@@ -78,4 +78,40 @@ describe("estim-setup", () => {
     assert.ok(rCut.strengthB < rFull.strengthB);
     assert.equal(rCut.strengthA, rFull.strengthA);
   });
+
+  it("2 loops single-channel presets map to deep_pressure", () => {
+    const a = getSetupPreset("loops_single_a");
+    const b = getSetupPreset("loops_single_b");
+    assert.ok(a && b);
+    assert.equal(a.wiringMode, "single_channel_2");
+    assert.equal(a.channelFocus, "A");
+    assert.equal(b.channelFocus, "B");
+    assert.equal(a.templateId, "finish_loops_single");
+    assert.equal(
+      derivePlacementFromSetup({ electrodeKind: "loops", wiringMode: "single_channel_2" }),
+      "deep_pressure"
+    );
+  });
+
+  it("wiring checklist for single_channel uses focus channel", () => {
+    const linesA = buildWiringChecklist({
+      wiringMode: "single_channel_2",
+      channelFocus: "A",
+      siteA1: "base",
+      siteA2: "glans",
+      siteB1: "base",
+      siteB2: "glans",
+    });
+    assert.ok(linesA.some((l) => /Kanal A:/.test(l)));
+    assert.ok(linesA.some((l) => /Kanal B: ungenutzt/.test(l)));
+    const linesB = buildWiringChecklist({
+      wiringMode: "single_channel_2",
+      channelFocus: "B",
+      siteA1: "base",
+      siteA2: "glans",
+      siteB1: "base",
+      siteB2: "glans",
+    });
+    assert.ok(linesB.some((l) => /Kanal B:/.test(l) && !/ungenutzt/.test(l)));
+  });
 });

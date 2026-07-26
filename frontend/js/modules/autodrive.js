@@ -574,7 +574,8 @@ export function getSoftLimitCoachMessage() {
         ? 0.75
         : 0.85;
   if (
-    (place === "loops_ab_glans_hot" || place === "loops_ab_penis" || place === "deep_pressure") &&
+    (place === "loops_ab_glans_hot" || place === "loops_ab_penis") &&
+    cfg.wiringMode !== "single_channel_2" &&
     softB > 0 &&
     softA > 0 &&
     softB > softA * (ratio + 0.08)
@@ -583,6 +584,15 @@ export function getSoftLimitCoachMessage() {
     tips.push(
       `Loops/Glans: Soft-Limit B oft etwas unter A — z. B. B≈${suggestB} bei A=${softA} (manuell in Einstellungen).`
     );
+  }
+  if (cfg.wiringMode === "single_channel_2") {
+    const focus = cfg.channelFocus === "B" ? "B" : "A";
+    const soft = focus === "B" ? softB : softA;
+    if (soft > 0 && soft < 40) {
+      tips.push(
+        `1-Kanal (2 Loops): Soft-Limit ${focus} zählt — aktuell ${soft}, oft 60+ nach Kalibrierung sinnvoller.`
+      );
+    }
   }
   if (place === "insertable" && Math.min(softA, softB) > 100) {
     tips.push("Insertable: hohe Soft-Limits vorsichtig — Cap ist ohnehin strenger.");
@@ -874,21 +884,34 @@ export async function applyAutodriveWaveTick(sendWave, computePattern) {
   aA = Math.round(Math.min(100, Math.max(0, aA * scale * gate)));
   aB = Math.round(Math.min(100, Math.max(0, aB * scale * gate)));
 
-  // Channel mode + A/B roles
-  const mode = out.patternParams?.channelMode || out.channelMode || "both";
-  const abRole = out.abRole || engineState?.config?.abRole || "sync";
-  if (abRole === "aRhythm_bSteady") {
-    aB = Math.round(Math.max(aB * 0.55, aB * 0.4 + 20));
-  } else if (abRole === "aSteady_bRhythm") {
-    aA = Math.round(Math.max(aA * 0.55, aA * 0.4 + 20));
-  } else if (mode === "alt") {
-    const flip = (AppState.loopTimeCounter || 0) % 8 < 4;
-    if (flip) aB = Math.round(aB * 0.15);
-    else aA = Math.round(aA * 0.15);
-  } else if (mode === "aLead") {
-    aB = Math.round(aB * 0.35);
-  } else if (mode === "bLead") {
-    aA = Math.round(aA * 0.35);
+  // Channel mode + A/B roles (skip dual modulation for true single-channel wiring)
+  const wiring = engineState?.config?.wiringMode || "";
+  const singleCh = wiring === "single_channel_2";
+  const focusCh = engineState?.config?.channelFocus || "A";
+  if (singleCh) {
+    if (focusCh === "B") {
+      aA = 0;
+      fA = fB;
+    } else {
+      aB = 0;
+      fB = fA;
+    }
+  } else {
+    const mode = out.patternParams?.channelMode || out.channelMode || "both";
+    const abRole = out.abRole || engineState?.config?.abRole || "sync";
+    if (abRole === "aRhythm_bSteady") {
+      aB = Math.round(Math.max(aB * 0.55, aB * 0.4 + 20));
+    } else if (abRole === "aSteady_bRhythm") {
+      aA = Math.round(Math.max(aA * 0.55, aA * 0.4 + 20));
+    } else if (mode === "alt") {
+      const flip = (AppState.loopTimeCounter || 0) % 8 < 4;
+      if (flip) aB = Math.round(aB * 0.15);
+      else aA = Math.round(aA * 0.15);
+    } else if (mode === "aLead") {
+      aB = Math.round(aB * 0.35);
+    } else if (mode === "bLead") {
+      aA = Math.round(aA * 0.35);
+    }
   }
 
   AppState.lastWaveFreqA = fA;

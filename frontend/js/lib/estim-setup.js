@@ -403,6 +403,96 @@ export const SETUP_PRESETS = Object.freeze({
     ],
     tips: ["Nur ein voller Kreis (2 Kontakte)", "Tiefer Throb, oft weniger „scharf“"],
   },
+  /** Two loops on one Coyote channel — most common simple penis setup */
+  loops_single_a: {
+    id: "loops_single_a",
+    label: "2 Loops · Kanal A",
+    tag: "1 Kanal",
+    finishScore: 4,
+    electrodeKind: "loops",
+    wiringMode: "single_channel_2",
+    siteA1: "base",
+    siteA2: "glans",
+    siteB1: "base",
+    siteB2: "glans",
+    templateId: "finish_loops_single",
+    placement: "deep_pressure",
+    abRole: "sync",
+    channelFocus: "A",
+    balanceB: 100,
+    softRatioB: 1.0,
+    climaxPriority: true,
+    description: "Basis + unter Eichel · nur A",
+    climaxAdvice:
+      "Beide Loops an Kanal A stecken · Soft-Limit A setzen · Kalibrierung · „Fast“ im Push",
+    settingsLines: [
+      "Coyote A+: Basis-Loop · A−: Loop unter Eichel (oder umgekehrt)",
+      "Kanal B bleibt frei · Soft-Limit A bewusst wählen",
+      "Dauer ~12 Min · 1 Edge · Finish 1-Kanal · Cap etwas strenger",
+    ],
+    tips: [
+      "Einfachstes Loop-Setup — gut zum Einstieg",
+      "Eichel-nah = intensiver: bei „zu stark“ tippen, nicht abbrechen",
+      "Für Stereo später „Loops Klassisch“ (A+B) wählen",
+    ],
+  },
+  loops_single_b: {
+    id: "loops_single_b",
+    label: "2 Loops · Kanal B",
+    tag: "1 Kanal",
+    finishScore: 4,
+    electrodeKind: "loops",
+    wiringMode: "single_channel_2",
+    siteA1: "base",
+    siteA2: "glans",
+    siteB1: "base",
+    siteB2: "glans",
+    templateId: "finish_loops_single",
+    placement: "deep_pressure",
+    abRole: "sync",
+    channelFocus: "B",
+    balanceB: 100,
+    softRatioB: 1.0,
+    climaxPriority: true,
+    description: "Basis + unter Eichel · nur B",
+    climaxAdvice:
+      "Beide Loops an Kanal B stecken · Soft-Limit B setzen · Kalibrierung · „Fast“ im Push",
+    settingsLines: [
+      "Coyote B+: Basis-Loop · B−: Loop unter Eichel (oder umgekehrt)",
+      "Kanal A bleibt frei · Soft-Limit B bewusst wählen",
+      "Dauer ~12 Min · 1 Edge · Finish 1-Kanal",
+    ],
+    tips: [
+      "Gleich wie Kanal A, falls du B am Gerät nutzt",
+      "Soft-Limit des genutzten Kanals zählt",
+    ],
+  },
+  loops_single_classic: {
+    id: "loops_single_classic",
+    label: "2 Loops · 1 Kanal (Edges)",
+    tag: "1 Kanal",
+    finishScore: 3,
+    electrodeKind: "loops",
+    wiringMode: "single_channel_2",
+    siteA1: "base",
+    siteA2: "glans",
+    siteB1: "base",
+    siteB2: "glans",
+    templateId: "loops_single",
+    placement: "deep_pressure",
+    abRole: "sync",
+    channelFocus: "A",
+    balanceB: 100,
+    softRatioB: 1.0,
+    climaxPriority: false,
+    description: "2 Edges · nur ein Kanal",
+    climaxAdvice: "Nach 2 Edges kommt Push — „Fast“ nutzen",
+    settingsLines: [
+      "2 Loops am gewählten Kanal (A standard) · Basis ↔ unter Eichel",
+      "2 Edges · ~12 Min · Klassisch 1-Kanal",
+    ],
+    tips: ["Kanal im Wizard A oder B umschalten"],
+  },
 });
 
 /**
@@ -421,7 +511,10 @@ export function derivePlacementFromSetup(s) {
     return "dual";
   }
   // loops
-  if (wiring === "single_channel_2") return "deep_pressure";
+  if (wiring === "single_channel_2") {
+    // Perineum + base single channel stays pelvic combo when mixed already handled
+    return "deep_pressure";
+  }
   if (bHot && (s?.balanceB ?? 100) <= 75) return "loops_ab_glans_hot";
   if (wiring === "independent_4" || wiring === "common_3") return "loops_ab_penis";
   return "loops_ab_penis";
@@ -520,8 +613,14 @@ export function buildWiringChecklist(cfg) {
   const lines = [];
 
   if (c.wiringMode === "single_channel_2") {
-    lines.push(`Kanal A: ${sa1.label} ↔ ${sa2.label} (beide Adern von A)`);
-    lines.push("Kanal B: ungenutzt — Fokus A im Autodrive");
+    const focus = c.channelFocus === "B" ? "B" : "A";
+    const idle = focus === "A" ? "B" : "A";
+    // Sites for the active channel (UI mirrors A-sites onto B when single)
+    const p1 = (focus === "B" ? sb1 : sa1).label;
+    const p2 = (focus === "B" ? sb2 : sa2).label;
+    lines.push(`Kanal ${focus}: ${p1} ↔ ${p2} (beide Adern von ${focus})`);
+    lines.push(`Kanal ${idle}: ungenutzt — Soft-Limit ${focus} zählt`);
+    lines.push("Zwei Loops = ein Kreis: Basis + unter Eichel (typisch)");
   } else if (c.wiringMode === "common_3") {
     lines.push(`Common (geteilt A+B): ${sa1.label}`);
     lines.push(`Kanal A freier Pol: ${sa2.label}`);

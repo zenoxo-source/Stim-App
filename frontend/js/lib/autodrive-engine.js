@@ -47,18 +47,20 @@ export const PLACEMENT_PROFILES = Object.freeze({
     dutyScale: 0.9,
     strengthCap: 0.82,
     preferredChannelMode: "both",
-    description: "Ein Kanal: Basis↔Glans (2 Loops) — fokussiert",
-    bodySites: "Conductive Loops / Cockrings auf einem Kanal",
-    setupMale: "Kanal A oder B: Loop Basis + Loop unter Eichel (Strom entlang des Schafts)",
+    description: "Zwei Loops auf einem Kanal: Basis↔Glans — fokussiert",
+    bodySites: "Conductive Loops / Cockrings auf einem Coyote-Kanal (A oder B)",
+    setupMale:
+      "Genau ein Kanal (A oder B): Loop an der Basis + Loop unter der Eichel — Strom entlang des Schafts. Anderer Kanal ungenutzt.",
     setupFemale:
       "Weniger typisch — eher Pads/Insertables; optional Ringe an Oberschenkel-Falten nur mit Vorsicht",
     sensation: "Fokussiert, oft „schneidender“ bei höherer Wire-Freq — Cap bewusst niedriger",
     recommendedAbRole: "sync",
     recommendedFocus: "A",
     tips: [
+      "Im Setup „2 Loops · 1 Kanal“ wählen und A oder B stecken",
       "Eichel-nah = empfindlich: Kalibrierung und „Zu stark“ nutzen",
       "Loops nicht zu eng; Haut nicht abschnüren",
-      "Für A+B nur am Penis → Profil „Loops A+B Penis“ wählen",
+      "Für Stereo A+B am Penis → „4 Kontakte · A und B getrennt“",
     ],
   },
   /** Primary profile for dual-channel penis loops only (user's main setup). */
@@ -401,6 +403,44 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     group: "finish",
     climaxPriority: true,
   },
+  /** Two loops on one Coyote channel (base ↔ glans) */
+  loops_single: {
+    id: "loops_single",
+    label: "Loops 1-Kanal · Klassisch",
+    description: "12 Min · 2 Edges · nur ein Kanal (A oder B)",
+    targetDurationMin: 12,
+    goal: "edge_then_release",
+    sensitivity: "medium",
+    edgeCount: 2,
+    maxSessionIntensityFactor: 0.88,
+    allowClimaxPatterns: true,
+    aggression: 1.05,
+    placement: "deep_pressure",
+    wiringMode: "single_channel_2",
+    electrodeKind: "loops",
+    abRole: "sync",
+    channelFocus: "A",
+    group: "loops_single",
+  },
+  finish_loops_single: {
+    id: "finish_loops_single",
+    label: "★ Abspritzen · 1-Kanal",
+    description: "12 Min · 1 Edge · 2 Loops auf einem Kanal",
+    targetDurationMin: 12,
+    goal: "edge_then_release",
+    sensitivity: "medium",
+    edgeCount: 1,
+    maxSessionIntensityFactor: 0.9,
+    allowClimaxPatterns: true,
+    aggression: 1.18,
+    placement: "deep_pressure",
+    wiringMode: "single_channel_2",
+    electrodeKind: "loops",
+    abRole: "sync",
+    channelFocus: "A",
+    group: "loops_single",
+    climaxPriority: true,
+  },
 });
 
 export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
@@ -655,6 +695,17 @@ export function sanitiseAutodriveConfig(input) {
     if (typeof template.climaxPriority === "boolean") {
       base.climaxPriority = template.climaxPriority;
     }
+    if (template.wiringMode === "single_channel_2" || template.wiringMode === "independent_4" || template.wiringMode === "common_3") {
+      base.wiringMode = template.wiringMode;
+    }
+    if (
+      template.electrodeKind === "loops" ||
+      template.electrodeKind === "pads" ||
+      template.electrodeKind === "mixed" ||
+      template.electrodeKind === "insertable"
+    ) {
+      base.electrodeKind = template.electrodeKind;
+    }
   }
 
   if (typeof raw.goal === "string" && VALID_GOALS.has(raw.goal)) base.goal = raw.goal;
@@ -747,6 +798,18 @@ export function sanitiseAutodriveConfig(input) {
   }
   if (typeof raw.setupPresetId === "string") {
     base.setupPresetId = raw.setupPresetId.slice(0, 48);
+  }
+
+  // Single-channel (2 contacts): one active Coyote channel, no A/B dual roles.
+  if (base.wiringMode === "single_channel_2") {
+    base.abRole = "sync";
+    base.coupledFraction = 0;
+    if (base.channelFocus !== "A" && base.channelFocus !== "B") {
+      base.channelFocus = "A";
+    }
+    if (base.placement === "loops_ab_penis" || base.placement === "loops_ab_glans_hot") {
+      base.placement = "deep_pressure";
+    }
   }
 
   if (base.autoStopMinutes == null) {
@@ -1135,6 +1198,15 @@ export function resolveChannelStrengths(rel, cfg, softA, softB) {
   // Glans / hot site often on B — scale B after focus coupling
   const balB = clamp((cfg.balanceB ?? 100) / 100, 0.4, 1);
 
+  // True single-channel wiring (2 contacts / 2 loops on one Coyote channel):
+  // unused channel must stay at 0 — no coupled bleed.
+  if (cfg.wiringMode === "single_channel_2") {
+    if (cfg.channelFocus === "B") {
+      return { strengthA: 0, strengthB: Math.round(fullB * balB) };
+    }
+    return { strengthA: fullA, strengthB: 0 };
+  }
+
   if (cfg.channelFocus === "A") {
     return {
       strengthA: fullA,
@@ -1475,24 +1547,29 @@ function applySensationPlane(s, now) {
 
   let channelMode = s.channelMode || "both";
   const placeId = s.config.placement;
-  const placeAlt =
-    placeId === "dual" ||
-    placeId === "loops_ab_penis" ||
-    placeId === "loops_ab_glans_hot" ||
-    placementPrefersAlternate(placeId);
-  if (placeAlt) {
-    // Dual-loop / stereo: alternate on tease & edge, fuller both on push
-    if (s.phase === "EDGE_HOLD" || s.phase === "TEASE") channelMode = "alt";
-    else if (s.phase === "CLIMAX_PUSH" || s.phase === "SURGE") channelMode = "both";
-    else channelMode = resolvePlacementChannelMode(placeId, channelMode);
-  } else if (s.phase === "TEASE") {
-    channelMode = (s.loopCounter || 0) % 60 < 30 ? "alt" : "both";
-  } else if (s.phase === "CLIMAX_PUSH") {
+  // Single-channel setups only drive one Coyote output — never alt/lead.
+  if (s.config.wiringMode === "single_channel_2") {
     channelMode = "both";
-  }
-  // Climax priority: never leave one channel cold during push
-  if (s.phase === "CLIMAX_PUSH" && s.config.climaxPriority) {
-    channelMode = "both";
+  } else {
+    const placeAlt =
+      placeId === "dual" ||
+      placeId === "loops_ab_penis" ||
+      placeId === "loops_ab_glans_hot" ||
+      placementPrefersAlternate(placeId);
+    if (placeAlt) {
+      // Dual-loop / stereo: alternate on tease & edge, fuller both on push
+      if (s.phase === "EDGE_HOLD" || s.phase === "TEASE") channelMode = "alt";
+      else if (s.phase === "CLIMAX_PUSH" || s.phase === "SURGE") channelMode = "both";
+      else channelMode = resolvePlacementChannelMode(placeId, channelMode);
+    } else if (s.phase === "TEASE") {
+      channelMode = (s.loopCounter || 0) % 60 < 30 ? "alt" : "both";
+    } else if (s.phase === "CLIMAX_PUSH") {
+      channelMode = "both";
+    }
+    // Climax priority: never leave one channel cold during push
+    if (s.phase === "CLIMAX_PUSH" && s.config.climaxPriority) {
+      channelMode = "both";
+    }
   }
 
   return {

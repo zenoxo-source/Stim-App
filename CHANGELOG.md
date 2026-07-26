@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.1.12 — Autodrive 2 Loops · 1 Kanal & Wizard
+
+### Autodrive
+- **2 Loops · 1 Kanal** wählbar (Layout-Karte + Presets A/B): nur der aktive Coyote-Kanal läuft, der andere bleibt bei Strength 0
+- Templates `loops_single` / `finish_loops_single`; Engine: kein Alt/Lead, kein gekoppelter Bleed
+- Wizard-Flow: **1 Setup → 2 Session → 3 Optionen** mit Weiter/Zurück; Layout-Karten zuerst, Details optional
+- Verkabelungs-Check, Live-Meter und Soft-Limit-Coach respektieren Single-Channel
+
 ## 4.1.11 — Abspritzen-Setups & Finish-Autodrive
 
 ### Setup & UI

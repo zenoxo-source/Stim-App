@@ -255,17 +255,32 @@ function paintCoach() {
 function buildTemplateGrid(selectedId) {
   const grid = document.getElementById("autodrive-template-grid");
   if (!grid) return;
+  const setup = readSetupFromUi();
+  const single = setup.wiringMode === "single_channel_2";
   grid.innerHTML = "";
   Object.values(AUTODRIVE_TEMPLATES).forEach((tpl) => {
+    // Hide dual-only loop templates when 1-channel; hide 1-channel templates when dual
+    if (single) {
+      if (tpl.group === "loops") return;
+      if ((tpl.placement || "").startsWith("loops_ab")) return;
+    } else if (tpl.group === "loops_single") {
+      return;
+    }
     const btn = document.createElement("button");
     btn.type = "button";
-    const isLoop = tpl.group === "loops" || (tpl.placement || "").startsWith("loops_");
+    const isLoopAb = tpl.group === "loops" || (tpl.placement || "").startsWith("loops_ab");
+    const isLoop1 = tpl.group === "loops_single" || tpl.placement === "deep_pressure";
     btn.className =
       "autodrive-tpl-card" +
       (tpl.id === selectedId ? " active" : "") +
-      (isLoop ? " tpl-loops" : "");
+      (isLoopAb || isLoop1 ? " tpl-loops" : "");
     btn.dataset.template = tpl.id;
-    btn.innerHTML = `${isLoop ? `<span class="tpl-badge">Loops A+B</span>` : ""}<span class="tpl-name">${tpl.label}</span><span class="tpl-desc">${tpl.description || ""}</span>`;
+    const badge = isLoop1
+      ? `<span class="tpl-badge">1 Kanal</span>`
+      : isLoopAb
+        ? `<span class="tpl-badge">Loops A+B</span>`
+        : "";
+    btn.innerHTML = `${badge}<span class="tpl-name">${tpl.label}</span><span class="tpl-desc">${tpl.description || ""}</span>`;
     btn.addEventListener("click", () => selectTemplate(tpl.id));
     grid.appendChild(btn);
   });
@@ -280,7 +295,15 @@ function selectTemplate(id) {
     if (dur) dur.value = String(tpl.targetDurationMin);
     const sens = document.getElementById("autodrive-sensitivity");
     if (sens && tpl.sensitivity) sens.value = tpl.sensitivity;
-    // Penis dual-loop templates pin placement + A/B role
+    // Penis dual-loop / 1-kanal templates pin placement + wiring + A/B role
+    if (tpl.wiringMode) {
+      const w = document.getElementById("ad-wiring-mode");
+      if (w) w.value = tpl.wiringMode;
+    }
+    if (tpl.electrodeKind) {
+      const ek = document.getElementById("ad-electrode-kind");
+      if (ek) ek.value = tpl.electrodeKind;
+    }
     if (tpl.placement) {
       fillPlacementSelect(tpl.placement);
       updatePlacementGuide(tpl.placement, { applyRecommendations: false });
@@ -295,6 +318,7 @@ function selectTemplate(id) {
     }
   }
   buildTemplateGrid(id);
+  paintChannelModeUi();
   // Highlight loop quick chips
   document.querySelectorAll(".loops-preset-chip").forEach((chip) => {
     chip.classList.toggle("active", chip.getAttribute("data-loops-preset") === id);
@@ -384,7 +408,7 @@ function readSetupFromUi() {
 function collectConfigFromUi() {
   const templateId = document.getElementById("autodrive-template")?.value || "classic";
   const tpl = AUTODRIVE_TEMPLATES[templateId] || AUTODRIVE_TEMPLATES.classic;
-  const focus = document.getElementById("autodrive-focus")?.value || "both";
+  let focus = document.getElementById("autodrive-focus")?.value || "both";
   const sensitivity = document.getElementById("autodrive-sensitivity")?.value || "medium";
   const durationRaw = Number(document.getElementById("autodrive-duration")?.value);
   const targetDurationMin = Number.isFinite(durationRaw)
@@ -392,10 +416,23 @@ function collectConfigFromUi() {
     : tpl.targetDurationMin;
   const autoClimb = !!document.getElementById("autodrive-auto-climb")?.checked;
   const setup = readSetupFromUi();
-  const placement =
+  if (setup.wiringMode === "single_channel_2") {
+    focus = focus === "B" ? "B" : "A";
+    setup.siteB1 = setup.siteA1;
+    setup.siteB2 = setup.siteA2;
+  }
+  let placement =
     document.getElementById("autodrive-placement")?.value ||
     derivePlacementFromSetup({ ...setup, balanceB: setup.balanceB });
-  const abRole = document.getElementById("autodrive-ab-role")?.value || "sync";
+  if (
+    setup.wiringMode === "single_channel_2" &&
+    setup.electrodeKind === "loops" &&
+    placement !== "perineum_combo"
+  ) {
+    placement = "deep_pressure";
+  }
+  let abRole = document.getElementById("autodrive-ab-role")?.value || "sync";
+  if (setup.wiringMode === "single_channel_2") abRole = "sync";
   const fullscreenPreferred = !!document.getElementById("autodrive-fullscreen-pref")?.checked;
   const hybridAudio = !!document.getElementById("autodrive-hybrid")?.checked;
 
@@ -550,8 +587,15 @@ function applySetupPreset(presetId) {
     const f = document.getElementById("autodrive-focus");
     if (f) f.value = p.channelFocus;
   }
+  // Default sites for 2-loop single channel if missing
+  if (p.wiringMode === "single_channel_2" && p.electrodeKind === "loops") {
+    if (!p.siteA1) setVal("ad-site-a1", "base");
+    if (!p.siteA2) setVal("ad-site-a2", "glans");
+  }
   renderSetupPresets(presetId);
   refreshSetupDerivedUi(true);
+  const curTpl = document.getElementById("autodrive-template")?.value;
+  buildTemplateGrid(curTpl || p.templateId || "classic");
   const cfg = collectConfigFromUi();
   if (typeof p.climaxPriority === "boolean") {
     saveAutodriveConfig({ climaxPriority: p.climaxPriority });
@@ -565,18 +609,138 @@ function applySetupPreset(presetId) {
   void cfg;
 }
 
+function isSingleChannelUi() {
+  return (document.getElementById("ad-wiring-mode")?.value || "") === "single_channel_2";
+}
+
+function getSingleChannelFocus() {
+  const focus = document.getElementById("autodrive-focus")?.value;
+  if (focus === "B") return "B";
+  return "A";
+}
+
+/**
+ * Show/hide dual vs single-channel controls and sync layout cards.
+ */
+function paintChannelModeUi() {
+  const single = isSingleChannelUi();
+  const focus = getSingleChannelFocus();
+
+  const chPick = document.getElementById("ad-channel-pick");
+  if (chPick) chPick.style.display = single ? "flex" : "none";
+
+  document.querySelectorAll(".ad-ch-btn").forEach((btn) => {
+    btn.classList.toggle("active", single && btn.getAttribute("data-ch") === focus);
+  });
+  const chHint = document.getElementById("ad-ch-hint");
+  if (chHint) chHint.textContent = focus;
+
+  const siteB = document.getElementById("ad-site-card-b");
+  const bal = document.getElementById("ad-balance-wrap");
+  const abRole = document.getElementById("ad-ab-role-wrap");
+  const dualOpts = document.getElementById("ad-dual-options");
+  const singleHint = document.getElementById("ad-single-focus-hint");
+  const probeB = document.getElementById("ad-probe-b-main");
+  const probeBOn = document.getElementById("ad-probe-b");
+
+  if (siteB) siteB.style.display = single ? "none" : "";
+  if (bal) bal.style.display = single ? "none" : "";
+  if (abRole) abRole.style.display = single ? "none" : "";
+  if (singleHint) singleHint.style.display = single ? "block" : "none";
+
+  // In single mode, focus select only A/B (no "both")
+  const focusSel = document.getElementById("autodrive-focus");
+  if (focusSel) {
+    if (single) {
+      if (focusSel.value === "both") focusSel.value = focus;
+      [...focusSel.options].forEach((o) => {
+        if (o.value === "both") o.hidden = true;
+      });
+      if (dualOpts) dualOpts.style.display = "grid";
+    } else {
+      [...focusSel.options].forEach((o) => {
+        o.hidden = false;
+      });
+      if (dualOpts) dualOpts.style.display = "grid";
+    }
+  }
+
+  const siteAh = document.getElementById("ad-site-card-a-h");
+  if (siteAh) {
+    siteAh.textContent = single ? `Kanal ${focus} (aktiv)` : "Kanal A";
+  }
+
+  // Probe: highlight the active channel in single mode
+  if (probeB) probeB.style.opacity = single && focus === "A" ? "0.45" : "1";
+  if (probeBOn) probeBOn.style.opacity = single && focus === "A" ? "0.45" : "1";
+  const probeA = document.getElementById("ad-probe-a-main");
+  if (probeA) probeA.style.opacity = single && focus === "B" ? "0.45" : "1";
+  const probeAOn = document.getElementById("ad-probe-a");
+  if (probeAOn) probeAOn.style.opacity = single && focus === "B" ? "0.45" : "1";
+
+  // Layout cards
+  const wiring = document.getElementById("ad-wiring-mode")?.value || "independent_4";
+  const kind = document.getElementById("ad-electrode-kind")?.value || "loops";
+  document.querySelectorAll(".ad-layout-card").forEach((card) => {
+    const w = card.getAttribute("data-wiring");
+    const k = card.getAttribute("data-kind");
+    const layout = card.getAttribute("data-layout");
+    let on = false;
+    if (layout === "loops_single") on = kind === "loops" && wiring === "single_channel_2";
+    else if (layout === "loops_ab") on = kind === "loops" && wiring === "independent_4";
+    else if (layout === "loops_common") on = kind === "loops" && wiring === "common_3";
+    else if (layout === "pads") on = kind === "pads";
+    card.classList.toggle("active", on);
+  });
+
+  // Live meters: dim unused channel
+  const wrapA = document.getElementById("autodrive-meter-wrap-a");
+  const wrapB = document.getElementById("autodrive-meter-wrap-b");
+  if (wrapA) wrapA.style.opacity = single && focus === "B" ? "0.35" : "1";
+  if (wrapB) wrapB.style.opacity = single && focus === "A" ? "0.35" : "1";
+}
+
 function refreshSetupDerivedUi(applyRecs) {
   const setup = readSetupFromUi();
-  const placement = derivePlacementFromSetup(setup);
+  const focus = getSingleChannelFocus();
+  // Mirror A sites onto B for single-channel so checklist/labels stay consistent
+  if (setup.wiringMode === "single_channel_2") {
+    const a1 = document.getElementById("ad-site-a1")?.value || "base";
+    const a2 = document.getElementById("ad-site-a2")?.value || "glans";
+    const b1 = document.getElementById("ad-site-b1");
+    const b2 = document.getElementById("ad-site-b2");
+    if (b1) b1.value = a1;
+    if (b2) b2.value = a2;
+    setup.siteB1 = a1;
+    setup.siteB2 = a2;
+    setup.channelFocus = focus;
+    const ab = document.getElementById("autodrive-ab-role");
+    if (ab) ab.value = "sync";
+  }
+
+  let placement = derivePlacementFromSetup({ ...setup, balanceB: setup.balanceB });
+  // Mixed perineum single-channel keeps pelvic placement
+  if (
+    setup.wiringMode === "single_channel_2" &&
+    setup.electrodeKind === "mixed" &&
+    (setup.siteA1 === "perineum" || setup.siteA2 === "perineum")
+  ) {
+    placement = "perineum_combo";
+  }
+
   const placeSel = document.getElementById("autodrive-placement");
   if (placeSel) {
-    // ensure option exists
     if (![...placeSel.options].some((o) => o.value === placement)) {
       fillPlacementSelect(placement);
     }
     placeSel.value = placement;
   }
   updatePlacementGuide(placement, { applyRecommendations: !!applyRecs });
+  if (applyRecs && setup.wiringMode === "single_channel_2") {
+    const f = document.getElementById("autodrive-focus");
+    if (f && f.value !== "A" && f.value !== "B") f.value = "A";
+  }
+
   const wiring = WIRING_MODES[setup.wiringMode];
   const hint = document.getElementById("ad-wiring-hint");
   if (hint && wiring) {
@@ -584,16 +748,51 @@ function refreshSetupDerivedUi(applyRecs) {
   }
   const list = document.getElementById("ad-wiring-checklist");
   if (list) {
-    const lines = buildWiringChecklist({ ...setup, placement });
+    const lines = buildWiringChecklist({
+      ...setup,
+      placement,
+      channelFocus: setup.wiringMode === "single_channel_2" ? focus : setup.channelFocus,
+    });
     list.innerHTML = `<strong>Verkabelungs-Check</strong><ul>${lines.map((l) => `<li>${l}</li>`).join("")}</ul>`;
   }
   const balLbl = document.getElementById("ad-balance-b-val");
   if (balLbl) balLbl.textContent = `${setup.balanceB}%`;
-  paintBodyMap(setup);
+  paintBodyMap({
+    ...setup,
+    // single: only paint active channel sites
+    siteB1: setup.wiringMode === "single_channel_2" ? setup.siteA1 : setup.siteB1,
+    siteB2: setup.wiringMode === "single_channel_2" ? setup.siteA2 : setup.siteB2,
+  });
+  if (setup.wiringMode === "single_channel_2") {
+    // Body map: show only as one channel color
+    paintBodyMapSingle(setup, focus);
+  }
   const setupLbl = document.getElementById("autodrive-setup-label");
   if (setupLbl) {
     const ek = ELECTRODE_KINDS[setup.electrodeKind]?.label || setup.electrodeKind;
-    setupLbl.textContent = `${ek} · ${getPlacementProfile(placement).label}`;
+    const ch =
+      setup.wiringMode === "single_channel_2" ? ` · nur ${focus}` : "";
+    setupLbl.textContent = `${ek} · ${getPlacementProfile(placement).label}${ch}`;
+  }
+  paintChannelModeUi();
+}
+
+function paintBodyMapSingle(setup, focus) {
+  const g = document.getElementById("ad-map-zones");
+  if (!g) return;
+  const sites = new Set([setup.siteA1, setup.siteA2]);
+  const clsActive = focus === "B" ? "active-b" : "active-a";
+  g.innerHTML = PENIS_MAP_ZONES.map((z) => {
+    let cls = "ad-map-zone";
+    if (sites.has(z.id)) cls += ` ${clsActive}`;
+    return `<circle class="${cls}" data-site="${z.id}" cx="${z.cx}" cy="${z.cy}" r="${z.r}">
+      <title>${z.label}</title></circle>`;
+  }).join("");
+  const legend = document.getElementById("ad-map-legend");
+  if (legend) {
+    legend.innerHTML = `
+      <span><i class="ad-map-dot ${focus === "B" ? "b" : "a"}"></i> Kanal ${focus} (aktiv)</span>
+      <span>anderer Kanal aus</span>`;
   }
 }
 
@@ -621,20 +820,108 @@ function paintBodyMap(setup) {
   }
 }
 
+function goWizardPanel(id) {
+  document.querySelectorAll(".ad-config-tab").forEach((t) => {
+    const on = t.getAttribute("data-ad-panel") === id;
+    t.classList.toggle("active", on);
+    t.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  document.querySelectorAll("[data-ad-panel-body]").forEach((panel) => {
+    const on = panel.getAttribute("data-ad-panel-body") === id;
+    panel.hidden = !on;
+    panel.classList.toggle("active", on);
+  });
+  if (id === "session") {
+    // Rebuild template list for current wiring (1-kanal vs dual)
+    const cur = document.getElementById("autodrive-template")?.value;
+    buildTemplateGrid(cur || "classic");
+  }
+}
+
 function wireConfigTabs() {
   document.querySelectorAll(".ad-config-tab").forEach((tab) => {
     tab.addEventListener("click", () => {
-      const id = tab.getAttribute("data-ad-panel");
-      document
-        .querySelectorAll(".ad-config-tab")
-        .forEach((t) => t.classList.toggle("active", t === tab));
-      document.querySelectorAll("[data-ad-panel-body]").forEach((panel) => {
-        const on = panel.getAttribute("data-ad-panel-body") === id;
-        panel.hidden = !on;
-        panel.classList.toggle("active", on);
-      });
+      goWizardPanel(tab.getAttribute("data-ad-panel"));
     });
   });
+}
+
+/**
+ * Apply a layout card: wiring + electrode kind (+ default sites).
+ * @param {"loops_single"|"loops_ab"|"loops_common"|"pads"} layout
+ */
+function applyLayoutCard(layout) {
+  const setVal = (id, v) => {
+    const el = document.getElementById(id);
+    if (el && v != null) el.value = String(v);
+  };
+  if (layout === "loops_single") {
+    setVal("ad-electrode-kind", "loops");
+    setVal("ad-wiring-mode", "single_channel_2");
+    setVal("ad-site-a1", "base");
+    setVal("ad-site-a2", "glans");
+    setVal("ad-site-b1", "base");
+    setVal("ad-site-b2", "glans");
+    const f = document.getElementById("autodrive-focus");
+    if (f) f.value = f.value === "B" ? "B" : "A";
+    const ab = document.getElementById("autodrive-ab-role");
+    if (ab) ab.value = "sync";
+    selectTemplate("finish_loops_single");
+  } else if (layout === "loops_ab") {
+    setVal("ad-electrode-kind", "loops");
+    setVal("ad-wiring-mode", "independent_4");
+    setVal("ad-site-a1", "base");
+    setVal("ad-site-a2", "mid");
+    setVal("ad-site-b1", "corona");
+    setVal("ad-site-b2", "glans");
+    const f = document.getElementById("autodrive-focus");
+    if (f) f.value = "both";
+    selectTemplate("finish_loops");
+  } else if (layout === "loops_common") {
+    setVal("ad-electrode-kind", "loops");
+    setVal("ad-wiring-mode", "common_3");
+    setVal("ad-site-a1", "base");
+    setVal("ad-site-a2", "mid");
+    setVal("ad-site-b1", "base");
+    setVal("ad-site-b2", "glans");
+    const f = document.getElementById("autodrive-focus");
+    if (f) f.value = "both";
+  } else if (layout === "pads") {
+    setVal("ad-electrode-kind", "pads");
+    setVal("ad-wiring-mode", "independent_4");
+    setVal("ad-site-a1", "perineum");
+    setVal("ad-site-a2", "base");
+    setVal("ad-site-b1", "pubis");
+    setVal("ad-site-b2", "mid");
+    const f = document.getElementById("autodrive-focus");
+    if (f) f.value = "both";
+    selectTemplate("finish_pads");
+  }
+  refreshSetupDerivedUi(true);
+  collectConfigFromUi();
+  setStatusMsg(
+    layout === "loops_single"
+      ? `2 Loops · Kanal ${getSingleChannelFocus()} — beide Loops an diesen Kanal stecken`
+      : "Layout geladen",
+    false
+  );
+}
+
+function setSingleChannelFocus(ch) {
+  const focus = ch === "B" ? "B" : "A";
+  const f = document.getElementById("autodrive-focus");
+  if (f) f.value = focus;
+  // Prefer matching preset chip if present
+  const want = focus === "B" ? "loops_single_b" : "loops_single_a";
+  const strip = document.getElementById("ad-setup-presets");
+  if (strip && isSingleChannelUi()) {
+    strip.querySelectorAll(".ad-preset-chip").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-setup-preset") === want);
+    });
+  }
+  refreshSetupDerivedUi(false);
+  collectConfigFromUi();
+  setStatusMsg(`Aktiver Kanal: ${focus}`, false);
 }
 
 function wireSetupListeners() {
@@ -651,10 +938,49 @@ function wireSetupListeners() {
     document.getElementById(id)?.addEventListener("change", () => {
       refreshSetupDerivedUi(false);
       collectConfigFromUi();
+      if (id === "ad-wiring-mode" || id === "ad-electrode-kind") {
+        const cur = document.getElementById("autodrive-template")?.value;
+        buildTemplateGrid(cur || "classic");
+      }
     });
     document.getElementById(id)?.addEventListener("input", () => {
       if (id === "ad-balance-b") refreshSetupDerivedUi(false);
     });
+  });
+
+  document.getElementById("autodrive-focus")?.addEventListener("change", () => {
+    if (isSingleChannelUi()) {
+      setSingleChannelFocus(document.getElementById("autodrive-focus")?.value);
+    } else {
+      collectConfigFromUi();
+    }
+  });
+
+  document.querySelectorAll(".ad-layout-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      applyLayoutCard(card.getAttribute("data-layout"));
+    });
+  });
+  document.getElementById("ad-ch-a")?.addEventListener("click", () => setSingleChannelFocus("A"));
+  document.getElementById("ad-ch-b")?.addEventListener("click", () => setSingleChannelFocus("B"));
+
+  document.getElementById("ad-wiz-next-setup")?.addEventListener("click", () => {
+    collectConfigFromUi();
+    goWizardPanel("session");
+  });
+  document.getElementById("ad-wiz-back-session")?.addEventListener("click", () => {
+    goWizardPanel("setup");
+  });
+  document.getElementById("ad-wiz-next-session")?.addEventListener("click", () => {
+    collectConfigFromUi();
+    goWizardPanel("fine");
+  });
+  document.getElementById("ad-wiz-back-fine")?.addEventListener("click", () => {
+    goWizardPanel("session");
+  });
+  document.getElementById("ad-wiz-start")?.addEventListener("click", () => {
+    markAutodriveOnboardingSeen();
+    handleStartResult(startAutodrive(collectConfigFromUi()));
   });
 }
 
@@ -831,8 +1157,9 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelector('.nav-item[data-tab="settings"]')?.click();
   });
   document.getElementById("ad-onboard-loops")?.addEventListener("click", () => {
-    applySetupPreset("loops_ab_classic");
-    document.querySelector('.ad-config-tab[data-ad-panel="setup"]')?.click();
+    applySetupPreset("loops_single_a");
+    applyLayoutCard("loops_single");
+    goWizardPanel("setup");
   });
   document.getElementById("ad-onboard-start")?.addEventListener("click", () => {
     markAutodriveOnboardingSeen();
