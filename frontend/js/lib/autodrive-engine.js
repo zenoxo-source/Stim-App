@@ -351,28 +351,34 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
 });
 
 export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
-  templateId: "classic",
+  templateId: "loops_classic",
   goal: "edge_then_release",
   sensitivity: "medium",
   channelFocus: "both",
   coupledFraction: 0.3,
   maxSessionIntensity: null,
-  allowClimaxPatterns: false,
+  allowClimaxPatterns: true,
   autoStopMinutes: null,
   skipCalibration: false,
   edgeCount: 2,
   targetDurationMin: 12,
-  maxSessionIntensityFactor: 0.95,
+  maxSessionIntensityFactor: 0.9,
   aggression: 1.0,
   autoClimb: true,
-  placement: "soft_external",
+  placement: "loops_ab_penis",
   /** @type {"sync"|"aRhythm_bSteady"|"aSteady_bRhythm"} */
-  abRole: "sync",
+  abRole: "aRhythm_bSteady",
   fullscreenPreferred: true,
-  /** When true and STIM audio plays, wave/freq from audio, strength from Autodrive */
   hybridAudio: false,
-  /** Story id if started from story template */
   storyId: null,
+  electrodeKind: "loops",
+  wiringMode: "independent_4",
+  siteA1: "base",
+  siteA2: "mid",
+  siteB1: "corona",
+  siteB2: "glans",
+  balanceB: 85,
+  setupPresetId: "loops_ab_classic",
 });
 
 const SENSITIVITY_SCALE = Object.freeze({
@@ -596,6 +602,36 @@ export function sanitiseAutodriveConfig(input) {
   }
   if (typeof raw.hybridAudio === "boolean") base.hybridAudio = raw.hybridAudio;
   if (typeof raw.storyId === "string") base.storyId = raw.storyId.slice(0, 64);
+
+  const kinds = new Set(["loops", "pads", "mixed", "insertable"]);
+  const wirings = new Set(["independent_4", "common_3", "single_channel_2"]);
+  const sites = new Set([
+    "base",
+    "mid",
+    "corona",
+    "glans",
+    "perineum",
+    "pubis",
+    "labia",
+    "insertable",
+  ]);
+  if (typeof raw.electrodeKind === "string" && kinds.has(raw.electrodeKind)) {
+    base.electrodeKind = raw.electrodeKind;
+  }
+  if (typeof raw.wiringMode === "string" && wirings.has(raw.wiringMode)) {
+    base.wiringMode = raw.wiringMode;
+  }
+  if (typeof raw.siteA1 === "string" && sites.has(raw.siteA1)) base.siteA1 = raw.siteA1;
+  if (typeof raw.siteA2 === "string" && sites.has(raw.siteA2)) base.siteA2 = raw.siteA2;
+  if (typeof raw.siteB1 === "string" && sites.has(raw.siteB1)) base.siteB1 = raw.siteB1;
+  if (typeof raw.siteB2 === "string" && sites.has(raw.siteB2)) base.siteB2 = raw.siteB2;
+  if (raw.balanceB !== undefined) {
+    const b = Number(raw.balanceB);
+    if (Number.isFinite(b)) base.balanceB = Math.round(clamp(b, 40, 100));
+  }
+  if (typeof raw.setupPresetId === "string") {
+    base.setupPresetId = raw.setupPresetId.slice(0, 48);
+  }
 
   if (base.autoStopMinutes == null) {
     base.autoStopMinutes = Math.max(base.targetDurationMin + 8, 30);
@@ -978,19 +1014,22 @@ export function resolveChannelStrengths(rel, cfg, softA, softB) {
   const fullB = Math.round(clamp(r * capB * sens, 0, capB));
   const frac = cfg.coupledFraction ?? 0.3;
 
+  // Glans / hot site often on B — scale B after focus coupling
+  const balB = clamp((cfg.balanceB ?? 100) / 100, 0.4, 1);
+
   if (cfg.channelFocus === "A") {
     return {
       strengthA: fullA,
-      strengthB: Math.min(capB, Math.round(fullA * frac)),
+      strengthB: Math.min(capB, Math.round(fullA * frac * balB)),
     };
   }
   if (cfg.channelFocus === "B") {
     return {
       strengthA: Math.min(capA, Math.round(fullB * frac)),
-      strengthB: fullB,
+      strengthB: Math.round(fullB * balB),
     };
   }
-  return { strengthA: fullA, strengthB: fullB };
+  return { strengthA: fullA, strengthB: Math.round(fullB * balB) };
 }
 
 export function getPhaseLabel(phase) {

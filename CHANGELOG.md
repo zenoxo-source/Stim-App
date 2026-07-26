@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.1.8 — Autodrive UI-Umbau: Setup nach Elektroden & Körper
+
+### UI
+- Neues Autodrive-Layout: Hero + Tabs **Setup · Session · Feintuning** + Live-Cockpit
+- **Kontakt-Karte** (Penis-Zonen) mit A/B-Highlight
+- Schnell-Setups (Loops A+B, Common-3, Pads, Perineum …)
+- Verkabelungs-Modi: 4 Kontakte getrennt · 3 Kontakte Common · 1 Kanal
+- Sitze pro Kanal (Basis/Mitte/Corona/Eichel/Perineum …) + **Balance B**
+- Live **Verkabelungs-Check** (klärt: ein Pol A + ein Pol B im Loop = Common)
+
+### Engine
+- Config-Felder `electrodeKind`, `wiringMode`, `siteA1/A2/B1/B2`, `balanceB`
+- `balanceB` skaliert Strength B (Glans schonen)
+- Default: Loops A+B Penis · Klassisch · Balance B 85 %
+
 ## 4.1.7 — Loops A+B nur Penis (Presets)
 
 ### Neu

@@ -27,6 +27,18 @@ import {
   getPlacementProfile,
   ESTIM_SAFETY_RULES,
 } from "./autodrive.js";
+import {
+  listElectrodeKinds,
+  listWiringModes,
+  listBodySites,
+  listSetupPresets,
+  getSetupPreset,
+  derivePlacementFromSetup,
+  buildWiringChecklist,
+  PENIS_MAP_ZONES,
+  WIRING_MODES,
+  ELECTRODE_KINDS,
+} from "../lib/estim-setup.js";
 import { getOutputOwner } from "./output-owner.js";
 import { renderReadinessList, renderHomeMetrics } from "./session-readiness.js";
 import { listStories, runStory } from "./session-stories.js";
@@ -227,13 +239,6 @@ function selectTemplate(id) {
   });
 }
 
-/** One-tap: only penis loops A+B (user main setup). */
-function applyLoopsPreset(templateId) {
-  selectTemplate(templateId || "loops_classic");
-  collectConfigFromUi();
-  setStatusMsg("Loops A+B Preset geladen — Soft-Limits prüfen, dann Start", false);
-}
-
 /** Fill placement &lt;select&gt; from engine profiles (ESTIM body applications). */
 function fillPlacementSelect(selectedId) {
   const sel = document.getElementById("autodrive-placement");
@@ -299,6 +304,18 @@ function fillSafetyList() {
   ul.innerHTML = ESTIM_SAFETY_RULES.map((r) => `<li>${r}</li>`).join("");
 }
 
+function readSetupFromUi() {
+  return {
+    electrodeKind: document.getElementById("ad-electrode-kind")?.value || "loops",
+    wiringMode: document.getElementById("ad-wiring-mode")?.value || "independent_4",
+    siteA1: document.getElementById("ad-site-a1")?.value || "base",
+    siteA2: document.getElementById("ad-site-a2")?.value || "mid",
+    siteB1: document.getElementById("ad-site-b1")?.value || "corona",
+    siteB2: document.getElementById("ad-site-b2")?.value || "glans",
+    balanceB: Number(document.getElementById("ad-balance-b")?.value) || 100,
+  };
+}
+
 function collectConfigFromUi() {
   const templateId = document.getElementById("autodrive-template")?.value || "classic";
   const tpl = AUTODRIVE_TEMPLATES[templateId] || AUTODRIVE_TEMPLATES.classic;
@@ -309,7 +326,10 @@ function collectConfigFromUi() {
     ? Math.max(2, Math.min(60, durationRaw))
     : tpl.targetDurationMin;
   const autoClimb = !!document.getElementById("autodrive-auto-climb")?.checked;
-  const placement = document.getElementById("autodrive-placement")?.value || "soft_external";
+  const setup = readSetupFromUi();
+  const placement =
+    document.getElementById("autodrive-placement")?.value ||
+    derivePlacementFromSetup({ ...setup, balanceB: setup.balanceB });
   const abRole = document.getElementById("autodrive-ab-role")?.value || "sync";
   const fullscreenPreferred = !!document.getElementById("autodrive-fullscreen-pref")?.checked;
   const hybridAudio = !!document.getElementById("autodrive-hybrid")?.checked;
@@ -329,6 +349,186 @@ function collectConfigFromUi() {
     abRole,
     fullscreenPreferred,
     hybridAudio,
+    ...setup,
+    setupPresetId:
+      document.querySelector(".ad-preset-chip.active")?.getAttribute("data-setup-preset") || null,
+  });
+}
+
+function fillSelect(el, items, valueKey = "id", labelFn) {
+  if (!el) return;
+  const cur = el.value;
+  el.innerHTML = items
+    .map((it) => {
+      const id = it[valueKey] || it.id;
+      const label = labelFn ? labelFn(it) : it.label || id;
+      return `<option value="${id}">${label}</option>`;
+    })
+    .join("");
+  if (cur && [...el.options].some((o) => o.value === cur)) el.value = cur;
+}
+
+function fillSetupControls(cfg) {
+  fillSelect(document.getElementById("ad-electrode-kind"), listElectrodeKinds());
+  fillSelect(document.getElementById("ad-wiring-mode"), listWiringModes(), "id", (w) => w.label);
+  const sites = listBodySites();
+  ["ad-site-a1", "ad-site-a2", "ad-site-b1", "ad-site-b2"].forEach((id) => {
+    fillSelect(document.getElementById(id), sites, "id", (s) => s.label);
+  });
+  const setVal = (id, v) => {
+    const el = document.getElementById(id);
+    if (el && v != null) el.value = String(v);
+  };
+  setVal("ad-electrode-kind", cfg.electrodeKind || "loops");
+  setVal("ad-wiring-mode", cfg.wiringMode || "independent_4");
+  setVal("ad-site-a1", cfg.siteA1 || "base");
+  setVal("ad-site-a2", cfg.siteA2 || "mid");
+  setVal("ad-site-b1", cfg.siteB1 || "corona");
+  setVal("ad-site-b2", cfg.siteB2 || "glans");
+  const bal = document.getElementById("ad-balance-b");
+  if (bal) bal.value = String(cfg.balanceB ?? 85);
+  const balLbl = document.getElementById("ad-balance-b-val");
+  if (balLbl) balLbl.textContent = `${cfg.balanceB ?? 85}%`;
+  renderSetupPresets(cfg.setupPresetId);
+  refreshSetupDerivedUi(false);
+}
+
+function renderSetupPresets(activeId) {
+  const strip = document.getElementById("ad-setup-presets");
+  if (!strip) return;
+  strip.innerHTML = listSetupPresets()
+    .map((p) => {
+      const on = p.id === activeId ? " active" : "";
+      return `<button type="button" class="ad-preset-chip${on}" data-setup-preset="${p.id}">
+        ${p.label}<small>${p.description || p.tag || ""}</small>
+      </button>`;
+    })
+    .join("");
+  strip.querySelectorAll(".ad-preset-chip").forEach((btn) => {
+    btn.addEventListener("click", () => applySetupPreset(btn.getAttribute("data-setup-preset")));
+  });
+}
+
+function applySetupPreset(presetId) {
+  const p = getSetupPreset(presetId);
+  if (!p) return;
+  const setVal = (id, v) => {
+    const el = document.getElementById(id);
+    if (el && v != null) el.value = String(v);
+  };
+  setVal("ad-electrode-kind", p.electrodeKind);
+  setVal("ad-wiring-mode", p.wiringMode);
+  setVal("ad-site-a1", p.siteA1);
+  setVal("ad-site-a2", p.siteA2);
+  setVal("ad-site-b1", p.siteB1);
+  setVal("ad-site-b2", p.siteB2);
+  const bal = document.getElementById("ad-balance-b");
+  if (bal) bal.value = String(p.balanceB ?? 85);
+  if (p.templateId) selectTemplate(p.templateId);
+  if (p.abRole) {
+    const ab = document.getElementById("autodrive-ab-role");
+    if (ab) ab.value = p.abRole;
+  }
+  if (p.channelFocus) {
+    const f = document.getElementById("autodrive-focus");
+    if (f) f.value = p.channelFocus;
+  }
+  renderSetupPresets(presetId);
+  refreshSetupDerivedUi(true);
+  collectConfigFromUi();
+  setStatusMsg(`Setup „${p.label}“ geladen`, false);
+}
+
+function refreshSetupDerivedUi(applyRecs) {
+  const setup = readSetupFromUi();
+  const placement = derivePlacementFromSetup(setup);
+  const placeSel = document.getElementById("autodrive-placement");
+  if (placeSel) {
+    // ensure option exists
+    if (![...placeSel.options].some((o) => o.value === placement)) {
+      fillPlacementSelect(placement);
+    }
+    placeSel.value = placement;
+  }
+  updatePlacementGuide(placement, { applyRecommendations: !!applyRecs });
+  const wiring = WIRING_MODES[setup.wiringMode];
+  const hint = document.getElementById("ad-wiring-hint");
+  if (hint && wiring) {
+    hint.textContent = wiring.warn ? `${wiring.description} · ${wiring.warn}` : wiring.description;
+  }
+  const list = document.getElementById("ad-wiring-checklist");
+  if (list) {
+    const lines = buildWiringChecklist({ ...setup, placement });
+    list.innerHTML = `<strong>Verkabelungs-Check</strong><ul>${lines.map((l) => `<li>${l}</li>`).join("")}</ul>`;
+  }
+  const balLbl = document.getElementById("ad-balance-b-val");
+  if (balLbl) balLbl.textContent = `${setup.balanceB}%`;
+  paintBodyMap(setup);
+  const setupLbl = document.getElementById("autodrive-setup-label");
+  if (setupLbl) {
+    const ek = ELECTRODE_KINDS[setup.electrodeKind]?.label || setup.electrodeKind;
+    setupLbl.textContent = `${ek} · ${getPlacementProfile(placement).label}`;
+  }
+}
+
+function paintBodyMap(setup) {
+  const g = document.getElementById("ad-map-zones");
+  if (!g) return;
+  const aSites = new Set([setup.siteA1, setup.siteA2]);
+  const bSites = new Set([setup.siteB1, setup.siteB2]);
+  g.innerHTML = PENIS_MAP_ZONES.map((z) => {
+    let cls = "ad-map-zone";
+    const onA = aSites.has(z.id);
+    const onB = bSites.has(z.id);
+    if (onA && onB) cls += " active-both";
+    else if (onA) cls += " active-a";
+    else if (onB) cls += " active-b";
+    return `<circle class="${cls}" data-site="${z.id}" cx="${z.cx}" cy="${z.cy}" r="${z.r}">
+      <title>${z.label}</title></circle>`;
+  }).join("");
+  const legend = document.getElementById("ad-map-legend");
+  if (legend) {
+    legend.innerHTML = `
+      <span><i class="ad-map-dot a"></i> Kanal A</span>
+      <span><i class="ad-map-dot b"></i> Kanal B</span>
+      <span>Lila = beide</span>`;
+  }
+}
+
+function wireConfigTabs() {
+  document.querySelectorAll(".ad-config-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const id = tab.getAttribute("data-ad-panel");
+      document
+        .querySelectorAll(".ad-config-tab")
+        .forEach((t) => t.classList.toggle("active", t === tab));
+      document.querySelectorAll("[data-ad-panel-body]").forEach((panel) => {
+        const on = panel.getAttribute("data-ad-panel-body") === id;
+        panel.hidden = !on;
+        panel.classList.toggle("active", on);
+      });
+    });
+  });
+}
+
+function wireSetupListeners() {
+  const ids = [
+    "ad-electrode-kind",
+    "ad-wiring-mode",
+    "ad-site-a1",
+    "ad-site-a2",
+    "ad-site-b1",
+    "ad-site-b2",
+    "ad-balance-b",
+  ];
+  ids.forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", () => {
+      refreshSetupDerivedUi(false);
+      collectConfigFromUi();
+    });
+    document.getElementById(id)?.addEventListener("input", () => {
+      if (id === "ad-balance-b") refreshSetupDerivedUi(false);
+    });
   });
 }
 
@@ -461,23 +661,26 @@ document.addEventListener("DOMContentLoaded", () => {
     if (dur && cfg.targetDurationMin) dur.value = String(cfg.targetDurationMin);
     const climb = document.getElementById("autodrive-auto-climb");
     if (climb) climb.checked = cfg.autoClimb !== false;
-    fillPlacementSelect(cfg.placement || "soft_external");
+    fillPlacementSelect(cfg.placement || "loops_ab_penis");
     fillSafetyList();
-    document.getElementById("autodrive-placement")?.addEventListener("change", (e) => {
-      updatePlacementGuide(e.target.value, { applyRecommendations: true });
-      collectConfigFromUi();
-    });
+    fillSetupControls(cfg);
+    wireConfigTabs();
+    wireSetupListeners();
     const ab = document.getElementById("autodrive-ab-role");
     if (ab && cfg.abRole) ab.value = cfg.abRole;
     const fsPref = document.getElementById("autodrive-fullscreen-pref");
     if (fsPref) fsPref.checked = cfg.fullscreenPreferred !== false;
     const hybrid = document.getElementById("autodrive-hybrid");
     if (hybrid) hybrid.checked = !!cfg.hybridAudio;
-  } catch {
+  } catch (err) {
+    console.warn("autodrive UI init", err);
     buildTemplateGrid("classic");
     try {
-      fillPlacementSelect("soft_external");
+      fillPlacementSelect("loops_ab_penis");
       fillSafetyList();
+      fillSetupControls(loadAutodriveConfig());
+      wireConfigTabs();
+      wireSetupListeners();
     } catch {
       /* ignore */
     }
@@ -487,12 +690,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("stim-map-toggle")?.addEventListener("click", () => {
     const body = document.getElementById("stim-map-body");
     if (body) body.style.display = body.style.display === "none" ? "" : "none";
-  });
-
-  document.querySelectorAll(".loops-preset-chip").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      applyLoopsPreset(chip.getAttribute("data-loops-preset") || "loops_classic");
-    });
   });
 
   document.getElementById("btn-autodrive-start")?.addEventListener("click", () => {

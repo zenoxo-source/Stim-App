@@ -33,6 +33,13 @@ export {
   CLIMAX_WAVES,
 } from "../lib/autodrive-engine.js";
 
+export {
+  listSetupPresets,
+  getSetupPreset,
+  derivePlacementFromSetup,
+  buildWiringChecklist,
+} from "../lib/estim-setup.js";
+
 const CONFIG_KEY = "stim_app_autodrive_v1";
 const SEEN_KEY = "stim_app_autodrive_seen";
 const LEARN_KEY = "stim_app_autodrive_learn_v1";
