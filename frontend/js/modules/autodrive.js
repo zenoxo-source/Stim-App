@@ -17,7 +17,7 @@ import {
   clearPatternCeiling,
 } from "./safety-extras.js";
 import { blockIfLocked as blockIfPinLocked } from "./session-pin.js";
-import { sendSoftStop } from "./bluetooth.js";
+import { sendSoftStop, sendStrengthCommand, sendWaveformCommand } from "./bluetooth.js";
 import { trackStat } from "./stats.js";
 import { isFlagEnabled } from "./feature-flags.js";
 
@@ -435,20 +435,30 @@ export function stopAutodrive(reason = "manuell") {
         })
       );
       if (snap.marked && snap.config) {
+        const c = snap.config;
         localStorage.setItem(
           LAST_SUCCESS_KEY,
           JSON.stringify({
-            templateId: snap.config.templateId,
-            placement: snap.config.placement,
-            sensitivity: snap.config.sensitivity,
-            channelFocus: snap.config.channelFocus,
-            targetDurationMin: snap.config.targetDurationMin,
-            abRole: snap.config.abRole,
-            goal: snap.config.goal,
-            edgeCount: snap.config.edgeCount,
-            aggression: snap.config.aggression,
-            maxSessionIntensityFactor: snap.config.maxSessionIntensityFactor,
-            allowClimaxPatterns: snap.config.allowClimaxPatterns,
+            templateId: c.templateId,
+            placement: c.placement,
+            sensitivity: c.sensitivity,
+            channelFocus: c.channelFocus,
+            targetDurationMin: c.targetDurationMin,
+            abRole: c.abRole,
+            goal: c.goal,
+            edgeCount: c.edgeCount,
+            aggression: c.aggression,
+            maxSessionIntensityFactor: c.maxSessionIntensityFactor,
+            allowClimaxPatterns: c.allowClimaxPatterns,
+            // Full ESTIM setup so "Letzte Erfolg" restores loops/wiring/sites
+            electrodeKind: c.electrodeKind,
+            wiringMode: c.wiringMode,
+            siteA1: c.siteA1,
+            siteA2: c.siteA2,
+            siteB1: c.siteB1,
+            siteB2: c.siteB2,
+            balanceB: c.balanceB,
+            setupPresetId: c.setupPresetId,
             savedAt: Date.now(),
           })
         );
@@ -550,13 +560,130 @@ export function applyDebrief(answers = {}) {
 
 export function getSoftLimitCoachMessage() {
   const learn = loadLearning();
-  if (!learn.softLimitCoachPending) return null;
+  const cfg = loadAutodriveConfig();
+  const place = cfg.placement || learn.preferredPlacement || "";
+  const softA = AppState.softLimitA || 0;
+  const softB = AppState.softLimitB || 0;
+  const tips = [];
+
+  // Placement-aware soft-limit guidance (never auto-raises limits)
+  if (
+    (place === "loops_ab_glans_hot" || place === "loops_ab_penis" || place === "deep_pressure") &&
+    softB > 0 &&
+    softA > 0 &&
+    softB > softA * 0.95
+  ) {
+    const suggestB = Math.max(10, Math.round(softA * 0.8));
+    tips.push(
+      `Loops/Glans: Soft-Limit B oft etwas unter A — z. B. B≈${suggestB} bei A=${softA} (manuell in Einstellungen).`
+    );
+  }
+  if (place === "insertable" && Math.min(softA, softB) > 100) {
+    tips.push("Insertable: hohe Soft-Limits vorsichtig — Cap ist ohnehin strenger.");
+  }
+  if (learn.softLimitCoachPending && Math.min(softA, softB) < 120) {
+    tips.push(
+      "Oft „zu schwach“ bei niedrigen Soft-Limits. Limits etwas erhöhen? (nie automatisch)"
+    );
+  }
+  if (!tips.length) return null;
   return {
-    message:
-      "Oft „zu schwach“ bei niedrigen Soft-Limits. In den Einstellungen Limits etwas erhöhen? (nie automatisch)",
-    softA: AppState.softLimitA,
-    softB: AppState.softLimitB,
+    message: tips.join(" "),
+    softA,
+    softB,
+    placement: place,
   };
+}
+
+/**
+ * One-line trust string for live UI: phase · strengths · freq (max).
+ * @param {object} st getAutodriveState()-like
+ */
+export function buildTrustLine(st) {
+  const phase = st?.phaseLabel || st?.phase || "—";
+  const a = AppState.strengthA ?? 0;
+  const b = AppState.strengthB ?? 0;
+  const f = st?.wireFreq;
+  const env = st?.wireFreqEnvelope || estimateWireFreqEnvelope(st?.config || loadAutodriveConfig());
+  const maxF = env?.hi;
+  const parts = [phase, `A ${a} · B ${b}`];
+  if (f != null && f > 0) {
+    parts.push(maxF != null ? `Freq ${f} (max ${maxF})` : `Freq ${f}`);
+  } else if (maxF != null) {
+    parts.push(`Freq max ${maxF}`);
+  }
+  return parts.join(" · ");
+}
+
+/** @type {ReturnType<typeof setTimeout>|null} */
+let probeTimer = null;
+
+/**
+ * Short A or B probe pulse for first-run / contact check.
+ * @param {"A"|"B"} channel
+ * @param {{ strength?: number, ms?: number, freq?: number }} [opts]
+ * @returns {{ ok: boolean, error?: string }}
+ */
+export function probeChannel(channel, opts = {}) {
+  if (!AppState.isConnected || !AppState.writeChar) {
+    return { ok: false, error: "Nicht verbunden" };
+  }
+  if (isAutodriveActive()) {
+    return { ok: false, error: "Während Autodrive nicht — zuerst stoppen" };
+  }
+  const ch = String(channel || "A").toUpperCase() === "B" ? "B" : "A";
+  const soft = ch === "B" ? AppState.softLimitB || 40 : AppState.softLimitA || 40;
+  const level = Math.min(
+    soft,
+    Math.max(8, Math.round(Number(opts.strength) || Math.min(25, Math.round(soft * 0.22))))
+  );
+  const ms = Math.min(2500, Math.max(400, Number(opts.ms) || 900));
+  const freq = Math.min(240, Math.max(10, Number(opts.freq) || 45));
+
+  if (probeTimer) {
+    clearTimeout(probeTimer);
+    probeTimer = null;
+  }
+
+  const strA = ch === "A" ? level : 0;
+  const strB = ch === "B" ? level : 0;
+  AppState.btPendingMode = CONSTANTS.V3_MODE_ABSOLUTE_BOTH;
+  sendStrengthCommand(strA, strB, { writer: "manual" });
+  sendWaveformCommand(freq, ch === "A" ? 70 : 0, freq, ch === "B" ? 70 : 0, {
+    writer: "wave-loop",
+    force: true,
+  });
+  log(`Probe ${ch}: Strength ${level} · ${ms}ms · f${freq}`, "info");
+
+  probeTimer = setTimeout(() => {
+    probeTimer = null;
+    try {
+      sendSoftStop({ keepStrength: false, zeroUiStrength: true, writer: "safety" });
+      AppState.strengthA = 0;
+      AppState.strengthB = 0;
+    } catch {
+      /* ignore */
+    }
+  }, ms);
+
+  return { ok: true, channel: ch, level, ms };
+}
+
+/** @returns {boolean} true if first-run checklist should show */
+export function needsAutodriveOnboarding() {
+  try {
+    return !localStorage.getItem(SEEN_KEY);
+  } catch {
+    return true;
+  }
+}
+
+export function markAutodriveOnboardingSeen() {
+  try {
+    localStorage.setItem(SEEN_KEY, "1");
+  } catch {
+    /* ignore */
+  }
 }
 
 export function clearSoftLimitCoach() {
@@ -827,6 +954,7 @@ function notifyUi() {
   setText("ad-fs-tip", st.pendingPrompt || st.tip || "");
   setText("ad-fs-next", st.nextStepHint || "");
   setText("ad-fs-edges", `${st.edgeCountDone || 0}/${st.edgeCountTarget || 0}`);
+  setText("autodrive-trust", buildTrustLine(st));
   setText("ad-fs-hold", st.holdRemainingMs > 0 ? formatMs(st.holdRemainingMs) : "");
   setWidth("ad-fs-progress", Math.round((st.progress || 0) * 100));
   setWidth("ad-fs-rel", Math.round((st.relStrength || 0) * 100));

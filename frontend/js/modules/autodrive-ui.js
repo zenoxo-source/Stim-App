@@ -26,6 +26,10 @@ import {
   listPlacementProfiles,
   getPlacementProfile,
   estimateWireFreqEnvelope,
+  buildTrustLine,
+  probeChannel,
+  needsAutodriveOnboarding,
+  markAutodriveOnboardingSeen,
   ESTIM_SAFETY_RULES,
 } from "./autodrive.js";
 import { waveFreqLabel } from "../lib/protocol-utils.js";
@@ -189,9 +193,34 @@ function paintDashboard(st) {
     bandLab.textContent = `${env.lo}–${env.hi} · max ${env.hi} · ${feel}`;
   }
 
+  const trust = document.getElementById("autodrive-trust");
+  if (trust) trust.textContent = buildTrustLine(st);
+
   paintTimeline(st);
   refreshHomeSummary();
   paintCoach();
+  paintOnboarding();
+}
+
+function paintOnboarding() {
+  const box = document.getElementById("ad-onboarding");
+  if (!box) return;
+  const show = needsAutodriveOnboarding() && !isAutodriveActive();
+  box.style.display = show ? "block" : "none";
+  if (!show) return;
+  const meta = document.getElementById("ad-onboard-limits");
+  if (meta) {
+    meta.textContent = `A ${AppState.softLimitA ?? "—"} · B ${AppState.softLimitB ?? "—"}`;
+  }
+}
+
+function runProbe(ch) {
+  const r = probeChannel(ch);
+  if (!r.ok) {
+    setStatusMsg(r.error || "Probe fehlgeschlagen", true);
+    return;
+  }
+  setStatusMsg(`Probe ${r.channel}: Strength ${r.level} · ${(r.ms / 1000).toFixed(1)}s`, false);
 }
 
 function formatUiMs(ms) {
@@ -728,7 +757,30 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("btn-autodrive-start")?.addEventListener("click", () => {
+    markAutodriveOnboardingSeen();
     handleStartResult(startAutodrive(collectConfigFromUi()));
+  });
+
+  document.getElementById("ad-onboard-dismiss")?.addEventListener("click", () => {
+    markAutodriveOnboardingSeen();
+    paintOnboarding();
+  });
+  document.getElementById("ad-onboard-goto-limits")?.addEventListener("click", () => {
+    document.querySelector('.nav-item[data-tab="settings"]')?.click();
+  });
+  document.getElementById("ad-onboard-loops")?.addEventListener("click", () => {
+    applySetupPreset("loops_ab_classic");
+    document.querySelector('.ad-config-tab[data-ad-panel="setup"]')?.click();
+  });
+  document.getElementById("ad-onboard-start")?.addEventListener("click", () => {
+    markAutodriveOnboardingSeen();
+    handleStartResult(startAutodrive({ ...collectConfigFromUi(), skipCalibration: false }));
+  });
+  ["ad-probe-a", "ad-probe-a-main"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("click", () => runProbe("A"));
+  });
+  ["ad-probe-b", "ad-probe-b-main"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("click", () => runProbe("B"));
   });
   document.getElementById("btn-autodrive-last")?.addEventListener("click", () => {
     handleStartResult(startLastSuccess());

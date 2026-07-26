@@ -283,6 +283,37 @@
             </div>
           </header>
 
+          <div id="ad-onboarding" class="ad-onboarding" style="display:none;" aria-label="Erste Schritte">
+            <div class="ad-onboarding-head">
+              <strong>Erste Session</strong>
+              <button type="button" class="btn btn-secondary btn-sm" id="ad-onboard-dismiss">Später</button>
+            </div>
+            <ol class="ad-onboarding-steps">
+              <li data-step="limits">
+                <span class="ad-step-n">1</span>
+                Soft-Limits setzen
+                <span class="ad-step-meta" id="ad-onboard-limits">—</span>
+                <button type="button" class="btn btn-secondary btn-sm" id="ad-onboard-goto-limits">Einstellungen</button>
+              </li>
+              <li data-step="setup">
+                <span class="ad-step-n">2</span>
+                Setup wählen (z. B. Loops A+B)
+                <button type="button" class="btn btn-secondary btn-sm" id="ad-onboard-loops">Loops Klassisch</button>
+              </li>
+              <li data-step="probe">
+                <span class="ad-step-n">3</span>
+                Kontakt prüfen
+                <button type="button" class="btn btn-secondary btn-sm" id="ad-probe-a">Probe A</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="ad-probe-b">Probe B</button>
+              </li>
+              <li data-step="start">
+                <span class="ad-step-n">4</span>
+                Start — Kalibrierung nicht skippen
+                <button type="button" class="btn btn-autodrive-go btn-sm" id="ad-onboard-start">▶ Mit Kalibrierung</button>
+              </li>
+            </ol>
+          </div>
+
           <div class="ad-shell-grid">
             <div class="ad-config-col">
               <nav class="ad-config-tabs" role="tablist">
@@ -294,6 +325,12 @@
               <div class="card ad-panel active" id="ad-panel-setup" data-ad-panel-body="setup">
                 <div class="card-title">Elektroden &amp; Körper</div>
                 <p class="ad-panel-lead">Was steckt wo — steuert Cap, Freq und A/B-Balance automatisch.</p>
+                <div class="ad-probe-row">
+                  <span class="ad-probe-label">Kontakt-Check</span>
+                  <button type="button" class="btn btn-secondary btn-sm" id="ad-probe-a-main">Probe A</button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="ad-probe-b-main">Probe B</button>
+                  <span class="ad-probe-hint">kurzer Puls · Soft-Limit-sicher</span>
+                </div>
                 <div class="ad-preset-strip" id="ad-setup-presets" aria-label="Schnell-Setups"></div>
                 <div class="ad-setup-split">
                   <div class="ad-body-map-wrap">
@@ -471,6 +508,7 @@
                 </div>
                 <span class="ad-freq-meter-label" id="autodrive-freq-band-label">Freq-Band —</span>
               </div>
+              <p id="autodrive-trust" class="ad-trust-line" aria-live="polite">—</p>
               <div id="autodrive-prompt" class="autodrive-prompt" style="display:none;" role="status"></div>
               <p id="autodrive-tip" class="autodrive-tip">Setup wählen und Start drücken</p>
               <div class="autodrive-stats-row">

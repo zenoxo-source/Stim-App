@@ -19,6 +19,9 @@ import {
   injectFeedback,
   clearAutodriveAppliedMarkers,
   applyAutodriveWaveTick,
+  buildTrustLine,
+  getSoftLimitCoachMessage,
+  clearSoftLimitCoach,
 } from "../../frontend/js/modules/autodrive.js";
 import { armPanicCooldown, releasePanicCooldown } from "../../frontend/js/modules/safety-extras.js";
 
@@ -194,6 +197,32 @@ describe("autodrive — lifecycle", () => {
     stopAutodrive("test");
     assert.equal(AppState.strengthA, 0);
     assert.equal(AppState.strengthB, 0);
+  });
+
+  test("buildTrustLine includes phase strengths and freq max", () => {
+    AppState.strengthA = 40;
+    AppState.strengthB = 34;
+    const line = buildTrustLine({
+      phaseLabel: "Aufbau",
+      wireFreq: 52,
+      wireFreqEnvelope: { lo: 20, hi: 145 },
+      config: { placement: "loops_ab_penis" },
+    });
+    assert.match(line, /Aufbau/);
+    assert.match(line, /A 40/);
+    assert.match(line, /B 34/);
+    assert.match(line, /52/);
+    assert.match(line, /145/);
+  });
+
+  test("soft-limit coach suggests lower B for glans-style placement", () => {
+    AppState.softLimitA = 100;
+    AppState.softLimitB = 100;
+    saveAutodriveConfig({ placement: "loops_ab_glans_hot" });
+    clearSoftLimitCoach();
+    const coach = getSoftLimitCoachMessage();
+    assert.ok(coach);
+    assert.match(coach.message, /Glans|Soft-Limit B|Loops/i);
   });
 });
 
