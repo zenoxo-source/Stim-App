@@ -356,7 +356,17 @@ export function stopAutodrive(reason = "manuell") {
 
   if (reason !== "panic" && reason !== "owner-claim") {
     try {
-      sendSoftStop({ keepStrength: false, zeroUiStrength: false, writer: "safety" });
+      // Zero device + UI so idle wave-loop cannot re-arm high residual strength
+      // on the next absolute B0 (master/slider/reconnect).
+      sendSoftStop({ keepStrength: false, zeroUiStrength: true, writer: "safety" });
+      AppState.strengthA = 0;
+      AppState.strengthB = 0;
+      if (DOM["slider-intensity-a"]) DOM["slider-intensity-a"].value = "0";
+      if (DOM["label-intensity-a"]) DOM["label-intensity-a"].textContent = "0";
+      if (DOM["intensity-circle-a"]) DOM["intensity-circle-a"].textContent = "0";
+      if (DOM["slider-intensity-b"]) DOM["slider-intensity-b"].value = "0";
+      if (DOM["label-intensity-b"]) DOM["label-intensity-b"].textContent = "0";
+      if (DOM["intensity-circle-b"]) DOM["intensity-circle-b"].textContent = "0";
     } catch {
       /* ignore */
     }
@@ -639,14 +649,16 @@ function engineTick() {
  */
 export async function applyAutodriveWaveTick(sendWave, computePattern) {
   if (!engineState || engineState.phase === "IDLE") return false;
+  // Pause: soft-stop already issued; keep wire strength, do not thrash B0.
   if (engineState.phase === "PAUSED" || silenced) {
     return true;
   }
 
   const now = Date.now();
   const out = computeAutodriveOutput(engineState, now);
-  if (out.silenced) return true;
 
+  // Always sync logical strength (incl. COOLDOWN → 0). Early-return on
+  // out.silenced used to skip this, leaving AppState/UI high while phase was quiet.
   const nextA = clampStrengthWithCeiling(out.strengthA, "A");
   const nextB = clampStrengthWithCeiling(out.strengthB, "B");
 
@@ -675,8 +687,8 @@ export async function applyAutodriveWaveTick(sendWave, computePattern) {
   if (DOM["label-intensity-b"]) DOM["label-intensity-b"].textContent = String(nextB);
   if (DOM["intensity-circle-b"]) DOM["intensity-circle-b"].textContent = String(nextB);
 
-  // Soft-reset / wave silenced: hold strength, zero wave amps
-  if (out.waveSilenced || !out.patternId) {
+  // COOLDOWN / soft-reset / no pattern: absolute strength (may be 0) + inactive wave
+  if (out.silenced || out.waveSilenced || !out.patternId) {
     AppState.lastWaveAmpA = 0;
     AppState.lastWaveAmpB = 0;
     await sendWave(0, 0, 0, 0, { writer: "wave-loop" });
