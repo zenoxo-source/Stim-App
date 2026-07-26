@@ -2268,6 +2268,65 @@ textarea.text-input { resize: vertical; min-height: 100px; }
   background: rgba(0, 240, 255, 0.12);
   box-shadow: 0 0 14px rgba(0, 240, 255, 0.2);
 }
+.ad-preset-chip.finish {
+  border-color: rgba(255, 180, 80, 0.45);
+}
+.ad-preset-chip.finish.active {
+  border-color: #ffb84d;
+  box-shadow: 0 0 14px rgba(255, 180, 80, 0.25);
+}
+.ad-climax-advice {
+  margin: 12px 0 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 180, 80, 0.35);
+  background: rgba(255, 140, 0, 0.08);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.ad-climax-advice-h {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: #ffcc80;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+.ad-finish-score {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #ffb84d;
+}
+.ad-climax-advice-body {
+  margin: 0 0 6px;
+  color: var(--text-primary);
+}
+.ad-climax-soft {
+  margin: 0 0 6px;
+  font-weight: 600;
+  color: #ffcc80;
+  font-size: 12px;
+}
+.ad-climax-settings {
+  margin: 0 0 6px;
+  padding-left: 1.15em;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+.ad-climax-settings li {
+  margin-bottom: 2px;
+}
+.ad-climax-tips {
+  margin: 0;
+  padding-left: 1.15em;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.ad-climax-tips li {
+  margin-bottom: 2px;
+}
 .ad-setup-split {
   display: grid;
   grid-template-columns: minmax(140px, 200px) 1fr;

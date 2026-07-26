@@ -69,6 +69,66 @@ describe("autodrive-engine", () => {
     assert.ok(loops.hi > 120);
   });
 
+  it("finish_loops template enables climaxPriority and single edge", () => {
+    const c = sanitiseAutodriveConfig({ templateId: "finish_loops" });
+    assert.equal(c.climaxPriority, true);
+    assert.equal(c.edgeCount, 1);
+    assert.equal(c.allowClimaxPatterns, true);
+    assert.equal(c.placement, "loops_ab_penis");
+    assert.ok(AUTODRIVE_TEMPLATES.finish_glans);
+    assert.ok(AUTODRIVE_TEMPLATES.finish_pads);
+  });
+
+  it("climaxPriority keeps too_strong in CLIMAX_PUSH", () => {
+    let s = createInitialState(
+      sanitiseAutodriveConfig({ templateId: "finish_loops", skipCalibration: true }),
+      t0
+    );
+    s = {
+      ...s,
+      phase: "CLIMAX_PUSH",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 60000,
+      relStrength: 0.9,
+    };
+    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "too_strong", nowMs: t0 + 1000 });
+    assert.equal(s.phase, "CLIMAX_PUSH");
+    assert.ok(s.relStrength < 0.9);
+  });
+
+  it("climaxPriority push lasts longer than classic push", () => {
+    // Short sessions so neither path hits the hard duration cap.
+    let finish = createInitialState(
+      sanitiseAutodriveConfig({
+        templateId: "finish_loops",
+        skipCalibration: true,
+        targetDurationMin: 5,
+      }),
+      t0
+    );
+    finish = {
+      ...finish,
+      phase: "TEASE",
+      phaseDeadlineAt: t0 + 99999,
+      relStrength: 0.5,
+    };
+    finish = reduceAutodrive(finish, { type: "FEEDBACK", feedback: "now", nowMs: t0 + 500 });
+    assert.equal(finish.phase, "CLIMAX_PUSH");
+    const finishLen = (finish.phaseDeadlineAt || 0) - (finish.phaseStartedAt || 0);
+
+    let classic = createInitialState(classicCfg({ targetDurationMin: 5 }), t0);
+    classic = {
+      ...classic,
+      phase: "TEASE",
+      phaseDeadlineAt: t0 + 99999,
+      relStrength: 0.5,
+    };
+    classic = reduceAutodrive(classic, { type: "FEEDBACK", feedback: "now", nowMs: t0 + 500 });
+    assert.equal(classic.phase, "CLIMAX_PUSH");
+    const classicLen = (classic.phaseDeadlineAt || 0) - (classic.phaseStartedAt || 0);
+    assert.ok(finishLen > classicLen, `finish ${finishLen} vs classic ${classicLen}`);
+  });
+
   it("insertable placement is the most conservative strength cap", () => {
     const soft = sanitiseAutodriveConfig({
       placement: "soft_external",

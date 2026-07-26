@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.1.11 — Abspritzen-Setups & Finish-Autodrive
+
+### Setup & UI
+- Finish-first Setup-Presets (★ Abspritzen A+B / schnell / Glans / Pads, Common-3 …) mit **finishScore** und konkreten Soft-Limit-/Balance-Empfehlungen
+- Empfehlungs-Karte: Soft-Limit B aus aktuellem Soft-Limit A, Settings-Zeilen, Tips
+- Default-Setup: ★ Abspritzen A+B (`finish_loops`)
+
+### Engine
+- `climaxPriority`: längerer Multi-Wave-Push, flachere Täler, ~20 s Final-Hold
+- Im Push: kein Micro-Stutter, beide Kanäle, „zu stark“ bricht Finish nicht ab
+- Templates `finish_loops` / `finish_glans` / `finish_pads` (1 Edge → Push)
+- Soft-Limit-Coach nutzt Balance/Setup-Ratio für B-Vorschlag
+
+## 4.1.10 — Autodrive First-Run, Probes, Trust Line
+
+### Autodrive
+- First-run Onboarding, Kanal-Probes A/B, Trust-Line (Phase · Strength · Freq max)
+- Last-success speichert volles Setup (Elektroden/Sites/Balance)
+
 ## 4.1.9 — Autodrive Freq-Max sichtbar
 
 ### UI

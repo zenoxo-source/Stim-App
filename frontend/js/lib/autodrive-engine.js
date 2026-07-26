@@ -340,18 +340,71 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     goal: "direct",
     sensitivity: "medium",
     edgeCount: 0,
-    maxSessionIntensityFactor: 0.88,
+    maxSessionIntensityFactor: 0.9,
+    allowClimaxPatterns: true,
+    aggression: 1.22,
+    placement: "loops_ab_penis",
+    abRole: "sync",
+    channelFocus: "both",
+    group: "loops",
+    climaxPriority: true,
+  },
+  /** Climax-first: 1 edge → long multi-wave push, both channels full */
+  finish_loops: {
+    id: "finish_loops",
+    label: "★ Abspritzen · Loops",
+    description: "14 Min · 1 Edge · langer Push · A+B Sync",
+    targetDurationMin: 14,
+    goal: "edge_then_release",
+    sensitivity: "medium",
+    edgeCount: 1,
+    maxSessionIntensityFactor: 0.94,
     allowClimaxPatterns: true,
     aggression: 1.2,
     placement: "loops_ab_penis",
     abRole: "sync",
     channelFocus: "both",
     group: "loops",
+    climaxPriority: true,
+  },
+  finish_glans: {
+    id: "finish_glans",
+    label: "★ Abspritzen · Glans",
+    description: "12 Min · 1 Edge · B-Spitze · Balance schonend",
+    targetDurationMin: 12,
+    goal: "edge_then_release",
+    sensitivity: "gentle",
+    edgeCount: 1,
+    maxSessionIntensityFactor: 0.9,
+    allowClimaxPatterns: true,
+    aggression: 1.12,
+    placement: "loops_ab_glans_hot",
+    abRole: "aSteady_bRhythm",
+    channelFocus: "both",
+    group: "loops",
+    climaxPriority: true,
+  },
+  finish_pads: {
+    id: "finish_pads",
+    label: "★ Abspritzen · Pads",
+    description: "12 Min · 1 Edge · weiche Fläche · voller Push",
+    targetDurationMin: 12,
+    goal: "edge_then_release",
+    sensitivity: "medium",
+    edgeCount: 1,
+    maxSessionIntensityFactor: 0.96,
+    allowClimaxPatterns: true,
+    aggression: 1.15,
+    placement: "soft_external",
+    abRole: "sync",
+    channelFocus: "both",
+    group: "finish",
+    climaxPriority: true,
   },
 });
 
 export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
-  templateId: "loops_classic",
+  templateId: "finish_loops",
   goal: "edge_then_release",
   sensitivity: "medium",
   channelFocus: "both",
@@ -360,14 +413,14 @@ export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
   allowClimaxPatterns: true,
   autoStopMinutes: null,
   skipCalibration: false,
-  edgeCount: 2,
-  targetDurationMin: 12,
-  maxSessionIntensityFactor: 0.9,
-  aggression: 1.0,
+  edgeCount: 1,
+  targetDurationMin: 14,
+  maxSessionIntensityFactor: 0.94,
+  aggression: 1.2,
   autoClimb: true,
   placement: "loops_ab_penis",
   /** @type {"sync"|"aRhythm_bSteady"|"aSteady_bRhythm"} */
-  abRole: "aRhythm_bSteady",
+  abRole: "sync",
   fullscreenPreferred: true,
   hybridAudio: false,
   storyId: null,
@@ -377,8 +430,10 @@ export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
   siteA2: "mid",
   siteB1: "corona",
   siteB2: "glans",
-  balanceB: 85,
-  setupPresetId: "loops_ab_classic",
+  balanceB: 88,
+  setupPresetId: "loops_ab_finish",
+  /** Longer push, stay in CLIMAX_PUSH on too_strong drop, both channels */
+  climaxPriority: true,
 });
 
 const SENSITIVITY_SCALE = Object.freeze({
@@ -554,6 +609,18 @@ export const CLIMAX_WAVES = Object.freeze([
   { crestMs: 12000, dropMs: 0, peakBoost: 0.12 }, // final hold
 ]);
 
+/** Finish-path: shorter drops, longer final crest (less chance to lose orgasm). */
+export const CLIMAX_WAVES_FINISH = Object.freeze([
+  { crestMs: 3500, dropMs: 900, peakBoost: 0.02 },
+  { crestMs: 5000, dropMs: 600, peakBoost: 0.06 },
+  { crestMs: 7000, dropMs: 400, peakBoost: 0.1 },
+  { crestMs: 20000, dropMs: 0, peakBoost: 0.14 }, // long final hold
+]);
+
+function climaxWaveTable(state) {
+  return state?.config?.climaxPriority ? CLIMAX_WAVES_FINISH : CLIMAX_WAVES;
+}
+
 /**
  * @param {unknown} input
  */
@@ -584,6 +651,9 @@ export function sanitiseAutodriveConfig(input) {
     }
     if (template.channelFocus && VALID_FOCUS.has(template.channelFocus)) {
       base.channelFocus = template.channelFocus;
+    }
+    if (typeof template.climaxPriority === "boolean") {
+      base.climaxPriority = template.climaxPriority;
     }
   }
 
@@ -640,6 +710,14 @@ export function sanitiseAutodriveConfig(input) {
   }
   if (typeof raw.hybridAudio === "boolean") base.hybridAudio = raw.hybridAudio;
   if (typeof raw.storyId === "string") base.storyId = raw.storyId.slice(0, 64);
+  if (typeof raw.climaxPriority === "boolean") base.climaxPriority = raw.climaxPriority;
+  // Template can pin climaxPriority
+  if (
+    typeof raw.templateId === "string" &&
+    AUTODRIVE_TEMPLATES[raw.templateId]?.climaxPriority != null
+  ) {
+    base.climaxPriority = !!AUTODRIVE_TEMPLATES[raw.templateId].climaxPriority;
+  }
 
   const kinds = new Set(["loops", "pads", "mixed", "insertable"]);
   const wirings = new Set(["independent_4", "common_3", "single_channel_2"]);
@@ -1128,6 +1206,13 @@ function shareMs(targetDurationMs, phase, cfg) {
   if (cfg?.templateId === "marathon" || cfg?.templateId === "long_tease") {
     if (phase === "TEASE" || phase === "BUILD") share *= 1.15;
   }
+  // Climax-first sessions: more time in SURGE/PUSH, less endless tease
+  if (cfg?.climaxPriority) {
+    if (phase === "TEASE") share *= 0.75;
+    if (phase === "BUILD") share *= 0.9;
+    if (phase === "SURGE") share *= 1.15;
+    if (phase === "CLIMAX_PUSH") share *= 1.45;
+  }
   return Math.max(2500, Math.round(targetDurationMs * share));
 }
 
@@ -1147,12 +1232,15 @@ function teaseSliceMs(state) {
 }
 
 function pushDurationMs(state) {
-  // Sum of multi-wave protocol + buffer
-  const waves = CLIMAX_WAVES.reduce((acc, w) => acc + w.crestMs + w.dropMs, 0);
+  // Sum of multi-wave protocol + buffer; climaxPriority = longer final hold
+  const table = climaxWaveTable(state);
+  const waves = table.reduce((acc, w) => acc + w.crestMs + w.dropMs, 0);
   const aggro = state.config.aggression ?? 1;
+  const priority = state.config.climaxPriority ? 1.4 : 1;
+  const minPush = waves + (state.config.climaxPriority ? 28000 : 8000);
   return Math.min(
-    130000,
-    Math.max(waves + 8000, Math.round(0.22 * state.targetDurationMs * aggro))
+    180000,
+    Math.max(minPush, Math.round(0.22 * state.targetDurationMs * aggro * priority))
   );
 }
 
@@ -1402,6 +1490,10 @@ function applySensationPlane(s, now) {
   } else if (s.phase === "CLIMAX_PUSH") {
     channelMode = "both";
   }
+  // Climax priority: never leave one channel cold during push
+  if (s.phase === "CLIMAX_PUSH" && s.config.climaxPriority) {
+    channelMode = "both";
+  }
 
   return {
     ...s,
@@ -1482,11 +1574,16 @@ function applyClimaxWave(s, now) {
     return { ...s, climaxWaveIndex: 0, climaxWaveStartedAt: 0, climaxInDrop: false };
   }
 
+  const table = climaxWaveTable(s);
   let idx = s.climaxWaveIndex || 0;
   let started = s.climaxWaveStartedAt || s.phaseStartedAt || now;
   let inDrop = !!s.climaxInDrop;
-  const wave = CLIMAX_WAVES[Math.min(idx, CLIMAX_WAVES.length - 1)];
+  const wave = table[Math.min(idx, table.length - 1)];
   const elapsed = now - started;
+  const finish = !!s.config?.climaxPriority;
+  // Finish path: less deep valleys so orgasm doesn't fall off
+  const dropFloor = finish ? 0.68 : 0.55;
+  const reenterFloor = finish ? 0.8 : 0.72;
 
   let rel = s.relStrength;
   if (!inDrop) {
@@ -1495,22 +1592,22 @@ function applyClimaxWave(s, now) {
     const peak = clamp(0.82 + wave.peakBoost + (s.feedbackBias || 0), 0.75, 1);
     rel = lerp(Math.max(0.7, s.relStrength), peak, 0.15 + 0.1 * crestP);
     if (elapsed >= wave.crestMs) {
-      if (wave.dropMs > 0 && idx < CLIMAX_WAVES.length - 1) {
+      if (wave.dropMs > 0 && idx < table.length - 1) {
         inDrop = true;
         started = now;
-      } else if (idx < CLIMAX_WAVES.length - 1) {
+      } else if (idx < table.length - 1) {
         idx += 1;
         started = now;
       }
     }
   } else {
     // Drop: brief relief then next wave
-    rel = lerp(s.relStrength, 0.55, 0.25);
+    rel = lerp(s.relStrength, dropFloor, finish ? 0.18 : 0.25);
     if (elapsed >= wave.dropMs) {
       inDrop = false;
-      idx = Math.min(idx + 1, CLIMAX_WAVES.length - 1);
+      idx = Math.min(idx + 1, table.length - 1);
       started = now;
-      rel = Math.max(rel, 0.72);
+      rel = Math.max(rel, reenterFloor);
       // Consume one push-boost after a drop cycle
       if ((s.pushBoostRemaining || 0) > 0) {
         return {
@@ -1518,7 +1615,7 @@ function applyClimaxWave(s, now) {
           climaxWaveIndex: idx,
           climaxWaveStartedAt: started,
           climaxInDrop: false,
-          relStrength: clamp(Math.max(rel, 0.88), 0, 1),
+          relStrength: clamp(Math.max(rel, finish ? 0.9 : 0.88), 0, 1),
           pushBoostRemaining: s.pushBoostRemaining - 1,
           wireFreqTarget: clamp((s.wireFreqTarget || 90) + 8, 10, 240),
         };
@@ -1543,7 +1640,8 @@ function applyMicroMod(s, now) {
       return { ...s, relStrength: Math.min(s.relStrength, 0.15) };
     }
   }
-  if (s.phase === "CLIMAX_PUSH" && !s.climaxInDrop) {
+  // Micro-stutters help tease; they kill orgasm on finish path — skip when climaxPriority
+  if (s.phase === "CLIMAX_PUSH" && !s.climaxInDrop && !s.config?.climaxPriority) {
     const t = s.loopCounter || 0;
     if (t % 18 === 0) {
       return { ...s, relStrength: Math.max(0.55, s.relStrength * 0.75) };
@@ -1786,7 +1884,10 @@ function applyFeedback(s, feedback, now) {
       next.sessionBaseline = clamp(next.relStrength * 0.9, 0.06, 0.3);
       next.calibrated = true;
     }
-    if (s.phase === "BUILD" || s.phase === "CLIMAX_PUSH") {
+    // Finish-focused sessions: stay in multi-wave push, only drop intensity
+    if (s.phase === "BUILD") {
+      next = setPhase(next, "TEASE", now, shareMs(s.targetDurationMs, "TEASE", s.config));
+    } else if (s.phase === "CLIMAX_PUSH" && !s.config.climaxPriority) {
       next = setPhase(next, "TEASE", now, shareMs(s.targetDurationMs, "TEASE", s.config));
     }
     return next;
@@ -2003,8 +2104,9 @@ function phaseTip(state) {
       return "Starke Wellen — gleich Multi-Wave-Push";
     case "CLIMAX_PUSH": {
       const w = (state.climaxWaveIndex || 0) + 1;
+      const n = climaxWaveTable(state).length;
       const boost = (state.pushBoostRemaining || 0) > 0 ? " · Boost aktiv" : "";
-      return `Push-Welle ${w}/${CLIMAX_WAVES.length}${boost} — „Fertig ✓“ wenn du kommst`;
+      return `Push-Welle ${w}/${n}${boost} — „Fertig ✓“ wenn du kommst`;
     }
     case "AFTERCARE":
       return state.userMarkedClimax

@@ -5,15 +5,31 @@ import {
   buildWiringChecklist,
   getSetupPreset,
   listSetupPresets,
+  recommendSoftLimitB,
   WIRING_MODES,
 } from "../../frontend/js/lib/estim-setup.js";
 import { sanitiseAutodriveConfig, resolveChannelStrengths } from "../../frontend/js/lib/autodrive-engine.js";
 
 describe("estim-setup", () => {
-  it("has penis loop presets", () => {
+  it("has penis loop presets and climax finish preset", () => {
     assert.ok(listSetupPresets().length >= 5);
     assert.ok(getSetupPreset("loops_ab_classic"));
     assert.equal(getSetupPreset("loops_ab_classic").wiringMode, "independent_4");
+    const finish = getSetupPreset("loops_ab_finish");
+    assert.ok(finish);
+    assert.equal(finish.finishScore, 5);
+    assert.equal(finish.templateId, "finish_loops");
+    assert.ok(finish.climaxAdvice);
+    assert.ok(Array.isArray(finish.settingsLines) && finish.settingsLines.length >= 2);
+    assert.ok(finish.softRatioB > 0.7 && finish.softRatioB <= 1);
+  });
+
+  it("recommendSoftLimitB uses softRatioB from finish preset", () => {
+    const finish = getSetupPreset("loops_ab_finish");
+    const b = recommendSoftLimitB(100, finish);
+    assert.equal(b, 88);
+    const glans = recommendSoftLimitB(100, getSetupPreset("loops_ab_glans_finish"));
+    assert.equal(glans, 75);
   });
 
   it("derives loops_ab_penis for dual shaft loops", () => {

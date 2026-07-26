@@ -41,6 +41,7 @@ import {
   getSetupPreset,
   derivePlacementFromSetup,
   buildWiringChecklist,
+  recommendSoftLimitB,
   PENIS_MAP_ZONES,
   WIRING_MODES,
   ELECTRODE_KINDS,
@@ -398,6 +399,15 @@ function collectConfigFromUi() {
   const fullscreenPreferred = !!document.getElementById("autodrive-fullscreen-pref")?.checked;
   const hybridAudio = !!document.getElementById("autodrive-hybrid")?.checked;
 
+  const presetId =
+    document.querySelector(".ad-preset-chip.active")?.getAttribute("data-setup-preset") || null;
+  const preset = presetId ? getSetupPreset(presetId) : null;
+  const climaxPriority =
+    typeof tpl.climaxPriority === "boolean"
+      ? tpl.climaxPriority
+      : typeof preset?.climaxPriority === "boolean"
+        ? preset.climaxPriority
+        : undefined;
   return saveAutodriveConfig({
     templateId,
     goal: tpl.goal,
@@ -414,8 +424,8 @@ function collectConfigFromUi() {
     fullscreenPreferred,
     hybridAudio,
     ...setup,
-    setupPresetId:
-      document.querySelector(".ad-preset-chip.active")?.getAttribute("data-setup-preset") || null,
+    setupPresetId: presetId,
+    ...(typeof climaxPriority === "boolean" ? { climaxPriority } : {}),
   });
 }
 
@@ -460,10 +470,15 @@ function fillSetupControls(cfg) {
 function renderSetupPresets(activeId) {
   const strip = document.getElementById("ad-setup-presets");
   if (!strip) return;
-  strip.innerHTML = listSetupPresets()
+  // Finish-first sort for "abspritzen" UX
+  const presets = [...listSetupPresets()].sort(
+    (a, b) => (b.finishScore || 0) - (a.finishScore || 0)
+  );
+  strip.innerHTML = presets
     .map((p) => {
       const on = p.id === activeId ? " active" : "";
-      return `<button type="button" class="ad-preset-chip${on}" data-setup-preset="${p.id}">
+      const star = (p.finishScore || 0) >= 4 ? "finish" : "";
+      return `<button type="button" class="ad-preset-chip ${star}${on}" data-setup-preset="${p.id}">
         ${p.label}<small>${p.description || p.tag || ""}</small>
       </button>`;
     })
@@ -471,6 +486,44 @@ function renderSetupPresets(activeId) {
   strip.querySelectorAll(".ad-preset-chip").forEach((btn) => {
     btn.addEventListener("click", () => applySetupPreset(btn.getAttribute("data-setup-preset")));
   });
+  paintClimaxAdvice(activeId);
+}
+
+function paintClimaxAdvice(presetId) {
+  let box = document.getElementById("ad-climax-advice");
+  if (!box) {
+    const host = document.getElementById("ad-panel-setup");
+    if (!host) return;
+    box = document.createElement("div");
+    box.id = "ad-climax-advice";
+    box.className = "ad-climax-advice";
+    const guide = document.getElementById("autodrive-placement-guide");
+    if (guide) host.insertBefore(box, guide);
+    else host.appendChild(box);
+  }
+  const p = getSetupPreset(presetId) || getSetupPreset("loops_ab_finish");
+  if (!p) {
+    box.style.display = "none";
+    return;
+  }
+  box.style.display = "block";
+  const score = p.finishScore || 0;
+  const bar = "●".repeat(score) + "○".repeat(Math.max(0, 5 - score));
+  const softA = AppState.softLimitA || 0;
+  const sugB = softA > 0 ? recommendSoftLimitB(softA, p) : null;
+  const softLine =
+    softA > 0 && sugB != null
+      ? `<p class="ad-climax-soft">Bei deinem Soft-Limit A=${softA} → B≈${sugB} empfohlen</p>`
+      : "";
+  const settings = (p.settingsLines || []).map((t) => `<li>${t}</li>`).join("");
+  const tips = (p.tips || []).map((t) => `<li>${t}</li>`).join("");
+  box.innerHTML = `
+    <div class="ad-climax-advice-h">Empfehlung zum Abspritzen <span class="ad-finish-score">${bar}</span></div>
+    <p class="ad-climax-advice-body">${p.climaxAdvice || p.description || ""}</p>
+    ${softLine}
+    ${settings ? `<ul class="ad-climax-settings">${settings}</ul>` : ""}
+    ${tips ? `<ul class="ad-climax-tips">${tips}</ul>` : ""}
+  `;
 }
 
 function applySetupPreset(presetId) {
@@ -499,8 +552,17 @@ function applySetupPreset(presetId) {
   }
   renderSetupPresets(presetId);
   refreshSetupDerivedUi(true);
-  collectConfigFromUi();
-  setStatusMsg(`Setup „${p.label}“ geladen`, false);
+  const cfg = collectConfigFromUi();
+  if (typeof p.climaxPriority === "boolean") {
+    saveAutodriveConfig({ climaxPriority: p.climaxPriority });
+  }
+  setStatusMsg(
+    p.finishScore >= 4
+      ? `Finish-Setup „${p.label}“ — Kalibrieren, dann „Fast“ im Push`
+      : `Setup „${p.label}“ geladen`,
+    false
+  );
+  void cfg;
 }
 
 function refreshSetupDerivedUi(applyRecs) {

@@ -566,14 +566,20 @@ export function getSoftLimitCoachMessage() {
   const softB = AppState.softLimitB || 0;
   const tips = [];
 
-  // Placement-aware soft-limit guidance (never auto-raises limits)
+  // Placement / setup-aware soft-limit guidance (never auto-raises limits)
+  const ratio =
+    typeof cfg.balanceB === "number" && cfg.balanceB > 0
+      ? Math.min(0.95, Math.max(0.7, cfg.balanceB / 100))
+      : place === "loops_ab_glans_hot"
+        ? 0.75
+        : 0.85;
   if (
     (place === "loops_ab_glans_hot" || place === "loops_ab_penis" || place === "deep_pressure") &&
     softB > 0 &&
     softA > 0 &&
-    softB > softA * 0.95
+    softB > softA * (ratio + 0.08)
   ) {
-    const suggestB = Math.max(10, Math.round(softA * 0.8));
+    const suggestB = Math.max(10, Math.round(softA * ratio));
     tips.push(
       `Loops/Glans: Soft-Limit B oft etwas unter A — z. B. B≈${suggestB} bei A=${softA} (manuell in Einstellungen).`
     );
