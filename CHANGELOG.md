@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.1.7 — Loops A+B nur Penis (Presets)
+
+### Neu
+- **Placement „Loops A+B Penis“** und **„Loops A+B · Glans hot“** — zwei Kreise nur am Schaft/Glans (Kanal A + B)
+- **5 One-Tap-Presets** im Autodrive-Tab: Klassisch · Tease · Edge/Deny · Glans-Hot · Rush  
+  (setzen Placement, A/B-Rollen, Sensitivität, Dauer, Template)
+- Templates `loops_*` mit Badge „Loops A+B“; Alternate-Wellen bei Tease/Edge, Both bei Push
+
+### Empfohlenes Setup
+- **A:** Loop Basis ↔ Mitte Schaft · **B:** Corona ↔ unter Eichel (getrennte Kreise)  
+- A Rhythmus · B Steady (oder umgekehrt bei Glans-Hot)
+
 ## 4.1.6 — Autodrive ESTIM-Placement & Körper-Guide
 
 ### Autodrive-Tuning

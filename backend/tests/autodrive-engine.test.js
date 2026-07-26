@@ -40,12 +40,24 @@ describe("autodrive-engine", () => {
     assert.ok(PLACEMENT_PROFILES.dual);
     assert.ok(PLACEMENT_PROFILES.perineum_combo);
     assert.ok(PLACEMENT_PROFILES.insertable);
+    assert.ok(PLACEMENT_PROFILES.loops_ab_penis);
+    assert.ok(PLACEMENT_PROFILES.loops_ab_glans_hot);
+    assert.ok(AUTODRIVE_TEMPLATES.loops_classic);
+    assert.ok(AUTODRIVE_TEMPLATES.loops_glans);
     assert.ok(CLIMAX_WAVES.length >= 3);
     for (const p of Object.values(PLACEMENT_PROFILES)) {
       assert.ok(p.setupMale && p.setupFemale, `${p.id} needs body setup text`);
       assert.ok(p.strengthCap > 0 && p.strengthCap <= 1, `${p.id} cap`);
       assert.ok(Array.isArray(p.tips) && p.tips.length >= 1, `${p.id} tips`);
     }
+  });
+
+  it("loops A+B penis template pins placement and abRole", () => {
+    const c = sanitiseAutodriveConfig({ templateId: "loops_classic" });
+    assert.equal(c.placement, "loops_ab_penis");
+    assert.equal(c.abRole, "aRhythm_bSteady");
+    assert.equal(c.channelFocus, "both");
+    assert.ok(c.maxSessionIntensityFactor <= 0.92);
   });
 
   it("insertable placement is the most conservative strength cap", () => {

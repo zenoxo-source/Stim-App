@@ -185,9 +185,13 @@ function buildTemplateGrid(selectedId) {
   Object.values(AUTODRIVE_TEMPLATES).forEach((tpl) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "autodrive-tpl-card" + (tpl.id === selectedId ? " active" : "");
+    const isLoop = tpl.group === "loops" || (tpl.placement || "").startsWith("loops_");
+    btn.className =
+      "autodrive-tpl-card" +
+      (tpl.id === selectedId ? " active" : "") +
+      (isLoop ? " tpl-loops" : "");
     btn.dataset.template = tpl.id;
-    btn.innerHTML = `<span class="tpl-name">${tpl.label}</span><span class="tpl-desc">${tpl.description || ""}</span>`;
+    btn.innerHTML = `${isLoop ? `<span class="tpl-badge">Loops A+B</span>` : ""}<span class="tpl-name">${tpl.label}</span><span class="tpl-desc">${tpl.description || ""}</span>`;
     btn.addEventListener("click", () => selectTemplate(tpl.id));
     grid.appendChild(btn);
   });
@@ -202,8 +206,32 @@ function selectTemplate(id) {
     if (dur) dur.value = String(tpl.targetDurationMin);
     const sens = document.getElementById("autodrive-sensitivity");
     if (sens && tpl.sensitivity) sens.value = tpl.sensitivity;
+    // Penis dual-loop templates pin placement + A/B role
+    if (tpl.placement) {
+      fillPlacementSelect(tpl.placement);
+      updatePlacementGuide(tpl.placement, { applyRecommendations: false });
+    }
+    if (tpl.abRole) {
+      const ab = document.getElementById("autodrive-ab-role");
+      if (ab) ab.value = tpl.abRole;
+    }
+    if (tpl.channelFocus) {
+      const focus = document.getElementById("autodrive-focus");
+      if (focus) focus.value = tpl.channelFocus;
+    }
   }
   buildTemplateGrid(id);
+  // Highlight loop quick chips
+  document.querySelectorAll(".loops-preset-chip").forEach((chip) => {
+    chip.classList.toggle("active", chip.getAttribute("data-loops-preset") === id);
+  });
+}
+
+/** One-tap: only penis loops A+B (user main setup). */
+function applyLoopsPreset(templateId) {
+  selectTemplate(templateId || "loops_classic");
+  collectConfigFromUi();
+  setStatusMsg("Loops A+B Preset geladen — Soft-Limits prüfen, dann Start", false);
 }
 
 /** Fill placement &lt;select&gt; from engine profiles (ESTIM body applications). */
@@ -459,6 +487,12 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("stim-map-toggle")?.addEventListener("click", () => {
     const body = document.getElementById("stim-map-body");
     if (body) body.style.display = body.style.display === "none" ? "" : "none";
+  });
+
+  document.querySelectorAll(".loops-preset-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      applyLoopsPreset(chip.getAttribute("data-loops-preset") || "loops_classic");
+    });
   });
 
   document.getElementById("btn-autodrive-start")?.addEventListener("click", () => {

@@ -9,7 +9,7 @@
 /**
  * Body / electrode application profile for Autodrive tuning.
  * Strength/freq/duty are soft-relative; labels guide real-world ESTIM setups.
- * @typedef {"soft_external"|"deep_pressure"|"dual"|"perineum_combo"|"insertable"} PlacementProfile
+ * @typedef {"soft_external"|"deep_pressure"|"dual"|"perineum_combo"|"insertable"|"loops_ab_penis"|"loops_ab_glans_hot"} PlacementProfile
  */
 /** @typedef {"both"|"alt"|"aLead"|"bLead"} ChannelMode */
 
@@ -24,6 +24,7 @@ export const PLACEMENT_PROFILES = Object.freeze({
     freqBias: -15,
     dutyScale: 1.08,
     strengthCap: 0.92,
+    preferredChannelMode: "both",
     description: "Flächige Pads — weich, Einsteiger-freundlich",
     bodySites: "Haftpads auf intakter Haut unterhalb der Taille",
     setupMale:
@@ -41,22 +42,69 @@ export const PLACEMENT_PROFILES = Object.freeze({
   },
   deep_pressure: {
     id: "deep_pressure",
-    label: "Loops Schaft",
+    label: "Loops 1-Kanal",
     freqBias: 12,
     dutyScale: 0.9,
     strengthCap: 0.82,
-    description: "Leitfähige Ringe Basis↔Glans — fokussiert, intensiver",
-    bodySites: "Conductive Loops / Cockrings",
-    setupMale: "Loop an der Basis + Loop unterhalb der Eichel (Strom entlang des Schafts)",
+    preferredChannelMode: "both",
+    description: "Ein Kanal: Basis↔Glans (2 Loops) — fokussiert",
+    bodySites: "Conductive Loops / Cockrings auf einem Kanal",
+    setupMale: "Kanal A oder B: Loop Basis + Loop unter Eichel (Strom entlang des Schafts)",
     setupFemale:
       "Weniger typisch — eher Pads/Insertables; optional Ringe an Oberschenkel-Falten nur mit Vorsicht",
     sensation: "Fokussiert, oft „schneidender“ bei höherer Wire-Freq — Cap bewusst niedriger",
     recommendedAbRole: "sync",
-    recommendedFocus: "both",
+    recommendedFocus: "A",
     tips: [
       "Eichel-nah = empfindlich: Kalibrierung und „Zu stark“ nutzen",
       "Loops nicht zu eng; Haut nicht abschnüren",
-      "Template „Sanft/Klassisch“ vor „Turbo/Intensiv“",
+      "Für A+B nur am Penis → Profil „Loops A+B Penis“ wählen",
+    ],
+  },
+  /** Primary profile for dual-channel penis loops only (user's main setup). */
+  loops_ab_penis: {
+    id: "loops_ab_penis",
+    label: "Loops A+B Penis",
+    freqBias: 6,
+    dutyScale: 0.96,
+    strengthCap: 0.86,
+    preferredChannelMode: "alt",
+    description: "Nur Penis: Kanal A + B je eigener Loop-Kreis",
+    bodySites: "4 Kontakte am Schaft / Eichel-Bereich (2 Kreise, A und B)",
+    setupMale:
+      "A: Loop Basis ↔ Loop Mitte Schaft · B: Loop Mitte/Corona ↔ Loop unter Eichel. " +
+      "Alternativ A Basis↔Corona und B Corona↔Glans (getrennte Kreise, kein Shared-Return über den Körperstamm).",
+    setupFemale: "Primär für Penis-Loops gedacht — für Vulva eher Pads dual nutzen",
+    sensation:
+      "Stereo am Schaft: A eher „Grundlage/Rhythmus“, B eher „Spitze/Detail“ — Alternate und A/B-Rollen wirken stark",
+    recommendedAbRole: "aRhythm_bSteady",
+    recommendedFocus: "both",
+    tips: [
+      "B/Glans oft empfindlicher → Soft-Limit B etwas niedriger oder Sensitivität sanft",
+      "Empfohlen: A Rhythmus · B Steady (Basis pulsiert, Spitze hält)",
+      "Loops gleichmäßig feucht/leitend; Abstand der Ringe = Sensation ändern",
+      "Kalibrierung mit beiden Kanälen; bei scharfem Glans „Zu stark“ tippen",
+    ],
+  },
+  loops_ab_glans_hot: {
+    id: "loops_ab_glans_hot",
+    label: "Loops A+B · Glans hot",
+    freqBias: 14,
+    dutyScale: 0.88,
+    strengthCap: 0.8,
+    preferredChannelMode: "aLead",
+    description: "A+B am Penis, B/Glans führend — intensiver",
+    bodySites: "Wie Loops A+B, aber stärkerer Fokus auf den glans-nahen Kreis",
+    setupMale:
+      "A: Basis ↔ untere Schaftmitte (breiterer, weicherer Kreis) · B: Corona ↔ unter Eichel (enger, heißer Kreis)",
+    setupFemale: "Nicht typisch — siehe Loops A+B / Pads",
+    sensation: "Mehr „edge“ und Stechen an der Spitze — niedrigeres Cap, A führt oft weicher",
+    recommendedAbRole: "aSteady_bRhythm",
+    recommendedFocus: "both",
+    tips: [
+      "Soft-Limit B strenger setzen als A",
+      "A Steady · B Rhythmus: Spitze bekommt Pattern, Basis hält",
+      "Bei Brennen: Placement zurück auf „Loops A+B Penis“ oder Sync",
     ],
   },
   dual: {
@@ -65,7 +113,8 @@ export const PLACEMENT_PROFILES = Object.freeze({
     freqBias: 0,
     dutyScale: 1,
     strengthCap: 0.93,
-    description: "Zwei unabhängige Kreise auf A und B — Alternate-Wellen",
+    preferredChannelMode: "alt",
+    description: "Zwei Kreise — nicht nur Penis (z. B. Schaft + Perineum/Plug)",
     bodySites:
       "Kanal A und B an unterschiedlichen Stellen (kein gemeinsamer Elektroden-Pfad über die Brust)",
     setupMale:
@@ -76,7 +125,7 @@ export const PLACEMENT_PROFILES = Object.freeze({
     recommendedFocus: "both",
     tips: [
       "Jeden Kanal als eigenen Stromkreis behandeln",
-      "A/B-Rollen: Rhythmus auf dem „spielerischen“ Kanal",
+      "Nur Penis A+B → besser „Loops A+B Penis“",
       "Fokus A/B im UI, wenn ein Kanal deutlich empfindlicher ist",
     ],
   },
@@ -86,6 +135,7 @@ export const PLACEMENT_PROFILES = Object.freeze({
     freqBias: 4,
     dutyScale: 0.95,
     strengthCap: 0.88,
+    preferredChannelMode: "both",
     description: "Pad Perineum + Loop/Pad Basis — tiefer, beckenboden-nah",
     bodySites: "Perineum (zwischen Anus und Genitalien) + Schaftbasis / Pubis",
     setupMale:
@@ -106,6 +156,7 @@ export const PLACEMENT_PROFILES = Object.freeze({
     freqBias: -8,
     dutyScale: 0.88,
     strengthCap: 0.78,
+    preferredChannelMode: "both",
     description: "Bipolarer Plug/Probe — lokal, konservatives Cap",
     bodySites: "Körpergerechte ESTIM-Insertables (anal/vaginal), bipolar = Strom im Toy",
     setupMale: "Bipolarer Anal-Plug (± im Toy); optional zweiter Kanal separat mit Loop am Schaft",
@@ -216,6 +267,87 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     allowClimaxPatterns: true,
     aggression: 1.1,
   },
+  // --- Penis dual-loop presets (Kanal A + B nur am Schaft/Glans) ---
+  loops_classic: {
+    id: "loops_classic",
+    label: "Loops A+B · Klassisch",
+    description: "12 Min · 2 Edges · A Rhythmus B Steady",
+    targetDurationMin: 12,
+    goal: "edge_then_release",
+    sensitivity: "medium",
+    edgeCount: 2,
+    maxSessionIntensityFactor: 0.9,
+    allowClimaxPatterns: true,
+    aggression: 1.0,
+    placement: "loops_ab_penis",
+    abRole: "aRhythm_bSteady",
+    channelFocus: "both",
+    group: "loops",
+  },
+  loops_tease: {
+    id: "loops_tease",
+    label: "Loops A+B · Tease",
+    description: "18 Min · 4 Edges · sanft, lange Leiter",
+    targetDurationMin: 18,
+    goal: "edge_ladder",
+    sensitivity: "gentle",
+    edgeCount: 4,
+    maxSessionIntensityFactor: 0.86,
+    allowClimaxPatterns: false,
+    aggression: 0.88,
+    placement: "loops_ab_penis",
+    abRole: "aRhythm_bSteady",
+    channelFocus: "both",
+    group: "loops",
+  },
+  loops_edge: {
+    id: "loops_edge",
+    label: "Loops A+B · Edge",
+    description: "15 Min · Deny-Style · Glans vorsichtiger Cap",
+    targetDurationMin: 15,
+    goal: "deny_then_release",
+    sensitivity: "medium",
+    edgeCount: 3,
+    maxSessionIntensityFactor: 0.88,
+    allowClimaxPatterns: true,
+    aggression: 1.05,
+    placement: "loops_ab_penis",
+    abRole: "aSteady_bRhythm",
+    channelFocus: "both",
+    group: "loops",
+  },
+  loops_glans: {
+    id: "loops_glans",
+    label: "Loops A+B · Glans-Hot",
+    description: "10 Min · B/Spitze führend · niedrigeres Cap",
+    targetDurationMin: 10,
+    goal: "edge_then_release",
+    sensitivity: "gentle",
+    edgeCount: 2,
+    maxSessionIntensityFactor: 0.84,
+    allowClimaxPatterns: true,
+    aggression: 1.08,
+    placement: "loops_ab_glans_hot",
+    abRole: "aSteady_bRhythm",
+    channelFocus: "both",
+    group: "loops",
+  },
+  loops_rush: {
+    id: "loops_rush",
+    label: "Loops A+B · Rush",
+    description: "6 Min · direkter Push · sync beide Loops",
+    targetDurationMin: 6,
+    goal: "direct",
+    sensitivity: "medium",
+    edgeCount: 0,
+    maxSessionIntensityFactor: 0.88,
+    allowClimaxPatterns: true,
+    aggression: 1.2,
+    placement: "loops_ab_penis",
+    abRole: "sync",
+    channelFocus: "both",
+    group: "loops",
+  },
 });
 
 export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
@@ -303,7 +435,29 @@ const VALID_PLACEMENT = new Set([
   "dual",
   "perineum_combo",
   "insertable",
+  "loops_ab_penis",
+  "loops_ab_glans_hot",
 ]);
+
+/** @param {string} placementId */
+export function placementPrefersAlternate(placementId) {
+  const p = PLACEMENT_PROFILES[placementId];
+  if (!p) return false;
+  return p.preferredChannelMode === "alt" || p.preferredChannelMode === "aLead";
+}
+
+/**
+ * @param {string} [placementId]
+ * @param {ChannelMode} [fallback]
+ * @returns {ChannelMode}
+ */
+export function resolvePlacementChannelMode(placementId, fallback = "both") {
+  const p = PLACEMENT_PROFILES[placementId];
+  const mode = p?.preferredChannelMode;
+  if (mode === "alt" || mode === "aLead" || mode === "bLead" || mode === "both") return mode;
+  if (placementId === "dual") return "alt";
+  return fallback;
+}
 
 /**
  * @returns {Array<typeof PLACEMENT_PROFILES[keyof typeof PLACEMENT_PROFILES]>}
@@ -374,6 +528,19 @@ export function sanitiseAutodriveConfig(input) {
     base.maxSessionIntensityFactor = template.maxSessionIntensityFactor;
     base.allowClimaxPatterns = template.allowClimaxPatterns;
     base.aggression = template.aggression ?? 1;
+    // Loop / body presets can pin placement + A/B role
+    if (template.placement && VALID_PLACEMENT.has(template.placement)) {
+      base.placement = template.placement;
+    }
+    if (
+      template.abRole &&
+      ["sync", "aRhythm_bSteady", "aSteady_bRhythm"].includes(template.abRole)
+    ) {
+      base.abRole = template.abRole;
+    }
+    if (template.channelFocus && VALID_FOCUS.has(template.channelFocus)) {
+      base.channelFocus = template.channelFocus;
+    }
   }
 
   if (typeof raw.goal === "string" && VALID_GOALS.has(raw.goal)) base.goal = raw.goal;
@@ -503,7 +670,7 @@ export function createInitialState(config, nowMs, learning = {}) {
     wireFreq: 40 + (place.freqBias || 0),
     wireFreqTarget: 40 + (place.freqBias || 0),
     dutyCycle: 0.6,
-    channelMode: /** @type {ChannelMode} */ (cfg.placement === "dual" ? "alt" : "both"),
+    channelMode: resolvePlacementChannelMode(cfg.placement, "both"),
     burstMs: 0,
     softResetUntil: 0,
     nextHabituationAt: nowMs + randRange(HABITUATION_MS_MIN, HABITUATION_MS_MAX),
@@ -956,7 +1123,7 @@ function enterHold(state, nowMs) {
     edgeScore: Math.max(state.edgeScore || 0, 55),
     wireFreqTarget: 55 + (state.placeFreqBias || 0),
     dutyCycle: 0.88,
-    channelMode: state.config.placement === "dual" ? "alt" : state.channelMode || "both",
+    channelMode: resolvePlacementChannelMode(state.config.placement, state.channelMode || "both"),
     phaseHistory: [...(state.phaseHistory || []), "EDGE_HOLD"].slice(-12),
   };
 }
@@ -1140,8 +1307,17 @@ function applySensationPlane(s, now) {
   if (s.phase === "EDGE_HOLD") duty = 0.85 + 0.08 * Math.sin((s.loopCounter || 0) * 0.15);
 
   let channelMode = s.channelMode || "both";
-  if (s.config.placement === "dual") {
-    channelMode = s.phase === "EDGE_HOLD" || s.phase === "TEASE" ? "alt" : "both";
+  const placeId = s.config.placement;
+  const placeAlt =
+    placeId === "dual" ||
+    placeId === "loops_ab_penis" ||
+    placeId === "loops_ab_glans_hot" ||
+    placementPrefersAlternate(placeId);
+  if (placeAlt) {
+    // Dual-loop / stereo: alternate on tease & edge, fuller both on push
+    if (s.phase === "EDGE_HOLD" || s.phase === "TEASE") channelMode = "alt";
+    else if (s.phase === "CLIMAX_PUSH" || s.phase === "SURGE") channelMode = "both";
+    else channelMode = resolvePlacementChannelMode(placeId, channelMode);
   } else if (s.phase === "TEASE") {
     channelMode = (s.loopCounter || 0) % 60 < 30 ? "alt" : "both";
   } else if (s.phase === "CLIMAX_PUSH") {
