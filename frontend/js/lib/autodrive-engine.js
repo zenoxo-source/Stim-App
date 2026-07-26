@@ -695,7 +695,11 @@ export function sanitiseAutodriveConfig(input) {
     if (typeof template.climaxPriority === "boolean") {
       base.climaxPriority = template.climaxPriority;
     }
-    if (template.wiringMode === "single_channel_2" || template.wiringMode === "independent_4" || template.wiringMode === "common_3") {
+    if (
+      template.wiringMode === "single_channel_2" ||
+      template.wiringMode === "independent_4" ||
+      template.wiringMode === "common_3"
+    ) {
       base.wiringMode = template.wiringMode;
     }
     if (

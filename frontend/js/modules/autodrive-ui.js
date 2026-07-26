@@ -682,8 +682,6 @@ function paintChannelModeUi() {
   const wiring = document.getElementById("ad-wiring-mode")?.value || "independent_4";
   const kind = document.getElementById("ad-electrode-kind")?.value || "loops";
   document.querySelectorAll(".ad-layout-card").forEach((card) => {
-    const w = card.getAttribute("data-wiring");
-    const k = card.getAttribute("data-kind");
     const layout = card.getAttribute("data-layout");
     let on = false;
     if (layout === "loops_single") on = kind === "loops" && wiring === "single_channel_2";
@@ -770,8 +768,7 @@ function refreshSetupDerivedUi(applyRecs) {
   const setupLbl = document.getElementById("autodrive-setup-label");
   if (setupLbl) {
     const ek = ELECTRODE_KINDS[setup.electrodeKind]?.label || setup.electrodeKind;
-    const ch =
-      setup.wiringMode === "single_channel_2" ? ` · nur ${focus}` : "";
+    const ch = setup.wiringMode === "single_channel_2" ? ` · nur ${focus}` : "";
     setupLbl.textContent = `${ek} · ${getPlacementProfile(placement).label}${ch}`;
   }
   paintChannelModeUi();
