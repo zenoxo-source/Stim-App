@@ -38,7 +38,31 @@ describe("autodrive-engine", () => {
     assert.ok(PLACEMENT_PROFILES.soft_external);
     assert.ok(PLACEMENT_PROFILES.deep_pressure);
     assert.ok(PLACEMENT_PROFILES.dual);
+    assert.ok(PLACEMENT_PROFILES.perineum_combo);
+    assert.ok(PLACEMENT_PROFILES.insertable);
     assert.ok(CLIMAX_WAVES.length >= 3);
+    for (const p of Object.values(PLACEMENT_PROFILES)) {
+      assert.ok(p.setupMale && p.setupFemale, `${p.id} needs body setup text`);
+      assert.ok(p.strengthCap > 0 && p.strengthCap <= 1, `${p.id} cap`);
+      assert.ok(Array.isArray(p.tips) && p.tips.length >= 1, `${p.id} tips`);
+    }
+  });
+
+  it("insertable placement is the most conservative strength cap", () => {
+    const soft = sanitiseAutodriveConfig({
+      placement: "soft_external",
+      maxSessionIntensityFactor: 1,
+      sensitivity: "medium",
+    });
+    const ins = sanitiseAutodriveConfig({
+      placement: "insertable",
+      maxSessionIntensityFactor: 1,
+      sensitivity: "medium",
+    });
+    const rSoft = resolveChannelStrengths(1, soft, 100, 100);
+    const rIns = resolveChannelStrengths(1, ins, 100, 100);
+    assert.ok(rIns.strengthA < rSoft.strengthA);
+    assert.ok(rIns.strengthA <= 78);
   });
 
   it("placement deep_pressure caps strength below soft limit", () => {

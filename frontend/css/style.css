@@ -2353,6 +2353,90 @@ textarea.text-input { resize: vertical; min-height: 100px; }
   min-height: 2.6em;
   line-height: 1.4;
 }
+
+/* ESTIM body-application guide (Autodrive) */
+.autodrive-placement-guide {
+  margin: 12px 0 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: rgba(0, 240, 255, 0.04);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.ad-place-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+.ad-place-sensation {
+  color: var(--text-secondary);
+  margin: 0 0 10px;
+}
+.ad-place-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.ad-place-grid strong {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  margin-bottom: 2px;
+}
+.ad-place-grid p {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 12.5px;
+}
+.ad-place-tips {
+  margin: 0 0 8px;
+  padding-left: 1.2em;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+.ad-place-tips li {
+  margin-bottom: 3px;
+}
+.ad-place-engine {
+  margin: 0;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+  color: #7dd3fc;
+}
+.autodrive-safety-details {
+  margin: 8px 0 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 80, 80, 0.05);
+  font-size: 12.5px;
+}
+.autodrive-safety-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.ad-safety-list {
+  margin: 8px 0;
+  padding-left: 1.2em;
+  color: var(--text-secondary);
+}
+.ad-safety-list li {
+  margin-bottom: 4px;
+}
+.ad-safety-note {
+  margin: 0;
+  color: var(--text-muted, #999);
+  font-size: 12px;
+}
+@media (max-width: 720px) {
+  .ad-place-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .autodrive-feedback-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

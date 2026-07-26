@@ -23,6 +23,9 @@ import {
   getAutodriveStatsSummary,
   hapticPulse,
   AUTODRIVE_TEMPLATES,
+  listPlacementProfiles,
+  getPlacementProfile,
+  ESTIM_SAFETY_RULES,
 } from "./autodrive.js";
 import { getOutputOwner } from "./output-owner.js";
 import { renderReadinessList, renderHomeMetrics } from "./session-readiness.js";
@@ -203,6 +206,71 @@ function selectTemplate(id) {
   buildTemplateGrid(id);
 }
 
+/** Fill placement &lt;select&gt; from engine profiles (ESTIM body applications). */
+function fillPlacementSelect(selectedId) {
+  const sel = document.getElementById("autodrive-placement");
+  if (!sel) return;
+  const profiles = listPlacementProfiles();
+  const want = selectedId || sel.value || "soft_external";
+  sel.innerHTML = profiles
+    .map(
+      (p) =>
+        `<option value="${p.id}"${p.id === want ? " selected" : ""}>${p.label} — ${p.description || ""}</option>`
+    )
+    .join("");
+  if (![...sel.options].some((o) => o.value === want) && sel.options.length) {
+    sel.selectedIndex = 0;
+  }
+  updatePlacementGuide(sel.value);
+}
+
+/**
+ * Live ESTIM body-application guide next to placement picker.
+ * @param {string} [placementId]
+ * @param {{ applyRecommendations?: boolean }} [opts]
+ */
+export function updatePlacementGuide(placementId, opts = {}) {
+  const id =
+    placementId || document.getElementById("autodrive-placement")?.value || "soft_external";
+  const p = getPlacementProfile(id);
+  const set = (elId, text) => {
+    const el = document.getElementById(elId);
+    if (el) el.textContent = text || "";
+  };
+  set("ad-place-title", `${p.label}`);
+  set("ad-place-sensation", p.sensation || p.description || "");
+  set("ad-place-male", p.setupMale || p.bodySites || "");
+  set("ad-place-female", p.setupFemale || p.bodySites || "");
+  const tips = document.getElementById("ad-place-tips");
+  if (tips) {
+    tips.innerHTML = (p.tips || []).map((t) => `<li>${t}</li>`).join("");
+  }
+  const capPct = Math.round((p.strengthCap || 1) * 100);
+  const freq =
+    (p.freqBias || 0) > 0
+      ? `Wire-Freq +${p.freqBias} (kräftiger)`
+      : (p.freqBias || 0) < 0
+        ? `Wire-Freq ${p.freqBias} (weicher)`
+        : "Wire-Freq neutral";
+  set(
+    "ad-place-engine",
+    `Autodrive: Soft-Cap ~${capPct}% · Duty ×${(p.dutyScale || 1).toFixed(2)} · ${freq}`
+  );
+
+  if (opts.applyRecommendations) {
+    const ab = document.getElementById("autodrive-ab-role");
+    if (ab && p.recommendedAbRole) ab.value = p.recommendedAbRole;
+    const focus = document.getElementById("autodrive-focus");
+    if (focus && p.recommendedFocus) focus.value = p.recommendedFocus;
+  }
+}
+
+function fillSafetyList() {
+  const ul = document.getElementById("autodrive-safety-list");
+  if (!ul) return;
+  ul.innerHTML = ESTIM_SAFETY_RULES.map((r) => `<li>${r}</li>`).join("");
+}
+
 function collectConfigFromUi() {
   const templateId = document.getElementById("autodrive-template")?.value || "classic";
   const tpl = AUTODRIVE_TEMPLATES[templateId] || AUTODRIVE_TEMPLATES.classic;
@@ -365,8 +433,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (dur && cfg.targetDurationMin) dur.value = String(cfg.targetDurationMin);
     const climb = document.getElementById("autodrive-auto-climb");
     if (climb) climb.checked = cfg.autoClimb !== false;
-    const place = document.getElementById("autodrive-placement");
-    if (place && cfg.placement) place.value = cfg.placement;
+    fillPlacementSelect(cfg.placement || "soft_external");
+    fillSafetyList();
+    document.getElementById("autodrive-placement")?.addEventListener("change", (e) => {
+      updatePlacementGuide(e.target.value, { applyRecommendations: true });
+      collectConfigFromUi();
+    });
     const ab = document.getElementById("autodrive-ab-role");
     if (ab && cfg.abRole) ab.value = cfg.abRole;
     const fsPref = document.getElementById("autodrive-fullscreen-pref");
@@ -375,6 +447,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (hybrid) hybrid.checked = !!cfg.hybridAudio;
   } catch {
     buildTemplateGrid("classic");
+    try {
+      fillPlacementSelect("soft_external");
+      fillSafetyList();
+    } catch {
+      /* ignore */
+    }
   }
 
   paintHomeExtras();

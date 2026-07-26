@@ -264,8 +264,8 @@
           <div class="card autodrive-templates-card">
             <div class="card-title">Template</div>
             <p class="autodrive-lead">
-              Adaptive Offline-Engine: lernt aus Feedback, steigt auto, Soft-Limit-relativ.
-              Keine Garantie — hohe Erfolgsrate durch Anpassung.
+              Adaptive Offline-Engine: lernt aus Feedback, Soft-Limit-relativ, Placement steuert Freq/Cap.
+              Keine Climax-Garantie — Erfolgsrate steigt mit Kalibrierung und ehrlichem Feedback.
             </p>
             <div id="autodrive-template-grid" class="autodrive-template-grid" role="listbox" aria-label="Autodrive Templates"></div>
             <input type="hidden" id="autodrive-template" value="classic" />
@@ -292,11 +292,9 @@
                 <input type="number" id="autodrive-duration" class="text-input" min="2" max="60" value="12" step="1" />
               </div>
               <div>
-                <label class="field-label" for="autodrive-placement">Placement-Profil</label>
-                <select id="autodrive-placement" class="select-control">
-                  <option value="soft_external">Soft / extern</option>
-                  <option value="deep_pressure">Druck / deep</option>
-                  <option value="dual">Dual-Kanal</option>
+                <label class="field-label" for="autodrive-placement">ESTIM-Anwendung am Körper</label>
+                <select id="autodrive-placement" class="select-control" aria-describedby="autodrive-placement-guide">
+                  <!-- options filled by JS from PLACEMENT_PROFILES -->
                 </select>
               </div>
               <div>
@@ -313,6 +311,32 @@
                 <label style="margin-left: 12px;"><input type="checkbox" id="autodrive-hybrid" /> Hybrid: STIM-Audio für Wave</label>
               </div>
             </div>
+
+            <div id="autodrive-placement-guide" class="autodrive-placement-guide" aria-live="polite">
+              <div class="ad-place-title" id="ad-place-title">Placement</div>
+              <p class="ad-place-sensation" id="ad-place-sensation"></p>
+              <div class="ad-place-grid">
+                <div>
+                  <strong>♂ Setup</strong>
+                  <p id="ad-place-male"></p>
+                </div>
+                <div>
+                  <strong>♀ Setup</strong>
+                  <p id="ad-place-female"></p>
+                </div>
+              </div>
+              <ul class="ad-place-tips" id="ad-place-tips"></ul>
+              <p class="ad-place-engine" id="ad-place-engine"></p>
+            </div>
+
+            <details class="autodrive-safety-details">
+              <summary>ESTIM-Sicherheit &amp; beste Ergebnisse</summary>
+              <ul id="autodrive-safety-list" class="ad-safety-list"></ul>
+              <p class="ad-safety-note">
+                Wire-Freq im Coyote ist kein Hz-Label: niedriger ≈ weicher Throb, höher ≈ kräftiger/stechender.
+                Placement senkt das Soft-Cap und verschiebt Freq/Duty — Feedback (Zu schwach/stark) bleibt entscheidend.
+              </p>
+            </details>
 
             <div class="autodrive-controls">
               <button type="button" id="btn-autodrive-start" class="btn btn-autodrive-go">🚀 Start</button>

@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.1.6 — Autodrive ESTIM-Placement & Körper-Guide
+
+### Autodrive-Tuning
+- Placement-Profile an reale ESTIM-Anwendungen angeglichen (Caps/Freq/Duty):
+  - **Pads extern** — weicher, höheres Cap
+  - **Loops Schaft** — fokussiert, konservativeres Cap
+  - **Dual A/B Stereo** — Alternate, empfohlene A/B-Rollen
+  - **Perineum + Basis** (neu) — tiefer, beckenboden-nah
+  - **Insertable bipolar** (neu) — strengstes Cap
+- Phasen-Tips nennen das aktive Placement; Kalibrierung bleibt Pflicht für gute Baseline
+
+### UI / Wissen
+- Live-Guide: Setup ♂/♀, Sensation, Tipps, Engine-Parameter (Cap/Freq/Duty)
+- Aufklappbare ESTIM-Sicherheitsregeln (nur unterhalb Taille, Kontakt, Soft-Limits …)
+- Placement-Wechsel kann empfohlene A/B-Rolle und Kanal-Fokus setzen
+
 ## 4.1.5 — Autodrive: COOLDOWN-Strength & sauberer Stop
 
 ### Behoben

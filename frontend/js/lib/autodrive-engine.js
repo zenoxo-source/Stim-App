@@ -6,35 +6,130 @@
 /** @typedef {"too_weak"|"good"|"too_strong"|"almost"|"now"|"climaxed"|"not_yet"} AutodriveFeedback */
 /** @typedef {"gentle"|"medium"|"intense"} AutodriveSensitivity */
 /** @typedef {"A"|"B"|"both"} ChannelFocus */
-/** @typedef {"soft_external"|"deep_pressure"|"dual"} PlacementProfile */
+/**
+ * Body / electrode application profile for Autodrive tuning.
+ * Strength/freq/duty are soft-relative; labels guide real-world ESTIM setups.
+ * @typedef {"soft_external"|"deep_pressure"|"dual"|"perineum_combo"|"insertable"} PlacementProfile
+ */
 /** @typedef {"both"|"alt"|"aLead"|"bLead"} ChannelMode */
 
+/**
+ * Placement profiles map common ESTIM body applications → sensation plane + caps.
+ * Research-aligned (below-waist only; pads softer; loops/glans hotter; insertables careful).
+ */
 export const PLACEMENT_PROFILES = Object.freeze({
   soft_external: {
     id: "soft_external",
-    label: "Soft / extern",
-    freqBias: -12,
-    dutyScale: 1.05,
-    strengthCap: 0.9,
-    description: "Weichere Freq, etwas höhere Duty",
+    label: "Pads extern",
+    freqBias: -15,
+    dutyScale: 1.08,
+    strengthCap: 0.92,
+    description: "Flächige Pads — weich, Einsteiger-freundlich",
+    bodySites: "Haftpads auf intakter Haut unterhalb der Taille",
+    setupMale:
+      "z. B. Pad Perineum + Pad Schaftbasis, oder zwei Pads seitlich am Schaft (nicht über dem Herzen)",
+    setupFemale:
+      "z. B. Pads beidseits der Labien / innere Oberschenkel nahe dem Schritt — nicht direkt auf die Klitoris-Glans",
+    sensation: "Weich, flächig, eher „throb“ bei niedriger Wire-Freq",
+    recommendedAbRole: "sync",
+    recommendedFocus: "both",
+    tips: [
+      "Große Pad-Fläche = weicher; kleine Pads = punktuell schärfer",
+      "Guter Kontakt / leitfähiges Gel bei schlechter Haftung",
+      "Soft-Limits erst nach Kalibrierung anheben",
+    ],
   },
   deep_pressure: {
     id: "deep_pressure",
-    label: "Druck / deep",
-    freqBias: 18,
-    dutyScale: 0.92,
-    strengthCap: 0.85,
-    description: "Höhere Freq, etwas niedrigeres Cap",
+    label: "Loops Schaft",
+    freqBias: 12,
+    dutyScale: 0.9,
+    strengthCap: 0.82,
+    description: "Leitfähige Ringe Basis↔Glans — fokussiert, intensiver",
+    bodySites: "Conductive Loops / Cockrings",
+    setupMale: "Loop an der Basis + Loop unterhalb der Eichel (Strom entlang des Schafts)",
+    setupFemale:
+      "Weniger typisch — eher Pads/Insertables; optional Ringe an Oberschenkel-Falten nur mit Vorsicht",
+    sensation: "Fokussiert, oft „schneidender“ bei höherer Wire-Freq — Cap bewusst niedriger",
+    recommendedAbRole: "sync",
+    recommendedFocus: "both",
+    tips: [
+      "Eichel-nah = empfindlich: Kalibrierung und „Zu stark“ nutzen",
+      "Loops nicht zu eng; Haut nicht abschnüren",
+      "Template „Sanft/Klassisch“ vor „Turbo/Intensiv“",
+    ],
   },
   dual: {
     id: "dual",
-    label: "Dual-Kanal",
+    label: "Dual A/B Stereo",
     freqBias: 0,
     dutyScale: 1,
-    strengthCap: 0.95,
-    description: "Mid-Freq, A/B-Alternate bevorzugt",
+    strengthCap: 0.93,
+    description: "Zwei unabhängige Kreise auf A und B — Alternate-Wellen",
+    bodySites:
+      "Kanal A und B an unterschiedlichen Stellen (kein gemeinsamer Elektroden-Pfad über die Brust)",
+    setupMale:
+      "z. B. A: Perineum↔Basis · B: Basis↔Glans — oder A Schaft, B bipolarer Plug (getrennte Kreise)",
+    setupFemale: "z. B. A: Labien-Seiten · B: bipolarer Vaginal-Probe — Kreise nicht kreuzen",
+    sensation: "Räumlich / abwechselnd; gut mit A/B-Rollen „Rhythmus + Steady“",
+    recommendedAbRole: "aRhythm_bSteady",
+    recommendedFocus: "both",
+    tips: [
+      "Jeden Kanal als eigenen Stromkreis behandeln",
+      "A/B-Rollen: Rhythmus auf dem „spielerischen“ Kanal",
+      "Fokus A/B im UI, wenn ein Kanal deutlich empfindlicher ist",
+    ],
+  },
+  perineum_combo: {
+    id: "perineum_combo",
+    label: "Perineum + Basis",
+    freqBias: 4,
+    dutyScale: 0.95,
+    strengthCap: 0.88,
+    description: "Pad Perineum + Loop/Pad Basis — tiefer, beckenboden-nah",
+    bodySites: "Perineum (zwischen Anus und Genitalien) + Schaftbasis / Pubis",
+    setupMale:
+      "Pad mittig auf dem Perineum + Loop/Pad an der Penisbasis — Strom durch den Beckenboden",
+    setupFemale: "Pad Perineum + zweites Pad unterer Schamhügel / innere Oberschenkel-Nähe",
+    sensation: "Tiefer, „innerer“ Druck; oft prostate-/beckenboden-nah ohne Insertable",
+    recommendedAbRole: "sync",
+    recommendedFocus: "both",
+    tips: [
+      "Haare kürzen / Gel für gleichmäßigen Kontakt am Perineum",
+      "Nicht zu nah am Anus bei frischen Wunden/Hämorrhoiden",
+      "Mittlere Templates (Klassisch, Deny) passen gut",
+    ],
+  },
+  insertable: {
+    id: "insertable",
+    label: "Insertable bipolar",
+    freqBias: -8,
+    dutyScale: 0.88,
+    strengthCap: 0.78,
+    description: "Bipolarer Plug/Probe — lokal, konservatives Cap",
+    bodySites: "Körpergerechte ESTIM-Insertables (anal/vaginal), bipolar = Strom im Toy",
+    setupMale: "Bipolarer Anal-Plug (± im Toy); optional zweiter Kanal separat mit Loop am Schaft",
+    setupFemale: "Bipolarer Vaginal-Probe oder Anal-Plug — nur ESTIM-geeignetes Material",
+    sensation: "Sehr lokal; kann schnell intensiv wirken → niedriges Cap + sanfte Freq",
+    recommendedAbRole: "sync",
+    recommendedFocus: "A",
+    tips: [
+      "Nur toys die für Elektro-Play gebaut sind; reichlich leitfähiges Gleitgel",
+      "Nie mit Strom ein-/ausstecken — Strength 0 / Soft-Stop zuerst",
+      "Kalibrierung nicht überspringen; „Zu stark“ früh tippen",
+    ],
   },
 });
+
+/** Absolute safety rules shown in Autodrive UI (not medical advice). */
+export const ESTIM_SAFETY_RULES = Object.freeze([
+  "Stromwege nur unterhalb der Taille — nie über Brust/Herz, nie Kopf/Hals",
+  "Nicht während Schwangerschaft; kein ESTIM bei Herzschrittmacher/ICD ohne ärztliche Freigabe",
+  "Nur intakte Haut; keine frischen Wunden, Entzündungen oder Taubheitsgefühl",
+  "Immer geschlossener Kreis (zwei Kontakte pro Kanal); Körper-sichere ESTIM-Elektroden",
+  "Immer niedrig starten; Soft-Limits setzen; Panic/STOP erreichbar halten",
+  "Bei Schwindel, Herzrasen, starken Schmerzen: sofort Soft-Stop / Gerät aus",
+]);
 
 export const AUTODRIVE_TEMPLATES = Object.freeze({
   quick_finish: {
@@ -202,7 +297,28 @@ const NEEDS_EDGES = new Set(["edge_then_release", "edge_ladder", "deny_then_rele
 const VALID_GOALS = new Set(["direct", "edge_then_release", "edge_ladder", "deny_then_release"]);
 const VALID_SENS = new Set(["gentle", "medium", "intense"]);
 const VALID_FOCUS = new Set(["A", "B", "both"]);
-const VALID_PLACEMENT = new Set(["soft_external", "deep_pressure", "dual"]);
+const VALID_PLACEMENT = new Set([
+  "soft_external",
+  "deep_pressure",
+  "dual",
+  "perineum_combo",
+  "insertable",
+]);
+
+/**
+ * @returns {Array<typeof PLACEMENT_PROFILES[keyof typeof PLACEMENT_PROFILES]>}
+ */
+export function listPlacementProfiles() {
+  return Object.values(PLACEMENT_PROFILES);
+}
+
+/**
+ * @param {string} id
+ * @returns {typeof PLACEMENT_PROFILES[keyof typeof PLACEMENT_PROFILES]}
+ */
+export function getPlacementProfile(id) {
+  return PLACEMENT_PROFILES[id] || PLACEMENT_PROFILES.soft_external;
+}
 const VALID_FEEDBACK = new Set([
   "too_weak",
   "good",
@@ -1612,11 +1728,12 @@ function phaseTip(state) {
   if (state.peakLockRel != null && state.peakLockUntil) {
     // tip only if still locked — checked by caller via peakLockActive mostly
   }
+  const place = getPlacementProfile(state.config?.placement);
   switch (state.phase) {
     case "CALIBRATING":
-      return "Kalibrierung: Zu schwach / Gut / Zu stark — Baseline speichern";
+      return `Kalibrierung (${place.label}): Zu schwach / Gut / Zu stark — Baseline speichern`;
     case "WARMUP":
-      return "Körper ankommen lassen — Intensität steigt sanft";
+      return `Aufwärmen · ${place.sensation || place.description}`;
     case "BUILD":
       return `Aufbau · Edge-Score ${Math.round(state.edgeScore || 0)} — „Fast“ wenn nah`;
     case "TEASE":
@@ -1640,8 +1757,10 @@ function phaseTip(state) {
         : "Session endet — weiches Ausklingen";
     case "PAUSED":
       return "Pausiert — Weiter zum Fortsetzen";
+    case "COOLDOWN":
+      return "Cooldown — Output aus, Session endet gleich";
     default:
-      return "";
+      return place.tips?.[0] || "";
   }
 }
 
