@@ -29,6 +29,7 @@
 
 import { AppState, DOM, log } from "../state.js";
 import { updateSlidersA, updateSlidersB, setChannelFreq } from "../control-deck.js";
+import { sendStrengthCommand } from "./bluetooth.js";
 
 const MAPPING_KEY = "stim_app_midi_mappings_v1";
 
@@ -222,6 +223,10 @@ export function applyMapping(mapping, value) {
       const label = document.getElementById("master-val-text");
       if (slider) slider.value = pct;
       if (label) label.textContent = pct + "%";
+      // Strength only updates on absolute-mode B0 — re-apply like the UI master slider.
+      if (AppState.isConnected && AppState.writeChar) {
+        sendStrengthCommand(AppState.strengthA, AppState.strengthB, { writer: "midi" });
+      }
       return true;
     }
     case "trigger-pattern": {

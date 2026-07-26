@@ -1,10 +1,19 @@
 // shock.js — Short burst (XToys shock-mode style), within soft-limits
 
-import { AppState, log, CONSTANTS } from "../state.js";
+import { AppState, DOM, log, CONSTANTS } from "../state.js";
 import { sendStrengthCommand, sendWaveformCommand, sendSoftStop } from "./bluetooth.js";
 import { claimOutput, releaseOutput, getOutputOwner } from "./output-owner.js";
 import { blockDuringPanicCooldown } from "./safety-extras.js";
 import { blockIfLocked as blockIfPinLocked } from "./session-pin.js";
+
+function syncStrengthUi(a, b) {
+  if (DOM["slider-intensity-a"]) DOM["slider-intensity-a"].value = String(a);
+  if (DOM["label-intensity-a"]) DOM["label-intensity-a"].textContent = String(a);
+  if (DOM["intensity-circle-a"]) DOM["intensity-circle-a"].textContent = String(a);
+  if (DOM["slider-intensity-b"]) DOM["slider-intensity-b"].value = String(b);
+  if (DOM["label-intensity-b"]) DOM["label-intensity-b"].textContent = String(b);
+  if (DOM["intensity-circle-b"]) DOM["intensity-circle-b"].textContent = String(b);
+}
 
 const SHOCK_KEY = "stim_app_shock_v1";
 
@@ -72,9 +81,17 @@ export function fireShock(opts = {}) {
 
   if (shockTimer) clearTimeout(shockTimer);
   shockTimer = setTimeout(() => {
+    // End burst wave; restore prior logical strengths (do not leave session at 0).
     sendSoftStop({ keepStrength: false, writer: "safety" });
-    AppState.strengthA = 0;
-    AppState.strengthB = 0;
+    AppState.strengthA = prevA;
+    AppState.strengthB = prevB;
+    syncStrengthUi(prevA, prevB);
+    if (prevA > 0 || prevB > 0) {
+      // Re-assert previous absolute strength with inactive wave; idle/wave-loop
+      // will resume carrier if the user still has continuous output enabled.
+      sendStrengthCommand(prevA, prevB, { writer: "manual" });
+      sendSoftStop({ keepStrength: true, writer: "safety" });
+    }
     if (getOutputOwner() === "manual") releaseOutput("manual");
     shockTimer = null;
   }, cfg.durationMs);

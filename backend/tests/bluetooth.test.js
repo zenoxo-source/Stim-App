@@ -17,6 +17,9 @@ import {
   sendV3Init,
   sendV3EmergencyStop,
   updateHeartbeat,
+  processB1Notification,
+  deviceToLogicalStrength,
+  logicalToDeviceStrength,
 } from "../../frontend/js/modules/bluetooth.js";
 
 const writes = [];
@@ -49,6 +52,7 @@ function resetAppState() {
   AppState.btSeq = 0;
   AppState.btAwaitingAck = false;
   AppState.btPendingMode = 0;
+  AppState._lastStrengthSeq = 0;
   AppState.debugMode = false;
   AppState.lastB1Time = 0;
   AppState._lastSentStrA = undefined;
@@ -63,6 +67,7 @@ function resetAppState() {
   AppState.lastWaveFreqB = 45;
   AppState.lastWaveAmpA = 0;
   AppState.lastWaveAmpB = 0;
+  AppState.outputOwner = "none";
 }
 
 function connect() {
@@ -161,6 +166,56 @@ describe("bluetooth.js", () => {
       assert.equal(p[2], 80);
       assert.equal(p[3], 60);
     });
+
+    it("swapChannels swaps both strength and wave", () => {
+      connect();
+      AppState.swapChannels = true;
+      AppState.strengthA = 80;
+      AppState.strengthB = 20;
+      AppState.btPendingMode = 0x0f;
+
+      sendB0Now(30, 100, 90, 50);
+
+      const p = writes[writes.length - 1];
+      // Physical A gets logical B strength/wave
+      assert.equal(p[2], 20);
+      assert.equal(p[3], 80);
+      assert.equal(p[4], 90); // freq physical A = logical B
+      assert.equal(p[12], 30); // freq physical B = logical A
+      assert.equal(p[8], 50); // amp physical A
+      assert.equal(p[16], 100); // amp physical B
+    });
+
+    it("applies masterScale to strength wire values", () => {
+      connect();
+      AppState.masterScale = 0.5;
+      AppState.strengthA = 100;
+      AppState.strengthB = 80;
+      AppState.btPendingMode = 0x0f;
+
+      sendB0Now(45, 100, 45, 100);
+
+      const p = writes[writes.length - 1];
+      assert.equal(p[2], 50);
+      assert.equal(p[3], 40);
+    });
+
+    it("stores lastWave as logical inputs (no double scale on re-send)", () => {
+      connect();
+      AppState.masterScale = 0.5;
+      AppState.pulseWidthA = 100;
+      AppState.strengthA = 10;
+
+      sendB0Now(45, 80, 60, 40);
+
+      assert.equal(AppState.lastWaveFreqA, 45);
+      assert.equal(AppState.lastWaveAmpA, 80);
+      assert.equal(AppState.lastWaveFreqB, 60);
+      assert.equal(AppState.lastWaveAmpB, 40);
+      // Wire amp is scaled
+      const p = writes[writes.length - 1];
+      assert.equal(p[8], 40); // 80 * 0.5
+    });
   });
 
   describe("sendStrengthCommand", () => {
@@ -207,6 +262,53 @@ describe("bluetooth.js", () => {
       assert.equal(p[0], 0xb0);
       assert.equal(p[8], 101); // intensityA inactive
       assert.equal(p[16], 101); // intensityB inactive
+      assert.equal(p[2], 0);
+      assert.equal(p[3], 0);
+      assert.equal(p[1] & 0x0f, 0x0f);
+    });
+
+    it("keepStrength leaves wire strength and mode 0", () => {
+      connect();
+      AppState.strengthA = 40;
+      AppState.strengthB = 30;
+      AppState.masterScale = 1;
+
+      sendSoftStop({ keepStrength: true });
+
+      const p = writes[writes.length - 1];
+      assert.equal(p[2], 40);
+      assert.equal(p[3], 30);
+      assert.equal(p[1] & 0x0f, 0);
+      assert.equal(p[8], 101);
+    });
+
+    it("swapChannels applies to soft-stop strength bytes", () => {
+      connect();
+      AppState.swapChannels = true;
+      AppState.strengthA = 40;
+      AppState.strengthB = 10;
+
+      sendSoftStop({ keepStrength: true });
+
+      const p = writes[writes.length - 1];
+      assert.equal(p[2], 10);
+      assert.equal(p[3], 40);
+    });
+
+    it("updates dirty tracking so next B0 is not skipped incorrectly", async () => {
+      connect();
+      AppState.strengthA = 0;
+      sendSoftStop({ keepStrength: false });
+      // Flush BLE queue microtasks from soft-stop
+      await Promise.resolve();
+      await Promise.resolve();
+      const n = writes.length;
+      sendB0Now(45, 100, 45, 100);
+      await Promise.resolve();
+      await Promise.resolve();
+      assert.ok(writes.length > n, "wave after soft-stop must send");
+      const p = writes[writes.length - 1];
+      assert.equal(p[8], 100);
     });
   });
 
@@ -247,12 +349,89 @@ describe("bluetooth.js", () => {
     });
   });
 
-  describe("handleDeviceNotification (B1 ACK)", () => {
-    it("B1 clears awaitingAck on matching sequence", () => {
-      // The handler is not exported; verified conceptually.
+  describe("processB1Notification", () => {
+    it("clears awaitingAck on matching sequence without changing logical strength", () => {
+      connect();
+      AppState.masterScale = 0.5;
+      AppState.strengthA = 100;
+      AppState.strengthB = 80;
       AppState.btAwaitingAck = true;
       AppState.btSeq = 3;
-      assert.equal(AppState.btSeq, 3);
+      AppState._lastStrengthSeq = 3;
+
+      // Device reports scaled wire values
+      processB1Notification(new Uint8Array([0xb1, 3, 50, 40]));
+
+      assert.equal(AppState.btAwaitingAck, false);
+      assert.equal(AppState.btSeq, 0);
+      assert.equal(AppState.strengthA, 100, "logical strength must stay");
+      assert.equal(AppState.strengthB, 80);
+    });
+
+    it("late ACK after timeout does not treat our echo as wheel event", () => {
+      connect();
+      AppState.masterScale = 0.5;
+      AppState.strengthA = 100;
+      AppState.strengthB = 100;
+      AppState.btAwaitingAck = false;
+      AppState.btSeq = 0;
+      AppState._lastStrengthSeq = 5;
+
+      processB1Notification(new Uint8Array([0xb1, 5, 50, 50]));
+
+      assert.equal(AppState.strengthA, 100);
+      assert.equal(AppState.strengthB, 100);
+    });
+
+    it("ignores B1 when wire strength already matches scaled logical", () => {
+      connect();
+      AppState.masterScale = 0.5;
+      AppState.strengthA = 100;
+      AppState.strengthB = 60;
+
+      processB1Notification(new Uint8Array([0xb1, 0, 50, 30]));
+
+      assert.equal(AppState.strengthA, 100);
+      assert.equal(AppState.strengthB, 60);
+    });
+
+    it("maps external wheel change through inverse masterScale", () => {
+      connect();
+      AppState.masterScale = 0.5;
+      AppState.softLimitA = 150;
+      AppState.softLimitB = 150;
+      AppState.strengthA = 40;
+      AppState.strengthB = 40;
+
+      // Wheel sets physical to 80/60 → logical 160/120 but soft-capped to 150
+      processB1Notification(new Uint8Array([0xb1, 0, 80, 60]));
+
+      assert.equal(AppState.strengthA, 150);
+      assert.equal(AppState.strengthB, 120);
+    });
+
+    it("swapChannels maps physical B1 channels back to logical UI", () => {
+      connect();
+      AppState.swapChannels = true;
+      AppState.masterScale = 1;
+      AppState.strengthA = 10;
+      AppState.strengthB = 10;
+
+      // Physical A=70 B=20 → with swap, logical A=20 B=70
+      processB1Notification(new Uint8Array([0xb1, 0, 70, 20]));
+
+      assert.equal(AppState.strengthA, 20);
+      assert.equal(AppState.strengthB, 70);
+    });
+  });
+
+  describe("deviceToLogicalStrength / logicalToDeviceStrength", () => {
+    it("round-trips with masterScale", () => {
+      AppState.masterScale = 0.5;
+      AppState.softLimitA = 200;
+      const wire = logicalToDeviceStrength(100, "A");
+      assert.equal(wire, 50);
+      assert.equal(deviceToLogicalStrength(wire, "A"), 100);
     });
   });
 

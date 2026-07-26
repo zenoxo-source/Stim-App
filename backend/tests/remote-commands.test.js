@@ -124,6 +124,32 @@ describe("remote commands — value clamping", () => {
     assert.equal(AppState.masterScale, 1);
   });
 
+  test("set_master while connected re-applies absolute strength with new scale", () => {
+    const writes = [];
+    AppState.isConnected = true;
+    AppState.writeChar = {
+      writeValueWithoutResponse: async (data) => writes.push(new Uint8Array(data)),
+      writeValue: async (data) => writes.push(new Uint8Array(data)),
+    };
+    AppState.strengthA = 100;
+    AppState.strengthB = 80;
+    AppState.softLimitA = 150;
+    AppState.softLimitB = 150;
+    AppState.masterScale = 1;
+    AppState.btAwaitingAck = false;
+    AppState.btPendingMode = 0;
+    AppState._lastSentStrA = undefined;
+
+    handleRemoteCommand({ type: "set_master", value: 50 });
+    assert.equal(AppState.masterScale, 0.5);
+    assert.ok(writes.length > 0, "must write B0 after master change");
+    const b0 = writes.find((w) => w[0] === 0xb0);
+    assert.ok(b0, "expected a B0 packet");
+    assert.equal(b0[1] & 0x0f, 0x0f, "absolute mode required for strength scale");
+    assert.equal(b0[2], 50); // 100 * 0.5
+    assert.equal(b0[3], 40); // 80 * 0.5
+  });
+
   test("a non-numeric intensity does not leak NaN into state", () => {
     handleRemoteCommand({ type: "set_intensity", channel: "A", value: "hello" });
     assert.ok(Number.isFinite(AppState.strengthA), `got ${AppState.strengthA}`);

@@ -25,6 +25,7 @@ import {
 } from "./autodrive.js";
 import { runStory } from "./session-stories.js";
 import { fireShock } from "./shock.js";
+import { sendStrengthCommand } from "./bluetooth.js";
 
 /** Commands allowed even during PIN lock / panic cooldown (safety + read-only). */
 const REMOTE_ALWAYS_ALLOWED = new Set(["stop_all", "get_state", "get_patterns", "get_logs"]);
@@ -66,6 +67,11 @@ const REMOTE_COMMANDS = {
     const label = document.getElementById("master-val-text");
     if (slider) slider.value = val;
     if (label) label.textContent = val + "%";
+    // Re-apply absolute strength so wire intensity tracks the new scale immediately
+    // (wave amps already scale on every B0; strength only when mode absolute).
+    if (AppState.isConnected && AppState.writeChar) {
+      sendStrengthCommand(AppState.strengthA, AppState.strengthB, { writer: "remote" });
+    }
     return { ok: true };
   },
 

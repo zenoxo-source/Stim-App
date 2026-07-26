@@ -141,6 +141,38 @@ function getDeviceStrength(val, softLimit) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Logical channel strength → device wire strength (soft limit + masterScale).
+ * Exported for B1 feedback comparisons / tests.
+ * @param {number} val
+ * @param {"A"|"B"} channel
+ * @returns {number}
+ */
+export function logicalToDeviceStrength(val, channel) {
+  const soft = channel === "B" ? AppState.softLimitB : AppState.softLimitA;
+  return getDeviceStrength(val, soft);
+}
+
+/**
+ * Device-reported strength → logical UI strength (inverse of masterScale).
+ * Soft limit applied after inverse so sliders stay within the configured cap.
+ * @param {number} deviceStr
+ * @param {"A"|"B"} channel
+ * @returns {number}
+ */
+export function deviceToLogicalStrength(deviceStr, channel) {
+  const soft = channel === "B" ? AppState.softLimitB : AppState.softLimitA;
+  const raw = Math.round(Number(deviceStr) || 0);
+  const clampedDev = Math.min(200, Math.max(0, raw));
+  const scale = AppState.masterScale;
+  if (typeof scale !== "number" || Number.isNaN(scale) || scale <= 0) {
+    // Master at 0 % → no output path; surface device reading as-is (capped).
+    return Math.min(soft, clampedDev);
+  }
+  const logical = Math.round(clampedDev / scale);
+  return Math.min(soft, Math.max(0, logical));
+}
+
+/**
  * Build and immediately queue a full B0 packet using current state values.
  * This is the single entry-point for all B0 writes.
  * @param {number} freqA - Wire frequency for channel A (10-240)
@@ -160,6 +192,15 @@ export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
     return;
   }
 
+  // Keep lastWave* as LOGICAL inputs so sendStrengthCommand can re-issue them
+  // without double-applying masterScale / swapChannels.
+  const inAmpA = Math.min(100, Math.max(0, Math.round(Number(ampA) || 0)));
+  const inAmpB = Math.min(100, Math.max(0, Math.round(Number(ampB) || 0)));
+  AppState.lastWaveFreqA = inAmpA > 0 ? ProtocolUtils.clampWireFreq(freqA) : 0;
+  AppState.lastWaveAmpA = inAmpA;
+  AppState.lastWaveFreqB = inAmpB > 0 ? ProtocolUtils.clampWireFreq(freqB) : 0;
+  AppState.lastWaveAmpB = inAmpB;
+
   // Pulse-width sliders scale logical wave amplitude (0–100%)
   const logicalA = ProtocolUtils.applyPulseWidthScale(ampA, AppState.pulseWidthA);
   const logicalB = ProtocolUtils.applyPulseWidthScale(ampB, AppState.pulseWidthB);
@@ -171,17 +212,19 @@ export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
   let segA = ProtocolUtils.resolveWaveSegment(freqA, scaledA);
   let segB = ProtocolUtils.resolveWaveSegment(freqB, scaledB);
 
+  // Logical UI strength → device wire (soft + masterScale)
+  let strA = getDeviceStrength(AppState.strengthA, AppState.softLimitA);
+  let strB = getDeviceStrength(AppState.strengthB, AppState.softLimitB);
+
+  // Full channel swap: both strength and wave map to opposite physical outputs
   if (AppState.swapChannels) {
     const tmpSeg = segA;
     segA = segB;
     segB = tmpSeg;
+    const tmpStr = strA;
+    strA = strB;
+    strB = tmpStr;
   }
-
-  // Track last-sent values for isDirty (Fix 5)
-  AppState.lastWaveFreqA = segA.freq;
-  AppState.lastWaveAmpA = segA.intensity === 101 ? 0 : segA.intensity;
-  AppState.lastWaveFreqB = segB.freq;
-  AppState.lastWaveAmpB = segB.intensity === 101 ? 0 : segB.intensity;
 
   // Determine if strength changed (pending mode)
   let mode = 0;
@@ -192,7 +235,9 @@ export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
     mode = AppState.btPendingMode;
     AppState.btAwaitingAck = true;
     AppState.btPendingMode = 0;
-    // Fallback: clear awaitingAck after timeout if no matching ACK arrives
+    AppState._lastStrengthSeq = seq;
+    // Fallback: clear awaitingAck after timeout if no matching ACK arrives.
+    // Keep _lastStrengthSeq so a late B1 is not misclassified as a wheel event.
     const sentSeq = seq;
     const timeout = CONSTANTS.B1_ACK_TIMEOUT_MS || 300;
     setTimeout(() => {
@@ -205,8 +250,6 @@ export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
   }
 
   // Fix 5: isDirty — skip if nothing changed
-  const strA = getDeviceStrength(AppState.strengthA, AppState.softLimitA);
-  const strB = getDeviceStrength(AppState.strengthB, AppState.softLimitB);
   if (
     !o.keepStrength &&
     mode === 0 &&
@@ -295,27 +338,38 @@ export function sendWaveformCommand(freqA, ampA, freqB, ampB, opts = {}) {
 
 /**
  * Soft-stop: inactive waveforms (freq 0, intensity 101).
- * @param {{ keepStrength?: boolean, zeroUiStrength?: boolean }} opts
+ * @param {{ keepStrength?: boolean, zeroUiStrength?: boolean, reassertStrength?: boolean, writer?: string }} opts
  *   keepStrength: leave channel strength as-is (for short gaps between pulses)
  *   zeroUiStrength: also set AppState/UI strength to 0 (pattern stop etc.)
+ *   reassertStrength: with keepStrength, still send absolute mode so wire values apply
+ *   writer: optional ownership tag (soft-stop is always allowed; used for logging only)
  */
 export function sendSoftStop(opts = {}) {
   if (!AppState.writeChar) return;
   const keepStrength = !!opts.keepStrength;
   const zeroUi = !!opts.zeroUiStrength;
+  const reassert = !!opts.reassertStrength;
 
   if (zeroUi) {
     AppState.strengthA = 0;
     AppState.strengthB = 0;
   }
 
-  const strA = keepStrength ? getDeviceStrength(AppState.strengthA, AppState.softLimitA) : 0;
-  const strB = keepStrength ? getDeviceStrength(AppState.strengthB, AppState.softLimitB) : 0;
+  let strA = keepStrength ? getDeviceStrength(AppState.strengthA, AppState.softLimitA) : 0;
+  let strB = keepStrength ? getDeviceStrength(AppState.strengthB, AppState.softLimitB) : 0;
+  if (AppState.swapChannels) {
+    const tmp = strA;
+    strA = strB;
+    strB = tmp;
+  }
 
+  // Absolute mode when zeroing strength, or when caller must re-assert keepStrength values.
+  // Mode 0 + keepStrength: device keeps prior absolute strength (wave only off).
+  const useAbsolute = !keepStrength || reassert;
   const data = ProtocolUtils.buildSoftStopBytes({
     strengthA: strA,
     strengthB: strB,
-    modeNibble: keepStrength ? 0 : 0x0f,
+    modeNibble: useAbsolute ? 0x0f : 0,
   });
 
   debugHex("B0-soft-stop", data);
@@ -324,13 +378,15 @@ export function sendSoftStop(opts = {}) {
   AppState.lastWaveAmpB = 0;
   AppState.lastWaveFreqA = 0;
   AppState.lastWaveFreqB = 0;
-  // Reset dirty tracking so next send isn't skipped
+  // Dirty tracking: inactive wave + actual wire strengths we just queued
   AppState._lastSentFreqA = 0;
-  AppState._lastSentAmpA = 0;
+  AppState._lastSentAmpA = 101;
   AppState._lastSentFreqB = 0;
-  AppState._lastSentAmpB = 0;
+  AppState._lastSentAmpB = 101;
+  AppState._lastSentStrA = strA;
+  AppState._lastSentStrB = strB;
 
-  if (!keepStrength) {
+  if (!keepStrength || reassert) {
     AppState.btPendingMode = 0;
     AppState.btSeq = 0;
     AppState.btAwaitingAck = false;
@@ -348,10 +404,17 @@ export function sendV3EmergencyStop() {
   AppState.btPendingMode = 0;
   AppState.btSeq = 0;
   AppState.btAwaitingAck = false;
+  AppState._lastStrengthSeq = 0;
   AppState.lastWaveAmpA = 0;
   AppState.lastWaveAmpB = 0;
+  AppState.lastWaveFreqA = 0;
+  AppState.lastWaveFreqB = 0;
   AppState._lastSentStrA = 0;
   AppState._lastSentStrB = 0;
+  AppState._lastSentFreqA = 0;
+  AppState._lastSentAmpA = 101;
+  AppState._lastSentFreqB = 0;
+  AppState._lastSentAmpB = 101;
 
   const data = ProtocolUtils.buildEmergencyStopBytes();
 
@@ -381,42 +444,72 @@ export function updateHeartbeat() {
   }
 }
 
+/**
+ * Process a V3 B1 notification (ACK + device strength).
+ * Exported for unit tests.
+ * @param {Uint8Array} data
+ */
+export function processB1Notification(data) {
+  if (!data || data[0] !== 0xb1 || data.length < 4) return;
+
+  AppState.lastB1Time = Date.now();
+  noteGattActivity();
+  const ackSeq = data[1] & 0x0f;
+  let deviceStrA = data[2];
+  let deviceStrB = data[3];
+  debugHex("B1-recv", data);
+
+  // Device reports physical channels; map back to logical A/B when swapped.
+  if (AppState.swapChannels) {
+    const tmp = deviceStrA;
+    deviceStrA = deviceStrB;
+    deviceStrB = tmp;
+  }
+
+  // Our own strength write (current or late ACK after timeout).
+  // Never overwrite logical AppState from our own echo — masterScale would desync.
+  const isOurAck =
+    ackSeq !== 0 &&
+    (ackSeq === AppState.btSeq || ackSeq === (AppState._lastStrengthSeq || 0));
+  if (isOurAck) {
+    if (AppState.btAwaitingAck && (ackSeq === AppState.btSeq || AppState.btSeq === 0)) {
+      AppState.btAwaitingAck = false;
+      AppState.btSeq = 0;
+    }
+    return;
+  }
+
+  // Matches what we believe is already on the wire (scaled logical) — no UI change.
+  const expectedA = getDeviceStrength(AppState.strengthA, AppState.softLimitA);
+  const expectedB = getDeviceStrength(AppState.strengthB, AppState.softLimitB);
+  if (deviceStrA === expectedA && deviceStrB === expectedB) {
+    return;
+  }
+
+  // External strength change (physical wheel etc.). Invert masterScale → logical UI.
+  const logicalA = deviceToLogicalStrength(deviceStrA, "A");
+  const logicalB = deviceToLogicalStrength(deviceStrB, "B");
+  if (logicalA === AppState.strengthA && logicalB === AppState.strengthB) {
+    return;
+  }
+
+  log(`Ger\u00e4t-Strength extern ge\u00e4ndert: A=${logicalA} B=${logicalB} (wire ${deviceStrA}/${deviceStrB})`, "info");
+  AppState.strengthA = logicalA;
+  AppState.strengthB = logicalB;
+  if (DOM["slider-intensity-a"]) DOM["slider-intensity-a"].value = logicalA;
+  if (DOM["intensity-circle-a"]) DOM["intensity-circle-a"].textContent = logicalA;
+  if (DOM["label-intensity-a"]) DOM["label-intensity-a"].textContent = logicalA;
+  if (DOM["slider-intensity-b"]) DOM["slider-intensity-b"].value = logicalB;
+  if (DOM["intensity-circle-b"]) DOM["intensity-circle-b"].textContent = logicalB;
+  if (DOM["label-intensity-b"]) DOM["label-intensity-b"].textContent = logicalB;
+  updateAIDashboard();
+  updateOutputStatus();
+}
+
 function handleDeviceNotification(event) {
   const value = event.target.value;
   const data = new Uint8Array(value.buffer);
-
-  if (data[0] === 0xb1 && data.length >= 4) {
-    AppState.lastB1Time = Date.now();
-    noteGattActivity();
-    const ackSeq = data[1];
-    const deviceStrA = data[2];
-    const deviceStrB = data[3];
-    debugHex("B1-recv", data);
-
-    // ACK for our own B0 strength change — clear awaitingAck
-    if (AppState.btAwaitingAck && ackSeq === AppState.btSeq) {
-      AppState.btAwaitingAck = false;
-      AppState.btSeq = 0;
-      // Our own change was applied — AppState already has the correct values
-      return;
-    }
-
-    // External strength change (e.g. physical wheel on the device).
-    // Update AppState and UI to match the device-reported strength.
-    if (deviceStrA !== AppState.strengthA || deviceStrB !== AppState.strengthB) {
-      log(`Ger\u00e4t-Strength extern ge\u00e4ndert: A=${deviceStrA} B=${deviceStrB}`, "info");
-      AppState.strengthA = deviceStrA;
-      AppState.strengthB = deviceStrB;
-      if (DOM["slider-intensity-a"]) DOM["slider-intensity-a"].value = deviceStrA;
-      if (DOM["intensity-circle-a"]) DOM["intensity-circle-a"].textContent = deviceStrA;
-      if (DOM["label-intensity-a"]) DOM["label-intensity-a"].textContent = deviceStrA;
-      if (DOM["slider-intensity-b"]) DOM["slider-intensity-b"].value = deviceStrB;
-      if (DOM["intensity-circle-b"]) DOM["intensity-circle-b"].textContent = deviceStrB;
-      if (DOM["label-intensity-b"]) DOM["label-intensity-b"].textContent = deviceStrB;
-      updateAIDashboard();
-      updateOutputStatus();
-    }
-  }
+  processB1Notification(data);
 }
 
 export function updateBatteryUI(level) {
@@ -536,6 +629,7 @@ function onDisconnected() {
   AppState.btSeq = 0;
   AppState.btAwaitingAck = false;
   AppState.btPendingMode = 0;
+  AppState._lastStrengthSeq = 0;
   AppState.lastB1Time = 0;
   AppState.lastGattActivity = 0;
   AppState._lastSentStrA = undefined;

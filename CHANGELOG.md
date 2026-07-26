@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.1.2 — Coyote-3-Ansteuerung: B1, Master-Scale, Kanal-Swap
+
+### Behoben
+- **B1-Feedback korrumpierte logische Strength bei `masterScale ≠ 1`**: Geräte-Wire-Werte landeten unskaliert in der UI; verspätete ACKs nach Timeout wurden als Rad-Ereignis fehlinterpretiert
+- **Master-Scale über Remote/MIDI griff nicht auf Strength**: nur Wave-Amps skalierten; absolute Strength blieb am Gerät bis zum nächsten Slider-Event
+- **`swapChannels` tauschte nur Wave, nicht Strength** — Kanäle mappten inkonsistent
+- **`lastWave*` speicherte Wire-Werte** → doppelte Master-Scale-Anwendung beim Strength-Re-Send
+- **Soft-Stop Dirty-Tracking unvollständig** (nächstes B0 konnte übersprungen werden); Soft-Stop respektiert jetzt auch `swapChannels`
+- **Shock setzte Strength nach dem Burst auf 0** statt vorherige Levels wiederherzustellen
+
+### Protokoll / Intern
+- `processB1Notification` exportiert (ACK-Match inkl. `_lastStrengthSeq`, inverse Master-Scale für Rad-Eingaben)
+- `deviceToLogicalStrength` / `logicalToDeviceStrength` für Wire↔UI-Roundtrip
+
+### Tests
+- 590 Tests: erweiterte `bluetooth.test.js` (B1, Swap, Master-Scale, Soft-Stop) + Remote `set_master` re-apply
+
 ## 4.1.1 — Autodrive: Erfolgsrate zählt korrekt
 
 ### Behoben

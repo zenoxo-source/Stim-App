@@ -134,6 +134,8 @@ export const AppState = {
   btSeq: 0,
   btAwaitingAck: false,
   btPendingMode: 0,
+  /** Last B0 sequence used for a strength-mode write (for late B1 ACK matching). */
+  _lastStrengthSeq: 0,
 
   // ----- PR1 / v3.1.0 safety extras -----
   /** Timestamp (ms) until which strength changes are blocked after a panic. */
@@ -171,6 +173,7 @@ export const AppState = {
     this.btSeq = 0;
     this.btAwaitingAck = false;
     this.btPendingMode = 0;
+    this._lastStrengthSeq = 0;
     this.lastB1Time = 0;
     this._lastSentStrA = undefined;
     this._lastSentStrB = undefined;
