@@ -176,6 +176,17 @@ export function renderStats() {
         </div>`
     )
     .join("");
+  // F5: today's count + current daily streak.
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayCount = days[todayKey] || 0;
+  let streak = 0;
+  const dCursor = new Date();
+  if (!days[dCursor.toISOString().slice(0, 10)]) dCursor.setDate(dCursor.getDate() - 1);
+  while (days[dCursor.toISOString().slice(0, 10)]) {
+    streak++;
+    dCursor.setDate(dCursor.getDate() - 1);
+  }
+  const todayLine = `Heute: <strong>${todayCount}</strong> · Serie: <strong>${streak}</strong> ${streak === 1 ? "Tag" : "Tage"}`;
 
   const daysActive = stats.firstUsed
     ? Math.max(1, Math.ceil((Date.now() - new Date(stats.firstUsed).getTime()) / 86400000))
@@ -257,6 +268,7 @@ export function renderStats() {
       </div>
       <div class="stat-list">
         <h4>Letzte 7 Tage (Sessions)</h4>
+        <div style="font-size:12px;margin-bottom:6px;">${todayLine}</div>
         <div class="batt-bars" style="display:flex;align-items:flex-end;gap:4px;height:56px;">${weekBars}</div>
       </div>
     </div>

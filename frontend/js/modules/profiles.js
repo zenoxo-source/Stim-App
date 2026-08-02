@@ -12,6 +12,7 @@ import { AppState, log } from "../state.js";
 import { loadSettings, saveSettings, applySettings } from "./settings.js";
 
 const PROFILES_KEY = "stim_app_profiles_v1";
+const ASSIGNED_PROFILE_KEY = "stim_app_assigned_profile_v1";
 
 const DEFAULT_PROFILE_NAME = "Standard";
 
@@ -172,6 +173,39 @@ export function switchProfile(id) {
   applyProfileToState(profile);
   log(`Profil „${profile.name}" aktiviert.`, "success");
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// F3: auto-load a profile when the Coyote connects.
+// ---------------------------------------------------------------------------
+
+/** @returns {string} assigned profile id or "" */
+export function getAssignedProfileId() {
+  try {
+    return localStorage.getItem(ASSIGNED_PROFILE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+/** Assign (or clear with "") the profile that loads automatically on connect. */
+export function setAssignedProfileId(id) {
+  try {
+    if (id) localStorage.setItem(ASSIGNED_PROFILE_KEY, String(id));
+    else localStorage.removeItem(ASSIGNED_PROFILE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Called on BLE connect: applies the assigned profile if one is set. */
+export function maybeAutoLoadAssignedProfile() {
+  const id = getAssignedProfileId();
+  if (!id) return;
+  const data = loadProfiles();
+  if (!data.profiles[id]) return;
+  if (data.active === id) return; // already active
+  switchProfile(id);
 }
 
 /**

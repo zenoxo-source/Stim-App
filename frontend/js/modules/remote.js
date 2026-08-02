@@ -77,7 +77,14 @@ const REMOTE_COMMANDS = {
   },
 
   set_preset: (msg) => {
-    const name = String(msg.name || "").toLowerCase();
+    const name = String(msg.name || "")
+      .toLowerCase()
+      .trim();
+    // Validate before interpolating into a CSS selector (selector injection
+    // guard — a crafted name could otherwise throw or match the wrong node).
+    if (!/^[a-z0-9_-]+$/.test(name)) {
+      return { ok: false, error: `preset not found: ${name}` };
+    }
     const btn = document.querySelector(`.preset-btn[data-preset="${name}"]`);
     if (btn) {
       btn.click();

@@ -58,16 +58,28 @@ function renderPlaylist() {
     el.innerHTML = "";
     return;
   }
-  el.innerHTML = list
-    .map((t, i) => {
-      const active = i === AppState.playlistIndex ? "active" : "";
-      const safe = ProtocolUtils.escapeHtml(t.name);
-      return `<div class="stim-playlist-item ${active}" data-index="${i}">
-        <span class="pl-name">${i + 1}. ${safe}</span>
+  // F2: total duration of all tracks (known durations only).
+  const known = list.filter((t) => Number.isFinite(t.duration));
+  const totalSec = known.reduce((sum, t) => sum + t.duration, 0);
+  const totalLine =
+    known.length > 0
+      ? `<div style="font-size:11px;opacity:0.65;padding:4px 2px;">${list.length} Tracks · Gesamt ${formatTime(totalSec)}</div>`
+      : "";
+  el.innerHTML =
+    totalLine +
+    list
+      .map((t, i) => {
+        const active = i === AppState.playlistIndex ? "active" : "";
+        const safe = ProtocolUtils.escapeHtml(t.name);
+        const dur = Number.isFinite(t.duration)
+          ? ` <span style="opacity:0.5;">${formatTime(t.duration)}</span>`
+          : "";
+        return `<div class="stim-playlist-item ${active}" data-index="${i}">
+        <span class="pl-name">${i + 1}. ${safe}${dur}</span>
         <button type="button" class="pl-remove" data-remove="${i}" title="Entfernen">×</button>
       </div>`;
-    })
-    .join("");
+      })
+      .join("");
 
   el.querySelectorAll(".stim-playlist-item").forEach((row) => {
     row.addEventListener("click", (e) => {
@@ -132,6 +144,11 @@ function loadPlaylistIndex(idx, autoplay = false) {
 
   AppState.audioElement.onloadedmetadata = () => {
     log(`STIM geladen: ${track.name}`, "success");
+    // F2: remember duration for the playlist total.
+    if (Number.isFinite(AppState.audioElement.duration)) {
+      track.duration = AppState.audioElement.duration;
+    }
+    renderPlaylist();
     if (DOM["audio-panel"]) {
       DOM["audio-panel"].style.opacity = "1";
       DOM["audio-panel"].style.pointerEvents = "all";

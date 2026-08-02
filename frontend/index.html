@@ -437,6 +437,9 @@
                 <select id="autodrive-placement" class="select-control" style="display:none" aria-hidden="true"></select>
                 <div class="ad-wizard-nav">
                   <span class="ad-wizard-hint">Setup ok? → Session wählen</span>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-ad-setup-export" title="Autodrive-Setup als JSON exportieren">⭳ Setup</button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-ad-setup-import" title="Autodrive-Setup aus JSON importieren">⭱ Setup</button>
+                  <input type="file" id="input-ad-setup-import" accept="application/json,.json" style="display:none;">
                   <button type="button" class="btn btn-autodrive-go" id="ad-wiz-next-setup">Weiter · Session →</button>
                 </div>
               </div>
@@ -633,6 +636,13 @@
           <button type="button" id="ad-fs-pause" class="btn btn-secondary">Pause</button>
           <button type="button" id="ad-fs-resume" class="btn btn-secondary" data-i18n="onboarding_next">Weiter</button>
           <button type="button" id="ad-fs-stop" class="btn btn-danger">Stop</button>
+        </div>
+        <div id="ad-fs-climax" class="ad-fs-climax" style="display:none;" aria-live="polite">
+          <div class="ad-fs-climax-inner">
+            <div class="ad-fs-climax-emoji">🎉</div>
+            <div class="ad-fs-climax-title">Ziel erreicht</div>
+            <div class="ad-fs-climax-sub">Genieß den Moment — Aftercare kommt gleich.</div>
+          </div>
         </div>
       </div>
 
@@ -1986,6 +1996,14 @@
                   <input type="text" id="profile-new-name" placeholder="Profil-Name" data-i18n-placeholder="profile_name_ph" style="flex: 1; min-width: 180px;">
                   <button type="button" id="btn-profile-create" class="btn btn-sm" data-i18n="profile_create">Erstellen</button>
                   <button type="button" id="btn-profile-cancel" class="btn btn-secondary btn-sm" data-i18n="profile_cancel">Abbrechen</button>
+                </div>
+                <div class="profile-row" style="margin-top: 8px; font-size: 12px; align-items: center;">
+                  <label for="profile-auto-load" style="display:flex; align-items:center; gap:6px; flex:1;">
+                    <span>Bei Verbindung laden:</span>
+                    <select id="profile-auto-load" style="flex: 1; min-width: 160px;" aria-label="Profil bei Verbindung laden">
+                      <option value="">— keines —</option>
+                    </select>
+                  </label>
                 </div>
               </div>
             </div>

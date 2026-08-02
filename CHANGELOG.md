@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.6.0 — Climax-Overlay, Setup-Export & Profil-Auto-Load
+
+### Neu: Autodrive
+- **Climax-Celebration-Overlay** im Fullscreen: bei „abgespritzt"-Markierung 🎉-Screen mit animiertem Titel + 40 CSS-Konfetti-Teilchen (Auto-Hide nach 4 s)
+- **Setup Export/Import (JSON):** Wizard-Konfiguration (Template, Placement, Limits, Wiring, Balance) teilen & wiederherstellen; Import validiert und aktualisiert den Wizard live
+
+### Neu: Profile & Playlist & Stats
+- **Profil-Auto-Load bei Verbindung:** zugewiesenes Profil wird beim BLE-Connect automatisch aktiviert (Auswahl im Profil-Manager, persistiert)
+- **Playlist-Gesamtdauer:** „N Tracks · Gesamt M:SS" + Dauer je Track (wird beim Laden gemerkt)
+- **Stats: Heute & Streak:** „Heute: X · Serie: Y Tage" über der 7-Tage-Übersicht
+
+### Sicherheit
+- **Härtung:** `set_preset` validiert den Remote-Namen jetzt per Regex, bevor er in einen CSS-Selector interpoliert wird (Selector-Injection-Guard)
+- Audit Readiness-/Timeline-Labels, Code-Snippets, Sinks — keine weiteren Funde
+
+### Tests
+- 648 Tests grün, Lint sauber
+
+
 ## 4.5.0 — Session-Queue, Undo/Redo & Battery-Alarm
 
 ### Neu: Session-Queue 📋

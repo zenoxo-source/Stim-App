@@ -5,6 +5,7 @@ import * as ProtocolUtils from "../lib/protocol-utils.js";
 import { updateAIDashboard, startWaveLoop, stopWaveLoop } from "../control-deck.js";
 import { updateOutputStatus } from "./status-ui.js";
 import { trackStat, recordBatterySample } from "./stats.js";
+import { maybeAutoLoadAssignedProfile } from "./profiles.js";
 import { unlockAchievement } from "./fun.js";
 import {
   blockDuringPanicCooldown,
@@ -960,6 +961,12 @@ function wireConnectButton() {
       trackStat("connection");
       log("Erfolgreich mit Coyote 3.0 verbunden!", "success");
       unlockAchievement("first_connect");
+      // F3: auto-load the assigned profile on connect.
+      try {
+        maybeAutoLoadAssignedProfile();
+      } catch {
+        /* optional */
+      }
       setReconnectStatus("");
       setDeviceListHint([AppState.device?.name || "Coyote 3.0 · verbunden"]);
 

@@ -17,6 +17,8 @@ import {
   renameProfile,
   updateActiveProfile,
   getActiveProfile,
+  getAssignedProfileId,
+  setAssignedProfileId,
 } from "./profiles.js";
 
 // ---------------------------------------------------------------------------
@@ -114,6 +116,19 @@ function renderProfileSelect() {
         `<option value="${p.id}"${p.id === activeId ? " selected" : ""}>${escapeHtml(p.name)}</option>`
     )
     .join("");
+  // F3: keep the auto-load select in sync.
+  const auto = document.getElementById("profile-auto-load");
+  if (auto) {
+    const assigned = getAssignedProfileId();
+    auto.innerHTML =
+      `<option value="">— keines —</option>` +
+      Object.values(data.profiles)
+        .map(
+          (p) =>
+            `<option value="${p.id}"${p.id === assigned ? " selected" : ""}>${escapeHtml(p.name)}</option>`
+        )
+        .join("");
+  }
 }
 
 function escapeHtml(s) {
@@ -184,6 +199,17 @@ document.addEventListener("DOMContentLoaded", () => {
   renderHotkeyList();
   renderProfileSelect();
   bindProfileButtons();
+
+  // F3: assign the auto-load profile (saved immediately, applied on connect).
+  document.getElementById("profile-auto-load")?.addEventListener("change", (e) => {
+    setAssignedProfileId(e.target.value);
+    log(
+      e.target.value
+        ? `Profil-Auto-Load: „${e.target.options[e.target.selectedIndex].text}" zugewiesen.`
+        : "Profil-Auto-Load deaktiviert.",
+      "info"
+    );
+  });
 
   document.getElementById("btn-hotkey-reset")?.addEventListener("click", () => {
     if (confirm("Alle Hotkeys zurücksetzen?")) {

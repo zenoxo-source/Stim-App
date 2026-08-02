@@ -792,6 +792,51 @@ export function getAutodriveStatsSummary() {
   };
 }
 
+// ---------------------------------------------------------------------------
+// F4: Autodrive setup export / import (share + restore wizard state).
+// ---------------------------------------------------------------------------
+
+/** Download the current Autodrive wizard config as JSON. */
+export function exportAutodriveSetup() {
+  const payload = {
+    app: "StimApp",
+    type: "autodrive-setup",
+    version: 1,
+    config: loadAutodriveConfig(),
+    exportedAt: new Date().toISOString(),
+  };
+  try {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `autodrive-setup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+/** Import + validate an Autodrive setup JSON file. */
+export async function importAutodriveSetup(file) {
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data || data.type !== "autodrive-setup" || !data.config) {
+      return { ok: false, error: "Keine gültige Autodrive-Setup-Datei." };
+    }
+    const cfg = sanitiseAutodriveConfig({ ...loadAutodriveConfig(), ...data.config });
+    saveAutodriveConfig(cfg);
+    return { ok: true, config: cfg };
+  } catch (err) {
+    return { ok: false, error: `Import fehlgeschlagen: ${err.message}` };
+  }
+}
+
 /**
  * @param {string} feedback
  */
@@ -818,6 +863,14 @@ export function injectFeedback(feedback) {
   if (engineState.phase !== before) {
     log(`Autodrive: ${getPhaseLabel(before)} → ${getPhaseLabel(engineState.phase)}`, "info");
     lastLoggedPhase = engineState.phase;
+  }
+  // F1: celebration overlay when the user marks the climax.
+  if (feedback === "climaxed") {
+    try {
+      window.dispatchEvent(new CustomEvent("stim:autodrive-climax"));
+    } catch {
+      /* optional */
+    }
   }
   notifyUi();
 }

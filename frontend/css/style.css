@@ -3112,6 +3112,59 @@ textarea.text-input { resize: vertical; min-height: 100px; }
   outline: 2px solid var(--accent-purple, #d7b4f3);
   outline-offset: 1px;
 }
+/* F1: climax celebration overlay (fullscreen autodrive) */
+.ad-fs-climax {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+.ad-fs-climax-inner {
+  text-align: center;
+  animation: climax-pop 0.6s ease-out;
+}
+.ad-fs-climax-emoji {
+  font-size: clamp(60px, 12vw, 110px);
+  animation: climax-bounce 1.2s ease-in-out infinite;
+}
+.ad-fs-climax-title {
+  font-size: clamp(28px, 6vw, 48px);
+  font-weight: 800;
+  margin-top: 8px;
+  background: linear-gradient(90deg, #f92672, #fd971f, #a6e22e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ad-fs-climax-sub {
+  font-size: 14px;
+  opacity: 0.75;
+  margin-top: 6px;
+}
+@keyframes climax-pop {
+  0% { transform: scale(0.3); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes climax-bounce {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-14px) rotate(4deg); }
+}
+.ad-confetti {
+  position: absolute;
+  top: -16px;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  z-index: 51;
+  animation: confetti-fall linear forwards;
+}
+@keyframes confetti-fall {
+  to { transform: translateY(115vh) rotate(720deg); opacity: 0.85; }
+}
 .ad-fs-bars { display: flex; flex-direction: column; gap: 8px; }
 .autodrive-bar-track.tall { height: 14px; }
 .ad-fs-tip {

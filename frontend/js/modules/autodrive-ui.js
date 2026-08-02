@@ -22,6 +22,8 @@ import {
   getLastSessionSnapshot,
   loadSessionHistory,
   applyDebrief,
+  exportAutodriveSetup,
+  importAutodriveSetup,
   getSoftLimitCoachMessage,
   clearSoftLimitCoach,
   getAutodriveStatsSummary,
@@ -116,6 +118,29 @@ function paintTimeline(st) {
     return `<div class="${cls}">${step.label}</div>`;
   }).join("");
 }
+
+// F1: climax celebration overlay (confetti + auto-hide).
+function showClimaxOverlay() {
+  const el = document.getElementById("ad-fs-climax");
+  if (!el) return;
+  el.querySelectorAll(".ad-confetti").forEach((c) => c.remove());
+  const colors = ["#f92672", "#a6e22e", "#5ab3ff", "#d7b4f3", "#fd971f", "#e6db74"];
+  for (let i = 0; i < 40; i++) {
+    const c = document.createElement("span");
+    c.className = "ad-confetti";
+    c.style.left = Math.random() * 100 + "%";
+    c.style.background = colors[i % colors.length];
+    c.style.animationDuration = 2 + Math.random() * 2 + "s";
+    c.style.animationDelay = Math.random() * 0.6 + "s";
+    el.appendChild(c);
+  }
+  el.style.display = "flex";
+  clearTimeout(showClimaxOverlay.timer);
+  showClimaxOverlay.timer = setTimeout(() => {
+    el.style.display = "none";
+  }, 4000);
+}
+window.addEventListener("stim:autodrive-climax", showClimaxOverlay);
 
 function paintDashboard(st) {
   const badge = document.getElementById("autodrive-running-badge");
@@ -1348,6 +1373,35 @@ document.addEventListener("DOMContentLoaded", () => {
     const r = startLastSession();
     closeDebrief();
     handleStartResult(r, true);
+  });
+
+  // F4: Autodrive setup export/import.
+  document.getElementById("btn-ad-setup-export")?.addEventListener("click", () => {
+    const r = exportAutodriveSetup();
+    if (!r.ok) setStatusMsg(`Export fehlgeschlagen: ${r.error}`, true);
+    else setStatusMsg("Setup exportiert (JSON).", false);
+  });
+  document.getElementById("btn-ad-setup-import")?.addEventListener("click", () => {
+    document.getElementById("input-ad-setup-import")?.click();
+  });
+  document.getElementById("input-ad-setup-import")?.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const r = await importAutodriveSetup(file);
+      if (r.ok) {
+        setStatusMsg("Setup importiert — Wizard aktualisiert.", false);
+        // Rebuild wizard UI from the imported config.
+        const cfg = loadAutodriveConfig();
+        const sel = document.getElementById("autodrive-template");
+        if (sel) sel.value = cfg.templateId || "classic";
+        buildTemplateGrid(cfg.templateId || "classic");
+        applySetupPreset(cfg.setupPresetId || "");
+        paintDashboard(getAutodriveState());
+      } else {
+        setStatusMsg(r.error || "Import fehlgeschlagen", true);
+      }
+    }
+    e.target.value = "";
   });
 
   // Keyboard during fullscreen / autodrive
