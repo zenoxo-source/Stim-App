@@ -1,5 +1,11 @@
 # Changelog
 
+## 5.1.1 — macOS-Build-Fix
+
+- `build/icon.png` auf 1024×1024 skaliert (electron-builder verlangt ≥512 px für DMG/App-Icon — der macOS-Build war seit v4.4.0 rot); `icon-512.png` ergänzt
+- Windows/Linux-Builds unverändert
+
+
 ## 5.1.0 — Gefühl: Wellenform-Shaping 2.0, Climax-Kurven, Melodie-Tracking & Beat
 
 ### Das Signal selbst (Wellenform-Shaping 2.0)
