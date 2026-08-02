@@ -1,6 +1,9 @@
 // autodrive-engine.js — Adaptive Autodrive with sensation plane (freq/duty/channel),
 // edge-score, calibration baseline, multi-wave climax, placement profiles.
 
+// v5.1: climax curve model (accelerating freq ramp + amplitude staircase).
+import { CLIMAX_CURVES, climaxCurveStep } from "./wire-shaping.js";
+
 /** @typedef {"IDLE"|"CALIBRATING"|"WARMUP"|"BUILD"|"TEASE"|"EDGE_HOLD"|"SURGE"|"CLIMAX_PUSH"|"AFTERCARE"|"COOLDOWN"|"PAUSED"} AutodrivePhase */
 /** @typedef {"direct"|"edge_then_release"|"edge_ladder"|"deny_then_release"|"hfo"} AutodriveGoal */
 /** @typedef {"too_weak"|"good"|"too_strong"|"almost"|"now"|"climaxed"|"not_yet"} AutodriveFeedback */
@@ -70,6 +73,8 @@ export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
   climaxTarget: 1,
   /** Heart-rate biofeedback: HR rise → auto "almost", HR drop → "good". */
   hrAdaptive: false,
+  /** v5.1 climax curve model: "none"|"kurz"|"standard"|"verzoegert". */
+  climaxCurve: "none",
 });
 
 const SENSITIVITY_SCALE = Object.freeze({
@@ -404,6 +409,12 @@ export function sanitiseAutodriveConfig(input) {
     if (Number.isFinite(n)) base.climaxTarget = Math.round(clamp(n, 1, 3));
   }
   if (typeof raw.hrAdaptive === "boolean") base.hrAdaptive = raw.hrAdaptive;
+  if (
+    typeof raw.climaxCurve === "string" &&
+    ["none", "kurz", "standard", "verzoegert"].includes(raw.climaxCurve)
+  ) {
+    base.climaxCurve = raw.climaxCurve;
+  }
   if (typeof raw.templateId === "string" && AUTODRIVE_TEMPLATES[raw.templateId]) {
     const tpl = AUTODRIVE_TEMPLATES[raw.templateId];
     if (typeof tpl.freqFullBand === "boolean") base.freqFullBand = tpl.freqFullBand;
@@ -1085,7 +1096,7 @@ function phaseProgressOf(state, nowMs) {
   return clamp((nowMs - start) / span, 0, 1);
 }
 
-function phaseBaseline(phase, pp, state) {
+function phaseBaseline(phase, pp, state, nowMs) {
   const aggro = state.config.aggression ?? 1;
   const base = state.sessionBaseline || 0.12;
   // Scale classic envelopes around session baseline
@@ -1113,6 +1124,15 @@ function phaseBaseline(phase, pp, state) {
       return (0.68 + 0.22 * crest * aggro) * scale;
     }
     case "CLIMAX_PUSH": {
+      // v5.1 climax curve model: accelerating freq ramp + amplitude staircase.
+      if (state.config?.climaxCurve && state.config.climaxCurve !== "none") {
+        const curve = CLIMAX_CURVES[state.config.climaxCurve];
+        if (curve) {
+          const elapsed = Math.max(0, (nowMs || Date.now()) - (state.phaseStartedAt || 0));
+          const c = climaxCurveStep(curve, elapsed);
+          return clamp(c.amp * (0.9 + 0.1 * pp) * aggro * scale, 0.72, 1);
+        }
+      }
       const t = state.loopCounter || 0;
       const wave = Math.pow(0.55 + 0.45 * Math.sin(t * 0.15), 1.2);
       const escalate = 0.82 + 0.18 * pp;
@@ -1182,7 +1202,7 @@ function applyEdgeCadence(s, now) {
 
 function applyAdaptiveEnvelope(s, now) {
   const pp = phaseProgressOf(s, now);
-  const baseline = phaseBaseline(s.phase, pp, s);
+  const baseline = phaseBaseline(s.phase, pp, s, now);
   const bias = s.feedbackBias || 0;
   let target = clamp(baseline + bias, s.comfortFloor || 0.08, s.comfortCeiling || 0.95);
 
@@ -1267,10 +1287,21 @@ function applySensationPlane(s, now) {
   }
   // Push: climb toward high
   if (s.phase === "CLIMAX_PUSH") {
-    freqTarget =
-      (full ? fb.lo : band.lo) +
-      ((full ? fb.hi : band.hi) - (full ? fb.lo : band.lo)) * Math.min(1, pp * 1.2) +
-      placeBias * (full ? 2 : 1);
+    if (
+      s.config.climaxCurve &&
+      s.config.climaxCurve !== "none" &&
+      CLIMAX_CURVES[s.config.climaxCurve]
+    ) {
+      // v5.1 climax curve model: accelerating frequency ramp.
+      const curve = CLIMAX_CURVES[s.config.climaxCurve];
+      const elapsed = Math.max(0, (now || Date.now()) - (s.phaseStartedAt || 0));
+      freqTarget = climaxCurveStep(curve, elapsed).f + placeBias * (full ? 2 : 1);
+    } else {
+      freqTarget =
+        (full ? fb.lo : band.lo) +
+        ((full ? fb.hi : band.hi) - (full ? fb.lo : band.lo)) * Math.min(1, pp * 1.2) +
+        placeBias * (full ? 2 : 1);
+    }
   }
 
   let duty = PHASE_DUTY[s.phase] ?? 0.7;

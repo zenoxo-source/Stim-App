@@ -831,6 +831,7 @@ function collectConfigFromUi() {
   if (setup.wiringMode === "single_channel_2") abRole = "sync";
   const fullscreenPreferred = !!document.getElementById("autodrive-fullscreen-pref")?.checked;
   const hybridAudio = !!document.getElementById("autodrive-hybrid")?.checked;
+  const climaxCurve = document.getElementById("ad-climax-curve")?.value || "none";
 
   const presetId =
     document.querySelector(".ad-preset-chip.active")?.getAttribute("data-setup-preset") || null;
@@ -856,6 +857,7 @@ function collectConfigFromUi() {
     abRole,
     fullscreenPreferred,
     hybridAudio,
+    climaxCurve,
     ...setup,
     setupPresetId: presetId,
     ...(typeof climaxPriority === "boolean" ? { climaxPriority } : {}),
@@ -1573,6 +1575,12 @@ document.addEventListener("DOMContentLoaded", () => {
     hrBox?.addEventListener("change", () => {
       saveAutodriveConfig({ hrAdaptive: hrBox.checked });
       log(`Biofeedback (HR): ${hrBox.checked ? "Aktiv" : "Inaktiv"}.`, "info");
+    });
+    const cc = document.getElementById("ad-climax-curve");
+    if (cc && cfg.climaxCurve) cc.value = cfg.climaxCurve;
+    cc?.addEventListener("change", () => {
+      saveAutodriveConfig({ climaxCurve: cc.value });
+      log(`Climax-Kurve: ${cc.value}.`, "info");
     });
   } catch (err) {
     console.warn("autodrive UI init", err);

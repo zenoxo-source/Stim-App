@@ -3,11 +3,15 @@
 
 import { AppState } from "../state.js";
 import * as ProtocolUtils from "../lib/protocol-utils.js";
+import { pitchFromBuffer, melodyToWireFreq } from "../lib/wire-shaping.js";
 
 const STIM_CFG_KEY = "stim_app_stim_player_v1";
 
-/** @typedef {"spectrum"|"fixed"|"with_intensity"|"inverse_intensity"} StimFreqMode */
+/** @typedef {"spectrum"|"fixed"|"with_intensity"|"inverse_intensity"|"melody"} StimFreqMode */
 /** @typedef {"stereo"|"mono_l"|"mono_r"|"mono_sum"} StimChannelMode */
+
+// v5.1 melody tracking state (smoothed pitch per channel).
+const melodySmooth = { a: null, b: null };
 
 /** Named audio mapping presets (XToys-style quick configs). */
 export const STIM_AUDIO_PRESETS = Object.freeze({
@@ -167,7 +171,7 @@ export function sanitiseStimConfig(input) {
   if (typeof input.repeatOne === "boolean") d.repeatOne = input.repeatOne;
   if (typeof input.multiband === "boolean") d.multiband = input.multiband;
   const fm = String(input.freqMode || "");
-  if (["spectrum", "fixed", "with_intensity", "inverse_intensity"].includes(fm)) {
+  if (["spectrum", "fixed", "with_intensity", "inverse_intensity", "melody"].includes(fm)) {
     d.freqMode = /** @type {StimFreqMode} */ (fm);
   }
   const cm = String(input.channelMode || "");
@@ -337,6 +341,25 @@ function ema(prev, next, smooth) {
 }
 
 /**
+ * v5.1: read the dominant pitch from the dedicated pitch analyser and smooth
+ * it with a running EMA. Falls back to null when confidence is low.
+ * @param {AnalyserNode} analyser
+ * @param {"a"|"b"} ch
+ * @returns {number|null} pitch in Hz
+ */
+function readMelodyPitch(analyser, ch) {
+  if (!analyser || typeof analyser.getByteTimeDomainData !== "function") return null;
+  const buf = new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(buf);
+  const raw = pitchFromBuffer(buf, AppState.audioCtx ? AppState.audioCtx.sampleRate : 44100);
+  if (raw == null) return null;
+  const prev = melodySmooth[ch];
+  const next = prev == null ? raw : ema(prev, raw, 0.4);
+  melodySmooth[ch] = next;
+  return next;
+}
+
+/**
  * Core audio→stim frame. Call from wave loop while isAudioPlaying.
  * @param {AnalyserNode} analyserA
  * @param {AnalyserNode} analyserB
@@ -402,6 +425,11 @@ export function processAudioToStim(analyserA, analyserB, cfg) {
   } else if (c.freqMode === "inverse_intensity") {
     fA = mapFreqFromIntensity(peakA, c, true);
     fB = mapFreqFromIntensity(peakB, c, true);
+  } else if (c.freqMode === "melody") {
+    // v5.1: the stim follows the melody (dominant pitch → wire frequency).
+    const pitch = readMelodyPitch(AppState.pitchAnalyser, "a");
+    fA = pitch != null ? melodyToWireFreq(pitch, c) : c.freqFixed || 45;
+    fB = fA;
   }
 
   // Strength mapping (relative to soft limits as hard ceiling)

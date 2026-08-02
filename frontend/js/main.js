@@ -131,6 +131,9 @@ import "./modules/heart-rate.js";
 // Buttplug.io bridge (external clients → intensity)
 import "./modules/buttplug.js";
 
+// v5.1: 25 ms fast wire path (pulse shapes, dither, detune, beat sequencer)
+import "./modules/fast-wire.js";
+
 // Session UX: readiness, chrome, stories, partner, shock, export
 import "./modules/session-readiness.js";
 import "./modules/session-chrome.js";

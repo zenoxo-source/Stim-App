@@ -502,6 +502,15 @@
                   <label><input type="checkbox" id="autodrive-auto-climb" checked /> Auto-Climb</label>
                   <label><input type="checkbox" id="autodrive-fullscreen-pref" checked /> Fullscreen bei Start</label>
                   <label><input type="checkbox" id="autodrive-hybrid" /> Hybrid: STIM-Audio für Wave</label>
+                  <label style="display:flex;align-items:center;gap:8px;">
+                    Climax-Kurve
+                    <select id="ad-climax-curve" class="select-control" style="width:150px;">
+                      <option value="none">Klassisch (Patterns)</option>
+                      <option value="kurz">Kurz (60 s Rampe)</option>
+                      <option value="standard">Standard (90 s Rampe)</option>
+                      <option value="verzoegert">Verzögert (150 s Rampe)</option>
+                    </select>
+                  </label>
                 </div>
                 <details class="autodrive-safety-details">
                   <summary>ESTIM-Sicherheit</summary>
@@ -1185,6 +1194,7 @@
                 <label class="field-label" for="stim-freq-mode">Frequenz-Modus</label>
                 <select id="stim-freq-mode" class="select-control">
                   <option value="spectrum">Spektrum (Audio-Pitch)</option>
+                  <option value="melody">🎵 Melodie (Tonhöhe folgen)</option>
                   <option value="with_intensity">Mit Intensität (↑Freq↑Power)</option>
                   <option value="inverse_intensity">Inverse Intensität</option>
                   <option value="fixed">Fest</option>
@@ -2385,6 +2395,97 @@
                 <div style="display:flex; align-items:center; gap:10px;">
                   <button type="button" id="btn-hr-connect" class="btn btn-sm">📡 HR-Gurt verbinden</button>
                   <span id="hr-status" style="font-size:12px; opacity:0.75;">Getrennt</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- v5.1: Signal & Gefühl (Wellenform-Shaping 2.0) -->
+            <div class="card">
+              <div class="card-title">🎛️ Signal &amp; Gefühl (Shaping 2.0)</div>
+              <div class="channel-box" style="gap:10px; flex-direction:column; align-items:stretch;">
+                <p style="font-size:12px; color: var(--text-muted); margin:0;">
+                  Mikro-Envelopes gegen Habituation, Puls-Formen, Detune-Beats und
+                  sanfte Übergänge — das Signal selbst wird geformt (25-ms-Pfad).
+                </p>
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                  <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
+                    <input type="checkbox" id="ws-fast" /> Fast-Wire (25 ms)
+                  </label>
+                  <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
+                    Dithering
+                    <select id="ws-dither" class="select-control" style="width:90px;">
+                      <option value="0">Aus</option>
+                      <option value="0.5">0,5 %</option>
+                      <option value="1">1 %</option>
+                      <option value="2">2 %</option>
+                    </select>
+                  </label>
+                  <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
+                    Detune
+                    <select id="ws-detune" class="select-control" style="width:90px;">
+                      <option value="0">Aus</option>
+                      <option value="2">2 Hz</option>
+                      <option value="3">3 Hz</option>
+                      <option value="4">4 Hz</option>
+                      <option value="6">6 Hz</option>
+                    </select>
+                  </label>
+                  <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
+                    Crossfade
+                    <select id="ws-crossfade" class="select-control" style="width:110px;">
+                      <option value="0">Aus</option>
+                      <option value="2000">2 s</option>
+                      <option value="3000">3 s</option>
+                      <option value="5000">5 s</option>
+                    </select>
+                  </label>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                  <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
+                    Puls-Form A
+                    <select id="ws-shape-a" class="select-control" style="width:110px;">
+                      <option value="none">Aus</option>
+                      <option value="hard">Hart (stechend)</option>
+                      <option value="soft">Weich (massierend)</option>
+                      <option value="throb">Throb</option>
+                    </select>
+                  </label>
+                  <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
+                    Puls-Form B
+                    <select id="ws-shape-b" class="select-control" style="width:110px;">
+                      <option value="none">Aus</option>
+                      <option value="hard">Hart (stechend)</option>
+                      <option value="soft">Weich (massierend)</option>
+                      <option value="throb">Throb</option>
+                    </select>
+                  </label>
+                </div>
+                <div style="border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
+                  <label style="font-size:13px; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                    <input type="checkbox" id="ws-beat" /> Beat-Sequencer (Rhythmus über BPM)
+                  </label>
+                  <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <button type="button" id="btn-beat-tap" class="btn btn-sm">TAP BPM</button>
+                    <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
+                      <input type="number" id="ws-beat-bpm" class="text-input" min="40" max="240" value="120" style="width:70px;">
+                      <span id="beat-bpm-label">120 BPM</span>
+                    </label>
+                    <select id="ws-beat-pattern" class="select-control" style="width:130px;">
+                      <option value="throb">Throb</option>
+                      <option value="double">Double</option>
+                      <option value="gallop">Galopp</option>
+                      <option value="heartbeat">Herzschlag</option>
+                      <option value="strobe">Strobe</option>
+                      <option value="staircase">Treppe</option>
+                    </select>
+                    <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
+                      Stärke
+                      <input type="number" id="ws-beat-baseamp" class="text-input" min="20" max="100" value="70" style="width:60px;">
+                    </label>
+                  </div>
+                </div>
+                <div id="wire-metrics" style="font-size:12px; opacity:0.75; border-top:1px solid rgba(255,255,255,0.08); padding-top:8px;">
+                  Fast-Wire: aus
                 </div>
               </div>
             </div>

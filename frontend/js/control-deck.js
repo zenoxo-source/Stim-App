@@ -113,6 +113,15 @@ function drawStimOutputHistory() {
 import { computeNamedPatternWave } from "./lib/pattern-engine.js";
 export { computeNamedPatternWave };
 
+// v5.1: 25 ms fast wire path (shaping/beat) — the wave loop stores the base
+// step instead of sending while the fast path owns the wire.
+import {
+  isFastWireActive,
+  setShapingBase,
+  syncFastWire,
+  stopFastWire,
+} from "./modules/fast-wire.js";
+
 // ==========================================
 // WAVE LOOP - Central playback engine
 // ==========================================
@@ -124,6 +133,9 @@ export function startWaveLoop() {
     AppState.aiVisRunning = true;
     renderAIVisualizer();
   }
+
+  // v5.1: let the fast path take over immediately when enabled.
+  syncFastWire();
 
   // Coyote V3: B0 every ~100ms while outputting. Idle 500ms only when silent
   // (no strength / no wave / no pattern) — otherwise manual strength "dies"
@@ -182,6 +194,16 @@ export function startWaveLoop() {
     AppState.loopTimeCounter += 1;
     updateHeartbeat();
 
+    // v5.1: while the fast path owns the wire, route base steps to it.
+    const routeWave = (fA, aA, fB, aB, opts, stamp) => {
+      if (isFastWireActive()) {
+        setShapingBase({ fA, aA, fB, aB }, stamp);
+        return Promise.resolve();
+      }
+      return sendWaveformCommand(fA, aA, fB, aB, opts);
+    };
+    const adStamp = () => "ad:" + (getAutodriveState()?.phase || "IDLE");
+
     if (AppState.activePattern === "autodrive") {
       const hybridOn =
         !!getAutodriveState()?.config?.hybridAudio &&
@@ -201,18 +223,17 @@ export function startWaveLoop() {
           AppState.lastWaveAmpA = audio.aA;
           AppState.lastWaveFreqB = audio.fB;
           AppState.lastWaveAmpB = audio.aB;
-          await sendWaveformCommand(
+          await routeWave(
             audio.fA,
             audio.aA,
             audio.fB,
             audio.aB,
-            opts || {
-              writer: "wave-loop",
-            }
+            opts || { writer: "wave-loop" },
+            "ad:audio"
           );
           return;
         }
-        await sendWaveformCommand(fA, aA, fB, aB, opts || { writer: "wave-loop" });
+        await routeWave(fA, aA, fB, aB, opts || { writer: "wave-loop" }, adStamp());
       }, computeNamedPatternWave);
     } else if (AppState.activePattern === "session") {
       const tick = SESSION_STATE.computeTick();
@@ -221,7 +242,7 @@ export function startWaveLoop() {
         AppState.lastWaveAmpA = tick.aA;
         AppState.lastWaveFreqB = tick.fB;
         AppState.lastWaveAmpB = tick.aB;
-        await sendWaveformCommand(tick.fA, tick.aA, tick.fB, tick.aB, { writer: "wave-loop" });
+        await routeWave(tick.fA, tick.aA, tick.fB, tick.aB, { writer: "wave-loop" }, "session");
         updateSessionUI();
       }
     } else if (AppState.activePattern) {
@@ -394,11 +415,14 @@ export function startWaveLoop() {
       const pid =
         AppState.activePattern === CONSTANTS.PATTERNS.AI_CUSTOM ? null : AppState.activePattern;
       const slots = microSlots(pid, AppState.loopTimeCounter, computeNamedPatternWave, fA, fB);
-      await sendWaveformCommand(fA, aA, fB, aB, {
-        writer: "wave-loop",
-        slotsA: slots?.A,
-        slotsB: slots?.B,
-      });
+      await routeWave(
+        fA,
+        aA,
+        fB,
+        aB,
+        { writer: "wave-loop", slotsA: slots?.A, slotsB: slots?.B },
+        String(AppState.activePattern)
+      );
     } else if (AppState.isAudioPlaying && AppState.analyserA && AppState.analyserB) {
       const cfg = loadStimConfig();
       // Keep sensitivity sliders in sync with config if present
@@ -426,7 +450,7 @@ export function startWaveLoop() {
           DOM["intensity-circle-b"].textContent = String(out.strengthB);
       }
 
-      await sendWaveformCommand(out.fA, out.aA, out.fB, out.aB, { writer: "wave-loop" });
+      await routeWave(out.fA, out.aA, out.fB, out.aB, { writer: "wave-loop" }, "audio");
 
       if (DOM["visualizer-val-a"]) {
         DOM["visualizer-val-a"].textContent = `${out.aA}% · str ${out.strengthA} · f${out.fA}`;
@@ -459,9 +483,16 @@ export function startWaveLoop() {
       // Mini-games own their waveform output
     } else {
       // Idle: constant output at user frequency (owner none).
-      await sendWaveformCommand(AppState.frequencyA, 100, AppState.frequencyB, 100, {
-        writer: "wave-loop",
-      });
+      await routeWave(
+        AppState.frequencyA,
+        100,
+        AppState.frequencyB,
+        100,
+        {
+          writer: "wave-loop",
+        },
+        "idle"
+      );
     }
 
     // Capture tick for session recorder (Fix 7)
@@ -482,6 +513,7 @@ export function startWaveLoop() {
 }
 
 export function stopWaveLoop() {
+  stopFastWire();
   if (AppState.waveLoopInterval) {
     clearTimeout(AppState.waveLoopInterval);
     AppState.waveLoopInterval = null;

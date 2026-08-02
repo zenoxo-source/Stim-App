@@ -245,10 +245,15 @@ function playSTIMAudio() {
     AppState.analyserA.fftSize = CONSTANTS.ANALYZER_FFT_SIZE;
     AppState.analyserB.fftSize = CONSTANTS.ANALYZER_FFT_SIZE;
 
+    // v5.1 melody tracking: dedicated high-resolution analyser for pitch.
+    AppState.pitchAnalyser = AppState.audioCtx.createAnalyser();
+    AppState.pitchAnalyser.fftSize = 1024;
+
     AppState.audioSplitterNode = AppState.audioCtx.createChannelSplitter(2);
     AppState.mediaElementSource.connect(AppState.audioSplitterNode);
     AppState.audioSplitterNode.connect(AppState.analyserA, 0);
     AppState.audioSplitterNode.connect(AppState.analyserB, 1);
+    AppState.audioSplitterNode.connect(AppState.pitchAnalyser, 0);
 
     AppState.audioGainNode = AppState.audioCtx.createGain();
     AppState.mediaElementSource.connect(AppState.audioGainNode);

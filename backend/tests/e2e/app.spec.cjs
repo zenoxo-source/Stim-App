@@ -23,7 +23,7 @@ test("app opens and the main deck renders", async () => {
   const { app, window } = await launchApp();
   try {
     // Title + version info.
-    await expect(window.locator("#app-version-text")).toContainText(/v4\.\d+\.\d+/);
+    await expect(window.locator("#app-version-text")).toContainText(/v\d+\.\d+\.\d+/);
 
     // Deck: switch to the manual tab, sliders + pattern cards visible.
     await window.locator('.nav-item[data-tab="deck"]').click();

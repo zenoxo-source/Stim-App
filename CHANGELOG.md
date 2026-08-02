@@ -1,5 +1,29 @@
 # Changelog
 
+## 5.1.0 — Gefühl: Wellenform-Shaping 2.0, Climax-Kurven, Melodie-Tracking & Beat
+
+### Das Signal selbst (Wellenform-Shaping 2.0)
+- **Fast-Wire-Pfad (25 ms):** Die App sendet jetzt bis zu 40 B0-Pakete/s mit automatischem Backpressure/Coalescing — die Grundlage für Mikro-Envelopes. Live-Metriken im Settings-Panel (Writes/s, Übersprungen-%)
+- **Puls-Formen (Attack/Decay):** „Hart" (stechender Impuls), „Weich" (massierender Anstieg), „Throb" (atmende Welle) — pro Kanal wählbar, echte Gefühls-Vokabeln statt nur Frequenz×Amplitude
+- **Dithering gegen Habituation:** sub-perzeptuelles ±0,5–2 % Amplitudenrauschen hält das Gefühl lebendig (Adaptation!)
+- **Detune-Beats:** Kanal B läuft +2–6 Hz neben Kanal A → physikalische Schwebungs-Interferenz (langsamer pulsierender „Herzschlag" aus zwei Kanälen)
+- **Pattern-Crossfades:** 2–5 s sanfte Blends (eased) bei jedem Pattern-/Phasenwechsel — keine harten Sprünge mehr
+
+### Climax-Kurven-Modell
+- **Kurz/Standard/Verzögert (60/90/150 s):** beschleunigende Frequenzrampe (ease-in-out) + Amplituden-Treppe mit Mikro-Plateau-Dips (+8 % pro 5-s-Stufe) im CLIMAX_PUSH — das „getriggerte Höhepunkt"-Muster, konfigurierbar im Wizard
+
+### Musik & Rhythmus
+- **Melodie-Tracking:** neuer Frequenz-Modus „🎵 Melodie" — der Stim folgt der Tonhöhe des Musikstücks (Autokorrelation mit Oktavkorrektur, dedizierter 1024-fft-Analyzer, EMA-glättet)
+- **Beat-Sequencer:** rhythmische Patterns (Throb/Double/Galopp/Herzschlag/Strobe/Treppe) mit Tap-Tempo (TAP-BPM) und Stärke-Regler — „es rhythmst statt vibriert"
+
+### Fundament
+- Neues pure Lib `wire-shaping.js` (21 neue Unit-Tests), Bundle +10 KB
+- E2E-Versions-Regex verallgemeinert (v5+)
+
+### Tests
+- 690 Unit-Tests grün (21 neue), 4 E2E-Tests grün, Lint sauber
+
+
 ## 5.0.0 — Sinn & Synchronität: HR-Refraktär, Buttplug-Client, Scope & Replay
 
 ### Klimax-Automatik (v4.8/v4.9 → v5.0)
