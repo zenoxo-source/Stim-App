@@ -545,3 +545,144 @@ describe("autodrive-engine", () => {
     assert.ok(s.phase === "SURGE" || s.phaseDeadlineAt < t0 + 120000);
   });
 });
+
+describe("autodrive-engine — Climax-Fabrik (F1)", () => {
+  it("hfo + climax_factory templates exist and wire the new config", () => {
+    assert.ok(AUTODRIVE_TEMPLATES.hfo);
+    assert.ok(AUTODRIVE_TEMPLATES.climax_factory);
+    const hfo = sanitiseAutodriveConfig({ templateId: "hfo" });
+    assert.equal(hfo.goal, "hfo");
+    assert.equal(hfo.freqFullBand, true);
+    assert.equal(hfo.edgeLoops, true);
+    assert.equal(hfo.edgeCycleTarget, 3);
+    assert.equal(hfo.climaxTarget, 1);
+    const cf = sanitiseAutodriveConfig({ templateId: "climax_factory" });
+    assert.equal(cf.climaxTarget, 2);
+    assert.equal(cf.edgeCycleTarget, 2);
+  });
+
+  it("sanitise clamps climaxTarget and edgeCycleTarget", () => {
+    const c = sanitiseAutodriveConfig({ climaxTarget: 9, edgeCycleTarget: -3, freqFullBand: true });
+    assert.equal(c.climaxTarget, 3);
+    assert.equal(c.edgeCycleTarget, 0);
+    assert.equal(c.freqFullBand, true);
+  });
+
+  it("raw values win unless the template pins them (template-first convention)", () => {
+    // classic template pins none of the new fields → raw values apply.
+    const c = sanitiseAutodriveConfig({
+      templateId: "classic",
+      edgeLoops: true,
+      edgeCycleTarget: 2,
+      climaxTarget: 2,
+    });
+    assert.equal(c.edgeLoops, true);
+    assert.equal(c.edgeCycleTarget, 2);
+    assert.equal(c.climaxTarget, 2);
+  });
+
+  it("fullband keeps wireFreq in wire range while logical target is 10–1000", () => {
+    let s = createInitialState(
+      sanitiseAutodriveConfig({ templateId: "hfo", skipCalibration: true }),
+      t0
+    );
+    s = { ...s, phase: "CLIMAX_PUSH", phaseDeadlineAt: t0 + 999999, loopCounter: 5 };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.ok(s.logicalFreqTarget >= 10 && s.logicalFreqTarget <= 1000);
+    assert.ok(s.wireFreq >= 10 && s.wireFreq <= 240);
+  });
+
+  it("edgeLoops runs rise/hold/drop cadence and advances cycles", () => {
+    const cfg = sanitiseAutodriveConfig({
+      templateId: "hfo",
+      skipCalibration: true,
+      edgeLoops: true,
+    });
+    let s = createInitialState(cfg, t0);
+    s = {
+      ...s,
+      phase: "EDGE_HOLD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 999999,
+      holdCycleIdx: 0,
+      holdCyclePhase: "rise",
+      holdCycleT0: t0,
+      relStrength: 0.55,
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 2000 });
+    assert.equal(s.holdCyclePhase, "rise");
+    assert.ok(s.relStrength > 0.55 && s.relStrength <= 0.75);
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 14000 });
+    assert.equal(s.holdCyclePhase, "hold");
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 40000 });
+    assert.equal(s.holdCyclePhase, "drop");
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 50000 });
+    assert.equal(s.holdCycleIdx, 1);
+    assert.equal(s.holdCyclePhase, "rise");
+  });
+
+  it("edgeLoops auto-completes the edge after edgeCycleTarget cycles", () => {
+    const cfg = classicCfg({
+      edgeLoops: true,
+      edgeCycleTarget: 2,
+    });
+    let s = createInitialState(cfg, t0);
+    s = {
+      ...s,
+      phase: "EDGE_HOLD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 999999,
+      holdCycleIdx: 2,
+      holdCyclePhase: "rise",
+      holdCycleT0: t0,
+      edgeCountDone: 0,
+      edgeCountTarget: 1,
+      holdCompletedThisVisit: false,
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.equal(s.edgeCountDone, 1);
+    assert.notEqual(s.phase, "EDGE_HOLD");
+  });
+
+  it("multi-climax: marked push → COOLDOWN → next BUILD, then final AFTERCARE", () => {
+    const cfg = sanitiseAutodriveConfig({
+      templateId: "climax_factory",
+      skipCalibration: true,
+    });
+    let s = createInitialState(cfg, t0);
+    s = {
+      ...s,
+      phase: "CLIMAX_PUSH",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 999999,
+      userMarkedClimax: true,
+      climaxCount: 0,
+      relStrength: 0.9,
+    };
+    s = reduceAutodrive(s, { type: "PHASE_TIMEOUT", nowMs: t0 + 200000 });
+    assert.equal(s.phase, "COOLDOWN");
+    assert.equal(s.climaxCount, 1);
+    s = reduceAutodrive(s, { type: "PHASE_TIMEOUT", nowMs: s.phaseDeadlineAt });
+    assert.equal(s.phase, "BUILD");
+    s = {
+      ...s,
+      phase: "CLIMAX_PUSH",
+      phaseStartedAt: t0 + 400000,
+      phaseDeadlineAt: t0 + 999999,
+      userMarkedClimax: true,
+      climaxCount: 1,
+      relStrength: 0.9,
+    };
+    s = reduceAutodrive(s, { type: "PHASE_TIMEOUT", nowMs: t0 + 500000 });
+    assert.equal(s.phase, "AFTERCARE");
+    assert.equal(s.climaxCount, 2);
+  });
+
+  it("single-climax sessions keep old behavior (COOLDOWN → idle)", () => {
+    const cfg = classicCfg();
+    let s = createInitialState(cfg, t0);
+    s = { ...s, phase: "COOLDOWN", phaseDeadlineAt: t0 + 12000 };
+    s = reduceAutodrive(s, { type: "PHASE_TIMEOUT", nowMs: s.phaseDeadlineAt });
+    assert.equal(s.phase, "IDLE");
+  });
+});

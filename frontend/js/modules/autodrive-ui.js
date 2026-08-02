@@ -21,6 +21,7 @@ import {
   getAutodriveState,
   getLastSessionSnapshot,
   loadSessionHistory,
+  getTemplateLearning,
   applyDebrief,
   exportAutodriveSetup,
   importAutodriveSetup,
@@ -142,6 +143,38 @@ function showClimaxOverlay() {
 }
 window.addEventListener("stim:autodrive-climax", showClimaxOverlay);
 
+// F8: aftercare ritual — guided breathing + session summary while AFTERCARE runs.
+function showRitual(st) {
+  const el = document.getElementById("ad-fs-ritual");
+  if (!el) return;
+  const summaryEl = document.getElementById("ad-fs-ritual-summary");
+  if (summaryEl && st) {
+    const min = Math.round((st.effectiveElapsedMs || 0) / 60000);
+    const clim = st.climaxCount || 0;
+    const parts = [`Dauer: ${min} Min`];
+    if (clim > 0) parts.push(`Climax-Markierungen: ${clim}`);
+    if (st.edgeCountDone) parts.push(`Edges: ${st.edgeCountDone}`);
+    summaryEl.textContent = parts.join(" · ");
+  }
+  el.style.display = "flex";
+}
+function hideRitual() {
+  const el = document.getElementById("ad-fs-ritual");
+  if (el) el.style.display = "none";
+}
+window.addEventListener("stim:autodrive-phase", (e) => {
+  const phase = e && e.detail ? e.detail.phase : null;
+  if (phase === "AFTERCARE") {
+    try {
+      showRitual(getAutodriveState());
+    } catch {
+      showRitual(null);
+    }
+  } else if (phase === "COOLDOWN" || phase === "IDLE") {
+    hideRitual();
+  }
+});
+
 function paintDashboard(st) {
   const badge = document.getElementById("autodrive-running-badge");
   if (badge) {
@@ -254,8 +287,14 @@ function paintHistory() {
       });
       const mark = h.marked ? " · ✅" : "";
       const tpl = h.templateId ? ` · ${esc(h.templateId)}` : "";
+      // F11: per-template learning line.
+      const tl = h.templateId ? getTemplateLearning(h.templateId) : null;
+      const learnLine =
+        tl && tl.sessions >= 3 && tl.avgTimeToClimaxMs > 0
+          ? ` · Ø bis Climax ${formatUiMs(tl.avgTimeToClimaxMs)}`
+          : "";
       return `<div class="stat-list-row ad-history-row" data-hidx="${history.indexOf(h)}">
-        <span>${date} · ${min} Min · Phase ${esc(h.phase || "—")} · Edges ${h.edges || 0}${tpl}${mark}</span>
+        <span>${date} · ${min} Min · Phase ${esc(h.phase || "—")} · Edges ${h.edges || 0}${tpl}${mark}${learnLine}</span>
         <button type="button" class="btn btn-secondary btn-sm ad-history-restart" title="Session erneut starten">↻</button>
       </div>`;
     })

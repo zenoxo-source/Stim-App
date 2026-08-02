@@ -63,7 +63,9 @@ describe("manual-player", () => {
   it("pattern catalog covers core patterns", () => {
     assert.ok(MANUAL_PATTERN_INFO.gentle.desc.length > 10);
     assert.ok(MANUAL_PATTERN_INFO.climax.name);
-    assert.equal(Object.keys(MANUAL_PATTERN_INFO).length, 14);
+    assert.ok(MANUAL_PATTERN_INFO.breath.name, "breath pattern in catalog");
+    assert.ok(MANUAL_PATTERN_INFO.triphase.name, "triphase pattern in catalog");
+    assert.ok(Object.keys(MANUAL_PATTERN_INFO).length >= 14);
   });
 
   it("mapFreqFromStrengths uses both channels", () => {

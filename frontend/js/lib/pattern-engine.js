@@ -171,6 +171,43 @@ export function computeNamedPatternWave(patternId, loopCounter) {
       aB = Math.round(60 + 35 * Math.cos(duetT * 1.5));
       break;
     }
+    // F1: breath-paced waveform — slow inhale/hold/exhale over 8 s (80 ticks).
+    case CONSTANTS.PATTERNS.BREATH:
+    case "breath": {
+      const cycle = t % 80;
+      const p = cycle / 80;
+      let amp;
+      if (p < 0.45) amp = Math.round(10 + (p / 0.45) * 90);
+      else if (p < 0.55) amp = 100;
+      else amp = Math.round(100 - ((p - 0.55) / 0.45) * 65);
+      fA = 22;
+      fB = 22;
+      aA = Math.max(0, Math.min(100, amp));
+      aB = aA;
+      break;
+    }
+    // F1: tri-phase — channel B is the common pole, pulses run anti-phase.
+    case CONSTANTS.PATTERNS.TRIPHASE:
+    case "triphase": {
+      const ph = t % 8;
+      const sweep = t % 60;
+      fA = Math.round(30 + (sweep / 60) * 60);
+      fB = fA;
+      if (ph < 3) {
+        aA = 100;
+        aB = 0;
+      } else if (ph < 4) {
+        aA = 0;
+        aB = 0;
+      } else if (ph < 7) {
+        aA = 0;
+        aB = 100;
+      } else {
+        aA = 0;
+        aB = 0;
+      }
+      break;
+    }
     default:
       fA = 45;
       fB = 45;

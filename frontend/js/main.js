@@ -61,6 +61,9 @@ import "./modules/remote.js";
 // Session recorder (record/replay)
 import "./modules/recorder.js";
 
+// Funscript playback (interactive scripts → intensity)
+import "./modules/funscript.js";
+
 // Statistics dashboard
 import "./modules/stats.js";
 
@@ -115,6 +118,9 @@ import "./modules/autodrive-ui.js";
 
 // Voice feedback for Autodrive (Web Speech API, hands-free)
 import "./modules/voice-feedback.js";
+
+// Spoken coaching (TTS): phase cues, breath cadence, bracing
+import "./modules/voice-coach.js";
 
 // Session UX: readiness, chrome, stories, partner, shock, export
 import "./modules/session-readiness.js";

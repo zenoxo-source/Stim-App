@@ -16,6 +16,7 @@
 
 const { WebSocketServer } = require("ws");
 const crypto = require("crypto");
+const http = require("http");
 
 const DEFAULT_PORT = 8080;
 const AUTH_TIMEOUT_MS = 5000;
@@ -26,6 +27,7 @@ const MAX_CMDS_PER_SEC = 5;
 const RESPONSE_TIMEOUT_MS = 5000;
 
 let wss = null;
+let httpServer = null;
 let mainWindowRef = null;
 let authToken = null;
 /** Port we are actually listening on (may differ from DEFAULT_PORT). */
@@ -36,6 +38,69 @@ const clients = new Map();
 const pending = new Map();
 let clientSeq = 0;
 let reqSeq = 0;
+
+/**
+ * Self-contained mobile control page (served at GET /). Uses the same port +
+ * token as the WebSocket API. No external assets; inline CSS/JS only.
+ */
+const CONTROL_PAGE_HTML = `<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stim App Remote</title>
+<style>
+:root{color-scheme:dark}body{font-family:system-ui,sans-serif;background:#0b0b0d;color:#e8e8ec;margin:0;padding:16px;max-width:420px;margin:0 auto}
+h1{font-size:18px}h2{font-size:13px;opacity:.7;margin:18px 0 6px}
+.ctl{margin:8px 0}.row{display:flex;align-items:center;gap:10px}
+input[type=range]{flex:1}.val{min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
+button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:inherit;border-radius:8px;padding:10px 14px;font-size:14px;flex:1}
+button:active{transform:scale(.97)}
+#status{font-size:12px;opacity:.7;margin:10px 0;white-space:pre-wrap}
+.big{background:#a80000;border-color:#a80000;color:#fff;font-weight:700}
+#conn{color:#a6e22e}.off{color:#f92672}
+</style></head><body>
+<h1>⚡ Stim App Remote</h1>
+<div id="status" class="off">Verbindung wird aufgebaut…</div>
+<h2>Intensität</h2>
+<div class="ctl"><div class="row"><span>A</span><input type="range" id="sa" min="0" max="200" value="0"><span class="val" id="va">0</span></div></div>
+<div class="ctl"><div class="row"><span>B</span><input type="range" id="sb" min="0" max="200" value="0"><span class="val" id="vb">0</span></div></div>
+<div class="ctl"><div class="row"><span>Master</span><input type="range" id="sm" min="0" max="100" value="100"><span class="val" id="vm">100%</span></div></div>
+<div class="row" style="margin-top:14px"><button id="stop">⏹ Stop</button><button id="panic" class="big">STOPP</button></div>
+<div class="row" style="margin-top:8px"><button id="reset">Zurücksetzen</button></div>
+<script>
+const q = new URLSearchParams(location.search);
+const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+let ws = null, connected = false, seq = 0;
+const pending = new Map();
+function send(obj){ if(ws && ws.readyState===1){ obj.id = ++seq; const p = new Promise((res)=>{pending.set(obj.id,res)}); ws.send(JSON.stringify(obj)); return p; } }
+function setStatus(t, ok){ const el=document.getElementById('status'); el.textContent=t; el.className = ok ? '' : 'off'; }
+function connect(){
+  const token = q.get('token');
+  if(!token){ setStatus('Token fehlt in der URL (?token=…)'); return; }
+  ws = new WebSocket(proto + '://' + location.host + '/?token=' + encodeURIComponent(token));
+  ws.onopen = () => { connected = true; setStatus('Verbunden', true); send({type:'get_state'}); };
+  ws.onclose = () => { connected = false; setStatus('Verbindung getrennt — neu verbinden…'); setTimeout(connect, 3000); };
+  ws.onerror = () => setStatus('Fehler');
+  ws.onmessage = (ev) => {
+    let m; try { m = JSON.parse(ev.data); } catch { return; }
+    if(m.type === 'response' && m.id && pending.has(m.id)){ pending.get(m.id)(m); pending.delete(m.id); return; }
+    if(m.type === 'state' && m.data){
+      const s = m.data || {};
+      const a = Math.round(s.strengthA ?? 0), b = Math.round(s.strengthB ?? 0);
+      const sv = (id, v) => { const el=document.getElementById(id); if(el && document.activeElement!==el) el.value = v; };
+      sv('sa', a); document.getElementById('va').textContent = a;
+      sv('sb', b); document.getElementById('vb').textContent = b;
+      setStatus('Verbunden · A ' + a + ' · B ' + b, true);
+    }
+  };
+}
+const sendStrength = (ch) => { const v = parseInt(document.getElementById(ch).value,10); send({type:'set_intensity', channel: ch, value: v}); };
+document.getElementById('sa').addEventListener('input', sendStrength.bind(null,'A'));
+document.getElementById('sb').addEventListener('input', sendStrength.bind(null,'B'));
+document.getElementById('sm').addEventListener('input', ()=>{ document.getElementById('vm').textContent = document.getElementById('sm').value + '%'; send({type:'set_master', value: parseInt(document.getElementById('sm').value,10)}); });
+document.getElementById('stop').onclick = () => send({type:'stop_all'});
+document.getElementById('reset').onclick = () => { document.getElementById('sa').value=0; document.getElementById('sb').value=0; document.getElementById('sm').value=100; document.getElementById('vm').textContent='100%'; send({type:'set_intensity', value:0}); send({type:'set_master', value:100}); };
+document.getElementById('panic').onclick = () => send({type:'stop_all'});
+connect();
+</script></body></html>`;
 
 function log(msg) {
   console.log(`[remote-server] ${msg}`);
@@ -69,32 +134,43 @@ function send(ws, payload) {
 }
 
 /**
- * Start the WebSocket server. Resolves only once the socket is actually
- * listening, so a port conflict surfaces as { ok: false } instead of a
- * success that is contradicted by a later 'error' event.
+ * Start the WebSocket server (+ mobile control page). Resolves only once the
+ * socket is actually listening, so a port conflict surfaces as { ok: false }
+ * instead of a success that is contradicted by a later 'error' event.
  *
  * @param {import('electron').BrowserWindow} mainWindow
  * @param {number} [port]
+ * @param {{ lan?: boolean }} [opts] lan=true binds 0.0.0.0 (mobile access)
  * @returns {Promise<{ok: boolean, port?: number, running?: boolean, token?: string, error?: string}>}
  */
-function startRemoteServer(mainWindow, port) {
+function startRemoteServer(mainWindow, port, opts = {}) {
   if (wss) {
     log("already running");
     return Promise.resolve({ ok: true, port: activePort, running: true, token: authToken });
   }
 
   const p = port || DEFAULT_PORT;
+  const host = opts.lan ? "0.0.0.0" : "127.0.0.1";
   mainWindowRef = mainWindow;
   authToken = generateToken();
 
   return new Promise((resolve) => {
     let settled = false;
-    let server;
 
     try {
-      server = new WebSocketServer({
-        host: "127.0.0.1",
-        port: p,
+      // HTTP server serves the mobile control page at GET / and hosts the WS.
+      httpServer = http.createServer((req, res) => {
+        if (req.method === "GET" && (req.url === "/" || req.url === "/index.html")) {
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+          res.end(CONTROL_PAGE_HTML);
+          return;
+        }
+        res.writeHead(404, { "Content-Type": "text/plain" });
+        res.end("Not found — use the WebSocket API at /?token=…");
+      });
+
+      wss = new WebSocketServer({
+        server: httpServer,
         // Reject clients sending oversized frames immediately at protocol level.
         maxPayload: MAX_MESSAGE_BYTES,
         // Browsers always send Origin; wscat/websockets/python clients do not.
@@ -108,47 +184,53 @@ function startRemoteServer(mainWindow, port) {
           return true;
         },
       });
+
+      const onServerError = (err) => {
+        log(`server error: ${err.message}`);
+        if (!settled) {
+          // Startup failure (EADDRINUSE, EACCES, …) — report it to the caller.
+          settled = true;
+          authToken = null;
+          mainWindowRef = null;
+          activePort = null;
+          wss = null;
+          try {
+            httpServer.close();
+          } catch {
+            /* ignore */
+          }
+          httpServer = null;
+          resolve({ ok: false, error: err.message });
+          return;
+        }
+        // Runtime failure after a successful start — tear down so the UI can
+        // show "gestoppt" instead of a phantom running server.
+        teardown();
+      };
+      // ws re-emits underlying server errors on the WebSocketServer instance.
+      httpServer.on("error", onServerError);
+      wss.on("error", onServerError);
+
+      httpServer.listen(p, host, () => {
+        activePort = httpServer.address()?.port || p;
+        settled = true;
+        log(`listening on ws://${host}:${activePort}`);
+        resolve({ ok: true, port: activePort, running: true, token: authToken, lan: opts.lan });
+      });
     } catch (err) {
       log(`failed to start: ${err.message}`);
       authToken = null;
       mainWindowRef = null;
+      httpServer = null;
+      wss = null;
       resolve({ ok: false, error: err.message });
       return;
     }
 
-    server.on("listening", () => {
-      wss = server;
-      activePort = server.address()?.port || p;
-      settled = true;
-      log(`listening on ws://127.0.0.1:${activePort}`);
-      resolve({ ok: true, port: activePort, running: true, token: authToken });
-    });
-
-    server.on("error", (err) => {
-      log(`server error: ${err.message}`);
-      if (!settled) {
-        // Startup failure (EADDRINUSE, EACCES, …) — report it to the caller.
-        settled = true;
-        authToken = null;
-        mainWindowRef = null;
-        activePort = null;
-        try {
-          server.close();
-        } catch {
-          /* ignore */
-        }
-        resolve({ ok: false, error: err.message });
-        return;
-      }
-      // Runtime failure after a successful start — tear down so the UI can
-      // show "gestoppt" instead of a phantom running server.
-      teardown();
-    });
-
-    server.on("connection", (ws, req) => {
+    wss.on("connection", (ws, req) => {
       // Hard cap on concurrent clients
-      if (server.clients.size > MAX_CLIENTS) {
-        log(`rejecting client: too many connections (${server.clients.size})`);
+      if (wss.clients.size > MAX_CLIENTS) {
+        log(`rejecting client: too many connections (${wss.clients.size})`);
         ws.close(1013, "too many connections");
         return;
       }
@@ -294,10 +376,18 @@ function teardown() {
   mainWindowRef = null;
   authToken = null;
   activePort = null;
+  if (httpServer) {
+    try {
+      httpServer.close();
+    } catch {
+      /* ignore */
+    }
+    httpServer = null;
+  }
 }
 
 function stopRemoteServer() {
-  if (!wss) return { ok: true, running: false };
+  if (!wss && !httpServer) return { ok: true, running: false };
   try {
     wss.close();
     teardown();

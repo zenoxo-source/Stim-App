@@ -723,8 +723,8 @@ function registerIpc() {
     }
   });
 
-  // WebSocket remote server
-  ipcMain.handle("remote:start", async (_event, port) => {
+  // WebSocket remote server (+ mobile control page, optional LAN bind)
+  ipcMain.handle("remote:start", async (_event, port, lan) => {
     if (!mainWindow || mainWindow.isDestroyed()) {
       return { ok: false, error: "window not ready" };
     }
@@ -733,7 +733,7 @@ function registerIpc() {
     if (!Number.isInteger(p) || p < 1024 || p > 65535) {
       return { ok: false, error: "port must be an integer in 1024–65535" };
     }
-    return startRemoteServer(mainWindow, p);
+    return startRemoteServer(mainWindow, p, { lan: lan === true });
   });
   ipcMain.handle("remote:stop", () => stopRemoteServer());
   ipcMain.handle("remote:status", () => getRemoteStatus());

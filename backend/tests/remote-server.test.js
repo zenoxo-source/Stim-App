@@ -6,6 +6,7 @@ import { test, describe, before, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import net from "node:net";
+import http from "node:http";
 
 const require = createRequire(import.meta.url);
 const WebSocket = require("ws");
@@ -305,3 +306,34 @@ describe("remote-server — limits", () => {
     ws.close();
   });
 });
+
+describe("remote-server — mobile control page (F9)", () => {
+  afterEach(() => stopRemoteServer());
+
+  test("GET / serves the control page HTML", async () => {
+    const port = await freePort();
+    const res = await startRemoteServer(fakeWindow, port);
+    assert.equal(res.ok, true);
+    const body = await new Promise((resolve, reject) => {
+      httpGet(port, (err, text) => (err ? reject(err) : resolve(text)));
+    });
+    assert.match(body, /Stim App Remote/);
+    assert.match(body, /new WebSocket/);
+  });
+
+  test("start accepts a lan option", async () => {
+    const port = await freePort();
+    const res = await startRemoteServer(fakeWindow, port, { lan: true });
+    assert.equal(res.ok, true);
+    assert.equal(res.lan, true);
+  });
+});
+
+function httpGet(port, cb) {
+  const req = http.get({ host: "127.0.0.1", port, path: "/" }, (r) => {
+    let data = "";
+    r.on("data", (c) => (data += c));
+    r.on("end", () => cb(null, data));
+  });
+  req.on("error", (err) => cb(err));
+}

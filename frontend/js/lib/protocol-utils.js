@@ -106,6 +106,21 @@ export function fillChannelWave(data, freqOffset, intOffset, freq, intensity) {
 }
 
 /**
+ * @param {Uint8Array} data
+ * @param {number} freqOffset
+ * @param {number} intOffset
+ * @param {Array<{freq: number, intensity: number}>} slots exactly 4 entries
+ */
+export function fillChannelWaveSlots(data, freqOffset, intOffset, slots) {
+  for (let i = 0; i < 4; i++) {
+    const s = slots[i] || { freq: 0, intensity: 101 };
+    data[freqOffset + i] = Math.round(Number(s.freq) || 0);
+    // 101 is the official "inactive" marker — clamp allows it through.
+    data[intOffset + i] = Math.min(101, Math.max(0, Math.round(Number(s.intensity) || 101)));
+  }
+}
+
+/**
  * Build a complete V3 0xB0 packet (20 bytes).
  * @param {object} opts
  * @param {number} [opts.sequence=0] sequence number 0–15
@@ -116,6 +131,8 @@ export function fillChannelWave(data, freqOffset, intOffset, freq, intensity) {
  * @param {number} [opts.intensityA=101] channel A wave intensity 0–100 (101 = inactive)
  * @param {number} [opts.freqB=0] channel B wire frequency 10–240 (0 = inactive)
  * @param {number} [opts.intensityB=101] channel B wave intensity 0–100 (101 = inactive)
+ * @param {Array<{freq: number, intensity: number}>} [opts.slotsA] optional 4×25 ms micro-slots for A
+ * @param {Array<{freq: number, intensity: number}>} [opts.slotsB] optional 4×25 ms micro-slots for B
  * @returns {Uint8Array} 20-byte B0 packet
  */
 export function buildB0Packet(opts) {
@@ -125,8 +142,16 @@ export function buildB0Packet(opts) {
   data[1] = ((o.sequence & 0x0f) << 4) | (o.mode & 0x0f);
   data[2] = Math.min(200, Math.max(0, Math.round(Number(o.strengthA) || 0)));
   data[3] = Math.min(200, Math.max(0, Math.round(Number(o.strengthB) || 0)));
-  fillChannelWave(data, 4, 8, o.freqA | 0, o.intensityA | 0);
-  fillChannelWave(data, 12, 16, o.freqB | 0, o.intensityB | 0);
+  if (Array.isArray(o.slotsA) && o.slotsA.length === 4) {
+    fillChannelWaveSlots(data, 4, 8, o.slotsA);
+  } else {
+    fillChannelWave(data, 4, 8, o.freqA | 0, o.intensityA | 0);
+  }
+  if (Array.isArray(o.slotsB) && o.slotsB.length === 4) {
+    fillChannelWaveSlots(data, 12, 16, o.slotsB);
+  } else {
+    fillChannelWave(data, 12, 16, o.freqB | 0, o.intensityB | 0);
+  }
   return data;
 }
 

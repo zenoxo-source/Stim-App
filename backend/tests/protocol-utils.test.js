@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Node built-in test runner (node --test)
  * Pure protocol helpers without Electron/hardware.
  */
@@ -327,5 +327,37 @@ describe("bytesToHex", () => {
     assert.equal(parts.length, 20);
     assert.equal(parts[0], "B0");
     assert.equal(parts[1], "0F");
+  });
+});
+
+describe("protocol-utils — B0 micro-slots (F10)", () => {
+  it("fills 4 per-slot freq/intensity when slots provided", () => {
+    const slotsA = [
+      { freq: 40, intensity: 10 },
+      { freq: 40, intensity: 40 },
+      { freq: 40, intensity: 70 },
+      { freq: 40, intensity: 100 },
+    ];
+    const p = ProtocolUtils.buildB0Packet({ slotsA });
+    assert.deepEqual([...p.slice(4, 8)], [40, 40, 40, 40]);
+    assert.deepEqual([...p.slice(8, 12)], [10, 40, 70, 100]);
+  });
+
+  it("keeps single-value fill when no slots", () => {
+    const p = ProtocolUtils.buildB0Packet({ freqA: 55, intensityA: 66 });
+    assert.deepEqual([...p.slice(4, 8)], [55, 55, 55, 55]);
+    assert.deepEqual([...p.slice(8, 12)], [66, 66, 66, 66]);
+  });
+
+  it("clamps slot intensities and allows inactive marker", () => {
+    const slotsB = [
+      { freq: 0, intensity: 101 },
+      { freq: 0, intensity: 101 },
+      { freq: 0, intensity: 101 },
+      { freq: 0, intensity: 101 },
+    ];
+    const p = ProtocolUtils.buildB0Packet({ slotsB, freqB: 0, intensityB: 101 });
+    assert.deepEqual([...p.slice(16, 20)], [101, 101, 101, 101]);
+    assert.deepEqual([...p.slice(12, 16)], [0, 0, 0, 0]);
   });
 });

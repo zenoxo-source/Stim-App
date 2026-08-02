@@ -51,6 +51,8 @@ export const CONSTANTS = {
     DRIFT: "drift",
     SAWTOOTH: "sawtooth",
     DUET: "duet",
+    BREATH: "breath",
+    TRIPHASE: "triphase",
   },
 
   // Audio

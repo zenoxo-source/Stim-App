@@ -2,7 +2,7 @@
 // edge-score, calibration baseline, multi-wave climax, placement profiles.
 
 /** @typedef {"IDLE"|"CALIBRATING"|"WARMUP"|"BUILD"|"TEASE"|"EDGE_HOLD"|"SURGE"|"CLIMAX_PUSH"|"AFTERCARE"|"COOLDOWN"|"PAUSED"} AutodrivePhase */
-/** @typedef {"direct"|"edge_then_release"|"edge_ladder"|"deny_then_release"} AutodriveGoal */
+/** @typedef {"direct"|"edge_then_release"|"edge_ladder"|"deny_then_release"|"hfo"} AutodriveGoal */
 /** @typedef {"too_weak"|"good"|"too_strong"|"almost"|"now"|"climaxed"|"not_yet"} AutodriveFeedback */
 /** @typedef {"gentle"|"medium"|"intense"} AutodriveSensitivity */
 /** @typedef {"A"|"B"|"both"} ChannelFocus */
@@ -14,6 +14,7 @@
 /** @typedef {"both"|"alt"|"aLead"|"bLead"} ChannelMode */
 
 import { PLACEMENT_PROFILES, AUTODRIVE_TEMPLATES } from "./autodrive-data.js";
+import { encodeWaveFreqLogical } from "./protocol-utils.js";
 
 // Re-exported for modules that historically imported them from the engine.
 export { PLACEMENT_PROFILES, AUTODRIVE_TEMPLATES };
@@ -59,6 +60,14 @@ export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
   setupPresetId: "loops_ab_finish",
   /** Longer push, stay in CLIMAX_PUSH on too_strong drop, both channels */
   climaxPriority: true,
+  // F1 (Climax-Fabrik): full 10–1000 Hz logical band instead of wire 10–240.
+  freqFullBand: false,
+  /** Programmed edging loops in EDGE_HOLD (rise/hold/drop accumulation cycles). */
+  edgeLoops: false,
+  /** Number of edging-loop cycles before auto-completing the edge (0 = feedback-only). */
+  edgeCycleTarget: 0,
+  /** Number of climaxes to reach (1–3). >1 enables refractory multi-climax cycles. */
+  climaxTarget: 1,
 });
 
 const SENSITIVITY_SCALE = Object.freeze({
@@ -99,6 +108,22 @@ const PHASE_FREQ = Object.freeze({
   AFTERCARE: { lo: 20, hi: 40 },
 });
 
+/**
+ * Full logical 10–1000 Hz roadmap per phase (official Coyote 3 range).
+ * Low = deep "throb", mid = "buzz", high = "sharp". Used when
+ * config.freqFullBand is enabled; encodeWaveFreqLogical maps to wire.
+ */
+const PHASE_FREQ_FULL = Object.freeze({
+  CALIBRATING: { lo: 15, hi: 35 },
+  WARMUP: { lo: 15, hi: 45 },
+  BUILD: { lo: 30, hi: 80 },
+  TEASE: { lo: 20, hi: 70 },
+  EDGE_HOLD: { lo: 60, hi: 130 },
+  SURGE: { lo: 120, hi: 260 },
+  CLIMAX_PUSH: { lo: 80, hi: 420 },
+  AFTERCARE: { lo: 12, hi: 30 },
+});
+
 /** Duty cycle (on-fraction) targets per phase. */
 const PHASE_DUTY = Object.freeze({
   CALIBRATING: 0.55,
@@ -111,8 +136,14 @@ const PHASE_DUTY = Object.freeze({
   AFTERCARE: 0.5,
 });
 
-const NEEDS_EDGES = new Set(["edge_then_release", "edge_ladder", "deny_then_release"]);
-const VALID_GOALS = new Set(["direct", "edge_then_release", "edge_ladder", "deny_then_release"]);
+const NEEDS_EDGES = new Set(["edge_then_release", "edge_ladder", "deny_then_release", "hfo"]);
+const VALID_GOALS = new Set([
+  "direct",
+  "edge_then_release",
+  "edge_ladder",
+  "deny_then_release",
+  "hfo",
+]);
 const VALID_SENS = new Set(["gentle", "medium", "intense"]);
 const VALID_FOCUS = new Set(["A", "B", "both"]);
 const VALID_PLACEMENT = new Set([
@@ -359,6 +390,25 @@ export function sanitiseAutodriveConfig(input) {
     base.climaxPriority = !!AUTODRIVE_TEMPLATES[raw.templateId].climaxPriority;
   }
 
+  // F1 (Climax-Fabrik): fullband / edging loops / multi-climax.
+  if (typeof raw.freqFullBand === "boolean") base.freqFullBand = raw.freqFullBand;
+  if (typeof raw.edgeLoops === "boolean") base.edgeLoops = raw.edgeLoops;
+  if (raw.edgeCycleTarget !== undefined) {
+    const n = Number(raw.edgeCycleTarget);
+    if (Number.isFinite(n)) base.edgeCycleTarget = Math.round(clamp(n, 0, 12));
+  }
+  if (raw.climaxTarget !== undefined) {
+    const n = Number(raw.climaxTarget);
+    if (Number.isFinite(n)) base.climaxTarget = Math.round(clamp(n, 1, 3));
+  }
+  if (typeof raw.templateId === "string" && AUTODRIVE_TEMPLATES[raw.templateId]) {
+    const tpl = AUTODRIVE_TEMPLATES[raw.templateId];
+    if (typeof tpl.freqFullBand === "boolean") base.freqFullBand = tpl.freqFullBand;
+    if (typeof tpl.edgeLoops === "boolean") base.edgeLoops = tpl.edgeLoops;
+    if (typeof tpl.edgeCycleTarget === "number") base.edgeCycleTarget = tpl.edgeCycleTarget;
+    if (typeof tpl.climaxTarget === "number") base.climaxTarget = tpl.climaxTarget;
+  }
+
   const kinds = new Set(["loops", "pads", "mixed", "insertable"]);
   const wirings = new Set(["independent_4", "common_3", "single_channel_2"]);
   const sites = new Set([
@@ -484,6 +534,11 @@ export function createInitialState(config, nowMs, learning = {}) {
     climaxWaveIndex: 0,
     climaxWaveStartedAt: 0,
     climaxInDrop: false,
+    // F1: multi-climax + edging-loop cadence
+    climaxCount: 0,
+    holdCycleIdx: 0,
+    holdCyclePhase: "rise",
+    holdCycleT0: nowMs,
     placeFreqBias: place.freqBias || 0,
     placeDutyScale: place.dutyScale || 1,
     // Peak-lock: hold a "good" intensity zone
@@ -580,16 +635,21 @@ export function reduceAutodrive(state, event) {
   if (s.phase === "PAUSED") return s;
 
   if (event.type === "FEEDBACK" && event.feedback === "climaxed") {
-    return enterAftercare({ ...s, almostWithoutClimax: 0, qualityBoost: 0 }, now, true);
+    return enterAftercare(
+      { ...s, almostWithoutClimax: 0, qualityBoost: 0, climaxCount: (s.climaxCount || 0) + 1 },
+      now,
+      true
+    );
   }
   if (event.type === "USER_CLIMAX") {
-    return enterAftercare(s, now, true);
+    return enterAftercare({ ...s, climaxCount: (s.climaxCount || 0) + 1 }, now, true);
   }
 
   if (event.type === "TICK") {
     s = advanceTime(s, now);
     s.loopCounter = (s.loopCounter || 0) + 1;
     s.microPhase = (s.microPhase || 0) + 1;
+    s = applyEdgeCadence(s, now);
     s = applyAdaptiveEnvelope(s, now);
     s = applyEdgeScoreTick(s, now);
     s = applySensationPlane(s, now);
@@ -604,8 +664,14 @@ export function reduceAutodrive(state, event) {
       s = applyTickGuards(s, now);
     }
     s.peakRel = Math.max(s.peakRel || 0, s.relStrength || 0);
-    // Smooth freq toward target
-    s.wireFreq = lerp(s.wireFreq || s.wireFreqTarget, s.wireFreqTarget, 0.12);
+    // Smooth freq toward target (logical 10–1000 → encoded wire for fullband).
+    if (s.config?.freqFullBand && s.logicalFreqTarget != null) {
+      const cur = s.logicalFreq || s.logicalFreqTarget;
+      s.logicalFreq = cur + (s.logicalFreqTarget - cur) * 0.12;
+      s.wireFreq = encodeWaveFreqLogical(s.logicalFreq);
+    } else {
+      s.wireFreq = lerp(s.wireFreq || s.wireFreqTarget, s.wireFreqTarget, 0.12);
+    }
     return s;
   }
 
@@ -1048,6 +1114,56 @@ function smoothstep(x) {
   return t * t * (3 - 2 * t);
 }
 
+/**
+ * F1 (Climax-Fabrik): programmed edging loops while in EDGE_HOLD.
+ * Time-driven rise → hold → drop cycles accumulate arousal without
+ * requiring the user to do anything; after edgeCycleTarget cycles the
+ * edge auto-completes (applyTickGuards). Only active with config.edgeLoops.
+ */
+function applyEdgeCadence(s, now) {
+  if (!s.config?.edgeLoops || s.phase !== "EDGE_HOLD") return s;
+  const RISE_MS = 12000;
+  const HOLD_MS = 20000;
+  const DROP_MS = 8000;
+
+  let idx = s.holdCycleIdx || 0;
+  let phase = s.holdCyclePhase || "rise";
+  let t0 = s.holdCycleT0 || s.phaseStartedAt || now;
+  let rel = s.relStrength;
+
+  const elapsed = now - t0;
+  if (phase === "rise") {
+    const p = clamp(elapsed / RISE_MS, 0, 1);
+    rel = lerp(0.55, 0.75, p);
+    if (elapsed >= RISE_MS) {
+      phase = "hold";
+      t0 = now;
+    }
+  } else if (phase === "hold") {
+    rel = 0.75 + 0.04 * Math.sin((s.loopCounter || 0) * 0.13);
+    if (elapsed >= HOLD_MS) {
+      phase = "drop";
+      t0 = now;
+    }
+  } else {
+    const p = clamp(elapsed / DROP_MS, 0, 1);
+    rel = lerp(0.75, 0.5, p);
+    if (elapsed >= DROP_MS) {
+      idx += 1;
+      phase = "rise";
+      t0 = now;
+    }
+  }
+
+  return {
+    ...s,
+    relStrength: clamp(rel, 0.4, 0.82),
+    holdCycleIdx: idx,
+    holdCyclePhase: phase,
+    holdCycleT0: t0,
+  };
+}
+
 function applyAdaptiveEnvelope(s, now) {
   const pp = phaseProgressOf(s, now);
   const baseline = phaseBaseline(s.phase, pp, s);
@@ -1117,15 +1233,28 @@ function applySensationPlane(s, now) {
   const placeBias = s.placeFreqBias || 0;
   let freqTarget = band.lo + (band.hi - band.lo) * pp + placeBias;
 
+  // F1 fullband: work in the official logical 10–1000 Hz range (deep throb →
+  // buzz → sharp), encoded to wire at output time.
+  const full = !!s.config.freqFullBand;
+  const fb = full ? PHASE_FREQ_FULL[s.phase] || { lo: 15, hi: 80 } : null;
+
   // Tease: oscillate freq
   if (s.phase === "TEASE") {
-    freqTarget =
-      band.lo + (band.hi - band.lo) * (0.5 + 0.5 * Math.sin((s.loopCounter || 0) * 0.09));
-    freqTarget += placeBias;
+    if (full) {
+      freqTarget = fb.lo + (fb.hi - fb.lo) * (0.5 + 0.5 * Math.sin((s.loopCounter || 0) * 0.09));
+      freqTarget += placeBias * 2;
+    } else {
+      freqTarget =
+        band.lo + (band.hi - band.lo) * (0.5 + 0.5 * Math.sin((s.loopCounter || 0) * 0.09));
+      freqTarget += placeBias;
+    }
   }
   // Push: climb toward high
   if (s.phase === "CLIMAX_PUSH") {
-    freqTarget = band.lo + (band.hi - band.lo) * Math.min(1, pp * 1.2) + placeBias;
+    freqTarget =
+      (full ? fb.lo : band.lo) +
+      ((full ? fb.hi : band.hi) - (full ? fb.lo : band.lo)) * Math.min(1, pp * 1.2) +
+      placeBias * (full ? 2 : 1);
   }
 
   let duty = PHASE_DUTY[s.phase] ?? 0.7;
@@ -1163,7 +1292,8 @@ function applySensationPlane(s, now) {
 
   return {
     ...s,
-    wireFreqTarget: clamp(freqTarget, 10, 240),
+    wireFreqTarget: full ? clamp(freqTarget, 10, 1000) : clamp(freqTarget, 10, 240),
+    logicalFreqTarget: full ? clamp(freqTarget, 10, 1000) : null,
     dutyCycle: clamp(duty * (s.placeDutyScale || 1), 0.2, 1),
     channelMode,
   };
@@ -1395,10 +1525,38 @@ function applyPhaseTimeout(s, now) {
           now
         );
       }
+      // F1 multi-climax: after a marked climax, rest in COOLDOWN and try
+      // again until climaxTarget is reached.
+      if (s.userMarkedClimax) {
+        const count = (s.climaxCount || 0) + 1;
+        if ((s.config.climaxTarget || 1) > 1 && count < (s.config.climaxTarget || 1)) {
+          return setPhase(
+            {
+              ...s,
+              climaxCount: count,
+              relStrength: 0.05,
+              feedbackBias: clamp((s.feedbackBias || 0) + 0.05, -0.2, 0.35),
+              aggression: clamp((s.config.aggression || 1) + 0.1 * count, 0.5, 1.6),
+            },
+            "COOLDOWN",
+            now,
+            180000
+          );
+        }
+        return enterAftercare({ ...s, climaxCount: count }, now, true);
+      }
       return enterAftercare(s, now, false);
     case "AFTERCARE":
       return setPhase({ ...s, relStrength: 0 }, "COOLDOWN", now, 12000);
     case "COOLDOWN":
+      // F1: refractory over → next climax attempt (multi-climax sessions).
+      if (
+        (s.config.climaxTarget || 1) > 1 &&
+        (s.climaxCount || 0) >= 1 &&
+        (s.climaxCount || 0) < (s.config.climaxTarget || 1)
+      ) {
+        return setPhase(s, "BUILD", now, shareMs(s.targetDurationMs, "BUILD", s.config));
+      }
       return idleState(s, now);
     default:
       return s;
@@ -1406,6 +1564,17 @@ function applyPhaseTimeout(s, now) {
 }
 
 function applyTickGuards(s, now) {
+  // F1: programmed edging loops — auto-complete the edge after N cycles.
+  if (
+    s.phase === "EDGE_HOLD" &&
+    s.config?.edgeLoops &&
+    (s.config.edgeCycleTarget || 0) > 0 &&
+    !s.holdCompletedThisVisit &&
+    (s.holdCycleIdx || 0) >= s.config.edgeCycleTarget
+  ) {
+    return completeEdge(s, now);
+  }
+
   // Edge score → enter hold
   if (
     (s.phase === "TEASE" || s.phase === "BUILD") &&
@@ -1780,8 +1949,16 @@ function phaseTip(state) {
         : "Session endet — weiches Ausklingen";
     case "PAUSED":
       return "Pausiert — Weiter zum Fortsetzen";
-    case "COOLDOWN":
+    case "COOLDOWN": {
+      const tgt = state.config?.climaxTarget || 1;
+      if (tgt > 1 && (state.climaxCount || 0) >= 1 && (state.climaxCount || 0) < tgt) {
+        const sec = Math.ceil(
+          Math.max(0, (state.phaseDeadlineAt || 0) - (state.lastTickAt || 0)) / 1000
+        );
+        return `Refraktär-Pause — Versuch ${(state.climaxCount || 0) + 1}/${tgt} in ~${sec}s`;
+      }
       return "Cooldown — Output aus, Session endet gleich";
+    }
     default:
       return place.tips?.[0] || "";
   }

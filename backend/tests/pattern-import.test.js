@@ -10,6 +10,7 @@ import {
   parseImportPayload,
   summarizePattern,
   mergePatterns,
+  parseXToysImport,
 } from "../../frontend/js/modules/pattern-import.js";
 
 describe("pattern-import.js - validatePatternEntry", () => {
@@ -146,5 +147,41 @@ describe("pattern-import.js - mergePatterns", () => {
       { name: "New", pattern: { steps: 2, channelA: [5, 6], channelB: [7, 8] } },
     ]);
     assert.deepEqual(target.Existing.channelA, [1, 2]);
+  });
+});
+
+describe("pattern-import — XToys formats (F6)", () => {
+  it("parses points-based channels (XToys style)", () => {
+    const r = parseXToysImport({
+      patterns: [{ name: "Tease", channels: [{ points: [{ at: 0, level: 0 }, { at: 4, level: 100 }] }, { points: [{ at: 0, level: 100 }, { at: 4, level: 0 }] }] }],
+    });
+    assert.equal(r.ok, true);
+    assert.equal(r.entries.length, 1);
+    assert.equal(r.entries[0].name, "Tease");
+    assert.equal(r.entries[0].pattern.steps, 32);
+    assert.ok(r.entries[0].pattern.channelA[31] >= 90, "last step near 100");
+    assert.ok(r.entries[0].pattern.channelB[0] >= 90, "B starts high");
+    assert.ok(r.entries[0].pattern.channelA.every((v) => v >= 0 && v <= 100));
+  });
+
+  it("parses A/B array channels with steps sampling", () => {
+    const r = parseXToysImport({ patterns: [{ name: "Wave", A: [0, 50, 100], B: [100, 50, 0], steps: 8 }] });
+    assert.equal(r.ok, true);
+    assert.equal(r.entries[0].pattern.steps, 8);
+    assert.equal(r.entries[0].pattern.channelA[0], 0);
+    assert.equal(r.entries[0].pattern.channelA[7], 100);
+  });
+
+  it("falls back to app-format map", () => {
+    const r = parseXToysImport({ mine: { steps: 4, channelA: [10, 20, 30, 40], channelB: [0, 0, 0, 0] } });
+    assert.equal(r.ok, true);
+    assert.equal(r.entries.length, 1);
+    assert.equal(r.entries[0].name, "mine");
+  });
+
+  it("rejects garbage payloads", () => {
+    assert.equal(parseXToysImport(null).ok, false);
+    assert.equal(parseXToysImport({ foo: 1 }).ok, false);
+    assert.equal(parseXToysImport([]).ok, false);
   });
 });

@@ -119,6 +119,8 @@ const toolsDefinition = [
               "drift",
               "sawtooth",
               "duet",
+              "breath",
+              "triphase",
             ],
             description: "Der Name des Musters, das abgespielt werden soll.",
           },

@@ -1,5 +1,32 @@
 # Changelog
 
+## 4.8.0 — Climax-Fabrik, Sprach-Coach & Mobile-Steuerung
+
+### Autodrive „Climax-Fabrik" ⚙️ (basierend auf Protokoll- & Community-Recherche)
+- **Neue Templates:** `climax_factory` (2 Edges mit programmierten Loop-Zyklen, 2 Climaxes) und `hfo` (Hände-frei-Programm, 25 Min langsamer Aufbau, volles Frequenzband)
+- **Programmierte Edging-Loops:** Zeit-getriebene Rise→Hold→Drop-Zyklen (12/20/8 s) im Edge-Hold, Auto-Complete nach N Zyklen
+- **Fullband-Frequenzfahrplan:** nutzt das offizielle logische 10–1000-Hz-Band (Throb→Buzz→Sharp) mit korrekter Wire-Kompression
+- **Multi-Climax-Sessions:** Refraktär-Cooldown (3 Min, sicher still) → nächster Aufbau bis zur Ziel-Anzahl; Aggression steigt pro Versuch
+
+### Sprach-Coach 🔊 & Wellenformen
+- **TTS-Coach:** gesprochene Phasen-Cues („Jetzt!", „Am Limit. Halten."), Atem-Cadence (Ein/Aus), Bracing-Cues; deutsche Stimme, Stopp bei Panic/Close
+- **Breath-Wellenform 🌬️** (8-s-Ein/Halten/Aus) und **Tri-Phase 🔀** (Kanal B als gemeinsamer Pol, gegenphasige Pulse) als Manual-Patterns + AI-Tools
+
+### Content & Erlebnis
+- **Funscript-Wiedergabe:** Import (bis 2 MB, 20 Skripte), Player mit Positions-Interpolation → Soft-Limit-gedeckelte Intensität, `replay`-Owner, Fortschritt
+- **XToys-Pattern-Import:** 4 Formate (Points, A/B-Arrays, App-Format, Map) → 32-Step-Sampling
+- **Aftercare-Ritual:** geführter Atemkreis + Session-Zusammenfassung beim Ausklingen
+- **Mobile Control-UI:** eingebettete Handy-Seite auf dem Remote-Port (Slider, Stop, Panic); optionale LAN-Freigabe (0.0.0.0) mit Token-Auth
+
+### Engine & Fixes
+- **B0-Mikroschritte:** Manual-Patterns füllen die 4×25-ms-Slots mit Sub-Tick-Interpolation → weichere Sensationen
+- **Climax-Learning 2.0:** pro-Template-Statistik (Ø Loop-Zyklen, Ø Zeit bis Climax) → Auto-Tuning ab 3 Sessions; Anzeige in Historie/Log
+- Fix: `ws`-Fehler-Reemit (Port-Konflikt wird korrekt abgefangen), Inaktiv-Marker-Clamp in Slots
+
+### Tests
+- 665 Tests grün (17 neue: Climax-Fabrik-Engine, B0-Slots, XToys-Formate, Mobile-Page, LAN-Option), Lint sauber
+
+
 ## 4.7.0 — Komplettes Backup, Auto-Aufnahme & Milestone-Achievements
 
 ### Neu: Daten-Backup ⭳⭱

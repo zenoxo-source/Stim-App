@@ -217,7 +217,34 @@ export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
   let segA = ProtocolUtils.resolveWaveSegment(freqA, scaledA);
   let segB = ProtocolUtils.resolveWaveSegment(freqB, scaledB);
 
-  // Logical UI strength → device wire (soft + masterScale)
+  // F10: 4×25 ms micro-slots for smoother sensations. Slots carry RAW
+  // pattern amplitudes; pulse-width + master scaling applies per slot here.
+  let slotsA = null;
+  let slotsB = null;
+  if (Array.isArray(o.slotsA) && o.slotsA.length === 4) {
+    slotsA = o.slotsA.map((s) =>
+      ProtocolUtils.resolveWaveSegment(
+        s.freq,
+        ProtocolUtils.scaleWaveAmp(
+          ProtocolUtils.applyPulseWidthScale(s.intensity, AppState.pulseWidthA),
+          AppState.masterScale
+        )
+      )
+    );
+  }
+  if (Array.isArray(o.slotsB) && o.slotsB.length === 4) {
+    slotsB = o.slotsB.map((s) =>
+      ProtocolUtils.resolveWaveSegment(
+        s.freq,
+        ProtocolUtils.scaleWaveAmp(
+          ProtocolUtils.applyPulseWidthScale(s.intensity, AppState.pulseWidthB),
+          AppState.masterScale
+        )
+      )
+    );
+  }
+
+  // Logical UI strength  device wire (soft + masterScale)
   let strA = getDeviceStrength(AppState.strengthA, AppState.softLimitA);
   let strB = getDeviceStrength(AppState.strengthB, AppState.softLimitB);
 
@@ -226,6 +253,9 @@ export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
     const tmpSeg = segA;
     segA = segB;
     segB = tmpSeg;
+    const tmpSlots = slotsA;
+    slotsA = slotsB;
+    slotsB = tmpSlots;
     const tmpStr = strA;
     strA = strB;
     strB = tmpStr;
@@ -287,8 +317,16 @@ export function sendB0Now(freqA, ampA, freqB, ampB, opts) {
   data[3] = strB;
 
   if (ProtocolUtils.fillChannelWave) {
-    ProtocolUtils.fillChannelWave(data, 4, 8, segA.freq, segA.intensity);
-    ProtocolUtils.fillChannelWave(data, 12, 16, segB.freq, segB.intensity);
+    if (slotsA && ProtocolUtils.fillChannelWaveSlots) {
+      ProtocolUtils.fillChannelWaveSlots(data, 4, 8, slotsA);
+    } else {
+      ProtocolUtils.fillChannelWave(data, 4, 8, segA.freq, segA.intensity);
+    }
+    if (slotsB && ProtocolUtils.fillChannelWaveSlots) {
+      ProtocolUtils.fillChannelWaveSlots(data, 12, 16, slotsB);
+    } else {
+      ProtocolUtils.fillChannelWave(data, 12, 16, segB.freq, segB.intensity);
+    }
   } else {
     for (let i = 0; i < 4; i++) {
       data[4 + i] = segA.freq;
@@ -359,6 +397,8 @@ export function sendWaveformCommand(freqA, ampA, freqB, ampB, opts = {}) {
   sendB0Now(freqA, ampA, freqB, ampB, {
     force,
     keepStrength: opts.keepStrength,
+    slotsA: opts.slotsA,
+    slotsB: opts.slotsB,
   });
 }
 

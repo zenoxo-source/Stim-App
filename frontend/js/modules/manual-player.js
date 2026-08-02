@@ -81,6 +81,14 @@ export const MANUAL_PATTERN_INFO = Object.freeze({
     name: "Duet",
     desc: "A und B phasenversetzt — Stereo-Spiel",
   },
+  breath: {
+    name: "Breath",
+    desc: "Atem-Cadence: langsam ein/halten/aus (8 s)",
+  },
+  triphase: {
+    name: "Tri-Phase",
+    desc: "Kanal B als gemeinsamer Pol — gegenphasige Pulse",
+  },
 });
 
 /**

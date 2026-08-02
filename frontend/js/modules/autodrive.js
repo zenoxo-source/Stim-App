@@ -141,6 +141,63 @@ function saveLearning(patch) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// F11: Climax-Learning 2.0 — per-template stats + auto-tuning.
+// ---------------------------------------------------------------------------
+
+/** Merge one finished session into the per-template learning record. */
+export function updatePerTemplateLearning(perTemplate, templateId, snap) {
+  const tpl = {
+    sessions: 0,
+    climaxes: 0,
+    cyclesSum: 0,
+    cyclesN: 0,
+    timeToClimaxSum: 0,
+    timeToClimaxN: 0,
+    ...((perTemplate && perTemplate[templateId]) || {}),
+  };
+  tpl.sessions += 1;
+  if (snap.marked) {
+    tpl.climaxes += 1;
+    if (typeof snap.durationMs === "number" && snap.durationMs > 0) {
+      tpl.timeToClimaxSum += snap.durationMs;
+      tpl.timeToClimaxN += 1;
+    }
+  }
+  const cycles = snap.holdCycleIdx || 0;
+  if (cycles > 0) {
+    tpl.cyclesSum += cycles;
+    tpl.cyclesN += 1;
+  }
+  return { ...(perTemplate || {}), [templateId]: tpl };
+}
+
+/** @returns {{sessions: number, avgCycles: number, avgTimeToClimaxMs: number}|null} */
+export function getTemplateLearning(templateId) {
+  try {
+    const tpl = loadLearning().perTemplate?.[templateId];
+    if (!tpl || !tpl.sessions) return null;
+    return {
+      sessions: tpl.sessions,
+      avgCycles: tpl.cyclesN ? Math.round(tpl.cyclesSum / tpl.cyclesN) : 0,
+      avgTimeToClimaxMs: tpl.timeToClimaxN ? tpl.timeToClimaxSum / tpl.timeToClimaxN : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Auto-tune a config from per-template learning: after ≥3 sessions, reuse the
+ * average edging-cycle count for the next run (bounded 1–4).
+ */
+function autoTuneFromLearning(cfg) {
+  const tpl = getTemplateLearning(cfg.templateId || "custom");
+  if (!tpl || tpl.sessions < 3 || !cfg.edgeLoops) return cfg;
+  const cycles = Math.max(1, Math.min(4, tpl.avgCycles));
+  return { ...cfg, edgeCycleTarget: cycles };
+}
+
 export function isAutodriveActive() {
   return !!(engineState && engineState.phase && engineState.phase !== "IDLE");
 }
@@ -213,6 +270,8 @@ export function startAutodrive(patch = {}) {
 
   const firstRun = !localStorage.getItem(SEEN_KEY);
   let cfg = sanitiseAutodriveConfig({ ...loadAutodriveConfig(), ...patch });
+  // F11: auto-tune from per-template learning (edge cycles etc.).
+  cfg = autoTuneFromLearning(cfg);
   if (firstRun) {
     cfg = { ...cfg, skipCalibration: false };
   }
@@ -259,6 +318,20 @@ export function startAutodrive(patch = {}) {
     `Autodrive gestartet: ${cfg.templateId || "custom"} · ${cfg.targetDurationMin} Min · Ziel ${cfg.goal}`,
     "success"
   );
+  // F11: log learned per-template tuning when it changed the run.
+  try {
+    const tpl = getTemplateLearning(cfg.templateId || "custom");
+    if (tpl && tpl.sessions >= 3 && cfg.edgeLoops) {
+      log(
+        `Learning (${cfg.templateId}): ${tpl.sessions} Sessions · Ø ${tpl.avgCycles} Loop-Zyklen · Ø bis Climax ${Math.round(
+          (tpl.avgTimeToClimaxMs || 0) / 60000
+        )} Min`,
+        "info"
+      );
+    }
+  } catch {
+    /* optional */
+  }
   try {
     startAutoRecording("autodrive");
   } catch {
@@ -351,6 +424,7 @@ export function stopAutodrive(reason = "manuell") {
         good: engineState.sessionGoodCount || 0,
         edges: engineState.edgeCountDone || 0,
         durationMs: engineState.effectiveElapsedMs || 0,
+        holdCycleIdx: engineState.holdCycleIdx || 0,
         reason,
       }
     : null;
@@ -439,6 +513,12 @@ export function stopAutodrive(reason = "manuell") {
           snap.tooWeak >= 3 &&
           (AppState.softLimitA || 0) < 120 &&
           (AppState.softLimitB || 0) < 120,
+        // F11: per-template learning (edging cycles, time-to-climax).
+        perTemplate: updatePerTemplateLearning(
+          learn.perTemplate,
+          snap.config?.templateId || "custom",
+          snap
+        ),
       });
       // Persist last session for debrief UI
       localStorage.setItem(

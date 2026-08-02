@@ -592,9 +592,19 @@ async function toggleEditorRemote() {
     } else {
       var portEl = document.getElementById("editor-remote-port");
       var port = portEl ? parseInt(portEl.value, 10) || 8080 : 8080;
-      var result = await window.electronAPI.startRemote(port);
+      var lanEl = document.getElementById("check-remote-lan");
+      var result = await window.electronAPI.startRemote(port, lanEl ? lanEl.checked : false);
       if (result.ok) {
-        log("Remote-Server gestartet auf ws://127.0.0.1:" + (result.port || port), "success");
+        log(
+          "Remote-Server gestartet auf ws://" +
+            (result.lan ? "0.0.0.0 (LAN)" : "127.0.0.1") +
+            ":" +
+            (result.port || port),
+          "success"
+        );
+        if (result.lan) {
+          log("Mobile-Steuerung: http://<PC-IP>:" + (result.port || port) + "/?token=…", "info");
+        }
       } else {
         log("Remote-Server Fehler: " + result.error, "error");
       }

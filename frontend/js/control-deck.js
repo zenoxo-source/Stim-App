@@ -153,6 +153,27 @@ export function startWaveLoop() {
     return CONSTANTS.WAVE_LOOP_IDLE_MS || 500; // silent idle only
   }
 
+  /**
+   * F10: 4×25 ms micro-slots — sample the pattern at sub-ticks so the B0
+   * packet carries a smooth intensity ramp instead of 4 identical slots.
+   * Freq stays at the tick's final value; only amplitudes vary per slot.
+   */
+  function microSlots(patternId, tick, computePattern, fA, fB) {
+    if (!patternId || typeof computePattern !== "function") return undefined;
+    try {
+      const ampAt = (i, get) => {
+        const w = computePattern(patternId, tick + i * 0.25);
+        return get(w);
+      };
+      return {
+        A: [0, 1, 2, 3].map((i) => ({ freq: fA, intensity: ampAt(i, (w) => w.aA) })),
+        B: [0, 1, 2, 3].map((i) => ({ freq: fB, intensity: ampAt(i, (w) => w.aB) })),
+      };
+    } catch {
+      return undefined;
+    }
+  }
+
   async function waveLoopTick() {
     if (!AppState.isConnected) {
       AppState.waveLoopInterval = setTimeout(waveLoopTick, getLoopInterval());
@@ -369,7 +390,15 @@ export function startWaveLoop() {
       AppState.lastWaveFreqB = fB;
       AppState.lastWaveAmpB = aB;
 
-      await sendWaveformCommand(fA, aA, fB, aB, { writer: "wave-loop" });
+      // F10: 25 ms micro-slots for smooth manual pattern playback.
+      const pid =
+        AppState.activePattern === CONSTANTS.PATTERNS.AI_CUSTOM ? null : AppState.activePattern;
+      const slots = microSlots(pid, AppState.loopTimeCounter, computeNamedPatternWave, fA, fB);
+      await sendWaveformCommand(fA, aA, fB, aB, {
+        writer: "wave-loop",
+        slotsA: slots?.A,
+        slotsB: slots?.B,
+      });
     } else if (AppState.isAudioPlaying && AppState.analyserA && AppState.analyserB) {
       const cfg = loadStimConfig();
       // Keep sensitivity sliders in sync with config if present
