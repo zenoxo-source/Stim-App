@@ -113,6 +113,9 @@ import "./modules/ai-director.js";
 import "./modules/autodrive.js";
 import "./modules/autodrive-ui.js";
 
+// Voice feedback for Autodrive (Web Speech API, hands-free)
+import "./modules/voice-feedback.js";
+
 // Session UX: readiness, chrome, stories, partner, shock, export
 import "./modules/session-readiness.js";
 import "./modules/session-chrome.js";

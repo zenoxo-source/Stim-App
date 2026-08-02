@@ -154,6 +154,11 @@ function loadPlaylistIndex(idx, autoplay = false) {
   AppState.audioElement.onended = () => {
     const cfg = loadStimConfig();
     if (AppState.playlist && AppState.playlist.length > 0) {
+      // Repeat-one wins over shuffle/next (works in multi-track playlists).
+      if (cfg.repeatOne) {
+        loadPlaylistIndex(AppState.playlistIndex, true);
+        return;
+      }
       if (cfg.loop && AppState.playlist.length === 1) {
         loadPlaylistIndex(0, true);
         return;
@@ -278,6 +283,38 @@ function pauseSTIMAudio() {
 
 export { playSTIMAudio, pauseSTIMAudio, loadPlaylistIndex };
 
+// ---------------------------------------------------------------------------
+// Global media keys (F3): Play/Pause + Next/Prev work while the window is
+// hidden in the tray. Wired from the main process via IPC.
+// ---------------------------------------------------------------------------
+
+export function toggleStimPlayback() {
+  if (!AppState.playlist || AppState.playlist.length === 0) {
+    log("Media-Key: keine Playlist geladen.", "info");
+    return;
+  }
+  if (AppState.isAudioPlaying) {
+    pauseSTIMAudio();
+  } else {
+    if (AppState.playlistIndex < 0 || AppState.playlistIndex >= AppState.playlist.length) {
+      loadPlaylistIndex(0);
+    }
+    playSTIMAudio();
+  }
+}
+
+export function stimPlayNext() {
+  if (!AppState.playlist || AppState.playlist.length === 0) return;
+  const next = (AppState.playlistIndex + 1) % AppState.playlist.length;
+  loadPlaylistIndex(next, true);
+}
+
+export function stimPlayPrev() {
+  if (!AppState.playlist || AppState.playlist.length === 0) return;
+  const prev = (AppState.playlistIndex - 1 + AppState.playlist.length) % AppState.playlist.length;
+  loadPlaylistIndex(prev, true);
+}
+
 function updateSTIMTimeline() {
   if (!AppState.isAudioPlaying || !AppState.audioElement) return;
 
@@ -378,6 +415,15 @@ document.addEventListener("DOMContentLoaded", () => {
   AppState.playlist = [];
   AppState.playlistIndex = -1;
 
+  // Global media keys (F3): play/pause + next/prev from the OS media keys.
+  if (window.electronAPI && typeof window.electronAPI.onMediaKey === "function") {
+    window.electronAPI.onMediaKey((action) => {
+      if (action === "play_pause") toggleStimPlayback();
+      else if (action === "next") stimPlayNext();
+      else if (action === "prev") stimPlayPrev();
+    });
+  }
+
   DOM["drop-zone"]?.addEventListener("click", () => DOM["input-stim-file"]?.click());
 
   DOM["drop-zone"]?.addEventListener("dragover", (e) => {
@@ -476,6 +522,7 @@ document.addEventListener("DOMContentLoaded", () => {
     set("stim-amp-max", cfg.waveAmpMax);
     set("stim-loop", cfg.loop, true);
     set("stim-shuffle", cfg.shuffle, true);
+    set("stim-repeat-one", cfg.repeatOne, true);
     const sv = document.getElementById("stim-smoothing-val");
     if (sv) sv.textContent = Number(cfg.smoothing).toFixed(2);
     if (DOM["slider-sens-a"]) DOM["slider-sens-a"].value = cfg.sensitivityA;
@@ -508,6 +555,7 @@ document.addEventListener("DOMContentLoaded", () => {
       waveAmpMax: num("stim-amp-max", 100),
       loop: chk("stim-loop", false),
       shuffle: chk("stim-shuffle", false),
+      repeatOne: chk("stim-repeat-one", false),
       sensitivityA: AppState.sensitivityA,
       sensitivityB: AppState.sensitivityB,
     });
@@ -529,6 +577,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "stim-amp-max",
     "stim-loop",
     "stim-shuffle",
+    "stim-repeat-one",
   ].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", () => {
       readStimCfgFromUi();

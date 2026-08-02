@@ -89,6 +89,8 @@ export const STIM_DEFAULTS = Object.freeze({
   smoothing: 0.4,
   loop: false,
   shuffle: false,
+  /** Repeat the current track even in multi-track playlists. */
+  repeatOne: false,
   baseStrength: 40,
   gateThreshold: 0.04,
 });
@@ -160,6 +162,7 @@ export function sanitiseStimConfig(input) {
   if (typeof input.strengthDrive === "boolean") d.strengthDrive = input.strengthDrive;
   if (typeof input.loop === "boolean") d.loop = input.loop;
   if (typeof input.shuffle === "boolean") d.shuffle = input.shuffle;
+  if (typeof input.repeatOne === "boolean") d.repeatOne = input.repeatOne;
   const fm = String(input.freqMode || "");
   if (["spectrum", "fixed", "with_intensity", "inverse_intensity"].includes(fm)) {
     d.freqMode = /** @type {StimFreqMode} */ (fm);

@@ -13,6 +13,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
   // User-facing notification (device lost, safety timer, …).
   notify: (title, body) => ipcRenderer.send("app-notify", { title, body }),
+  // Global media keys (play/pause/next/prev) → STIM player.
+  onMediaKey: (callback) => {
+    const handler = (_event, action) => callback(action);
+    ipcRenderer.on("media-key", handler);
+    return () => ipcRenderer.removeListener("media-key", handler);
+  },
   platform: process.platform,
   getVersion: () => ipcRenderer.invoke("app:getVersion"),
   isPackaged: () => ipcRenderer.invoke("app:isPackaged"),

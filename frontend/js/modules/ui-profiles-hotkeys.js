@@ -30,14 +30,16 @@ function renderHotkeyList() {
   list.innerHTML = actions
     .map(
       (a) => `
-      <div class="hotkey-row" data-action="${a.id}">
-        <span class="hotkey-label">${a.label}${a.allowRebind ? "" : " <small>(geschützt)</small>"}</span>
+      <div class="hotkey-row" data-action="${escapeHtml(a.id)}">
+        <span class="hotkey-label">${escapeHtml(a.label)}${
+          a.allowRebind ? "" : " <small>(geschützt)</small>"
+        }</span>
         <span class="hotkey-combo">
-          <kbd data-combo="${a.id}">${a.currentCombo || "—"}</kbd>
+          <kbd data-combo="${escapeHtml(a.id)}">${escapeHtml(a.currentCombo || "—")}</kbd>
           ${
             a.allowRebind
-              ? `<button type="button" class="btn btn-secondary btn-sm" data-rebind="${a.id}">Ändern</button>
-                 <button type="button" class="btn btn-secondary btn-sm" data-reset="${a.id}">Reset</button>`
+              ? `<button type="button" class="btn btn-secondary btn-sm" data-rebind="${escapeHtml(a.id)}">Ändern</button>
+                 <button type="button" class="btn btn-secondary btn-sm" data-reset="${escapeHtml(a.id)}">Reset</button>`
               : ""
           }
         </span>

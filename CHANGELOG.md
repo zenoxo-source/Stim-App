@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.4.0 — Voice-Feedback, Media-Keys & Session-Historie
+
+### Neu: Autodrive Voice-Feedback 🎤
+- Hände-freie Steuerung per Mikrofon (Web Speech API): „zu schwach / gut / zu stark / fast / jetzt / abgespritzt / noch nicht" → Autodrive-Feedback
+- Toggle-Button im Session-Fullscreen, Transkript-Status, Auto-Stopp beim Schließen; ohne SpeechRecognition wird der Button ausgeblendet
+- Privacy: Mikrofon nur bei aktivem Toggle, keine Transkript-Persistenz
+
+### Neu: Globale Media-Keys
+- `MediaPlayPause` / `MediaNextTrack` / `MediaPreviousTrack` steuern den STIM-Player auch bei verstecktem Fenster (Play/Pause-Toggle, Track-Navigation mit Wrap)
+
+### Neu: Playlist-Erweiterung & Session-Historie
+- **Repeat 1**: aktuelle Spur wiederholen (auch in Multi-Track-Playlists, gewinnt vor Shuffle/Next)
+- **Autodrive-Session-Historie**: die letzten 10 Sessions auf Home (Dauer, Phase, Edges, Feedback, Template, Peak, ✅-Markierung) mit 1-Klick-„↻"-Restart (gleiches Setup)
+- Debrief-Zusammenfassung zeigt jetzt Phase + Peak
+
+### Sicherheit
+- **XSS-Fix:** Hotkey-Combo-Strings (z. B. `Ctrl+<…>`) wurden unescaped gerendert — jetzt escaped (Combo, Label, IDs)
+- Audit weiterer Sinks (Trigger-/Memory-Listen, Scheduler, Profile, Pattern-Import) — keine weiteren Funde
+
+### Tests
+- 648 Tests grün, Lint sauber
+
+
 ## 4.3.0 — Panic-Hotkey, Tray-STOPP & Sicherheits-Fixes
 
 ### Sicherheit (Schwachstellen-Behobungen)

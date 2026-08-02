@@ -798,6 +798,24 @@ app.whenReady().then(() => {
     console.warn("globalShortcut registration failed:", err.message);
   }
 
+  // Global media keys: STIM play/pause + track navigation while hidden.
+  const mediaKeys = [
+    ["MediaPlayPause", "play_pause"],
+    ["MediaNextTrack", "next"],
+    ["MediaPreviousTrack", "prev"],
+  ];
+  for (const [accelerator, action] of mediaKeys) {
+    try {
+      globalShortcut.register(accelerator, () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("media-key", action);
+        }
+      });
+    } catch (err) {
+      console.warn(`Media-Key ${accelerator} konnte nicht registriert werden:`, err.message);
+    }
+  }
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();

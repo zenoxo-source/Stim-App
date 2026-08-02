@@ -2,6 +2,7 @@
 
 import { AppState, log } from "../state.js";
 import { i18nText } from "./i18n.js";
+import * as ProtocolUtils from "../lib/protocol-utils.js";
 // log used by stories
 import {
   startAutodrive,
@@ -19,6 +20,7 @@ import {
   saveAutodriveConfig,
   getAutodriveState,
   getLastSessionSnapshot,
+  loadSessionHistory,
   applyDebrief,
   getSoftLimitCoachMessage,
   clearSoftLimitCoach,
@@ -200,9 +202,53 @@ function paintDashboard(st) {
   if (trust) trust.textContent = buildTrustLine(st);
 
   paintTimeline(st);
+  paintHistory();
   refreshHomeSummary();
   paintCoach();
   paintOnboarding();
+}
+
+/** F4: last sessions list on Home with 1-click restart. */
+function paintHistory() {
+  const box = document.getElementById("ad-history");
+  if (!box) return;
+  const history = loadSessionHistory();
+  if (history.length === 0) {
+    box.innerHTML = "";
+    return;
+  }
+  const esc = (s) => (ProtocolUtils.escapeHtml ? ProtocolUtils.escapeHtml(s) : s);
+  const rows = history
+    .slice(-10)
+    .reverse()
+    .map((h) => {
+      const min = Math.round((h.durationMs || 0) / 60000);
+      const date = new Date(h.endedAt || Date.now()).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const mark = h.marked ? " · ✅" : "";
+      const tpl = h.templateId ? ` · ${esc(h.templateId)}` : "";
+      return `<div class="stat-list-row ad-history-row" data-hidx="${history.indexOf(h)}">
+        <span>${date} · ${min} Min · Phase ${esc(h.phase || "—")} · Edges ${h.edges || 0}${tpl}${mark}</span>
+        <button type="button" class="btn btn-secondary btn-sm ad-history-restart" title="Session erneut starten">↻</button>
+      </div>`;
+    })
+    .join("");
+  box.innerHTML = `<div class="card-title" style="font-size:12px;">Letzte Sessions</div>${rows}`;
+  box.querySelectorAll(".ad-history-restart").forEach((b) => {
+    b.onclick = () => {
+      const row = b.closest(".ad-history-row");
+      if (!row) return;
+      const h = history[Number(row.dataset.hidx)];
+      if (!h || !h.config) {
+        setStatusMsg("Kein Setup für diese Session", true);
+        return;
+      }
+      const r = startAutodrive({ ...h.config, skipCalibration: true });
+      handleStartResult(r, true);
+    };
+  });
 }
 
 function paintOnboarding() {

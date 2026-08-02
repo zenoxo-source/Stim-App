@@ -236,6 +236,7 @@
             </p>
             <div id="home-ad-stats" class="home-ad-stats"></div>
             <div id="home-metrics-detail" class="home-ad-stats home-metrics-detail"></div>
+            <div id="ad-history" class="ad-history" style="margin-top:14px;"></div>
           </div>
           <div class="card">
             <div class="card-title">Session-Stories</div>
@@ -602,6 +603,8 @@
             <span id="ad-fs-edges"></span>
             <span id="ad-fs-hold"></span>
           </div>
+          <span id="ad-fs-voice-status" class="ad-fs-voice-status"></span>
+          <button type="button" id="ad-fs-voice" class="btn btn-secondary btn-sm" title="Sprach-Feedback (Mikrofon): „zu schwach / gut / zu stark / fast / jetzt“">🎤</button>
           <button type="button" id="ad-fs-close" class="btn btn-secondary btn-sm">UI</button>
         </div>
         <div class="ad-fs-bars">
@@ -1072,6 +1075,7 @@
               <input type="checkbox" id="check-audio-master-link" checked style="width: 18px; height: 18px; cursor: pointer;" title="Hörlautstärke folgt dem Master-Slider" data-i18n-title="title_vol_follows_master">
               <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="stim-loop"> Loop</label>
               <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="stim-shuffle"> Shuffle</label>
+              <label style="font-size:12px;display:flex;align-items:center;gap:4px;" title="Aktuellen Track wiederholen (auch in Multi-Track-Playlists)"><input type="checkbox" id="stim-repeat-one"> Repeat 1</label>
             </div>
           </div>
 

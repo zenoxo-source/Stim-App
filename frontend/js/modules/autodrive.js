@@ -48,6 +48,9 @@ const SEEN_KEY = "stim_app_autodrive_seen";
 const LEARN_KEY = "stim_app_autodrive_learn_v1";
 const LAST_SUCCESS_KEY = "stim_app_autodrive_last_success_v1";
 const LAST_SESSION_KEY = "stim_app_autodrive_last_session_v1";
+const SESSION_HISTORY_KEY = "stim_app_autodrive_history_v1";
+/** Keep the last N finished sessions for the dashboard history list. */
+const SESSION_HISTORY_MAX = 10;
 const TICK_MS = CONSTANTS.WAVE_LOOP_INTERVAL_MS || 100;
 
 /** @type {object|null} */
@@ -434,6 +437,31 @@ export function stopAutodrive(reason = "manuell") {
           softLimitB: AppState.softLimitB,
         })
       );
+      // F4: session history ring buffer (dashboard list + 1-click restart).
+      try {
+        const entry = {
+          endedAt: Date.now(),
+          durationMs: snap.durationMs || 0,
+          phase: snap.phase || "",
+          marked: !!snap.marked,
+          edges: snap.edges || 0,
+          tooWeak: snap.tooWeak || 0,
+          tooStrong: snap.tooStrong || 0,
+          almost: snap.almost || 0,
+          peakRel: snap.peakRel || 0,
+          templateId: snap.config?.templateId || "",
+          reason: snap.reason || "manuell",
+          config: snap.config ? { ...snap.config } : null,
+        };
+        const history = loadSessionHistory();
+        history.push(entry);
+        if (history.length > SESSION_HISTORY_MAX) {
+          history.splice(0, history.length - SESSION_HISTORY_MAX);
+        }
+        localStorage.setItem(SESSION_HISTORY_KEY, JSON.stringify(history));
+      } catch {
+        /* history optional */
+      }
       if (snap.marked && snap.config) {
         const c = snap.config;
         localStorage.setItem(
@@ -522,6 +550,26 @@ export function hasLastSession() {
     return !!snap.config;
   } catch {
     return false;
+  }
+}
+
+/** @returns {Array<object>} finished sessions, oldest → newest. */
+export function loadSessionHistory() {
+  try {
+    const raw = localStorage.getItem(SESSION_HISTORY_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Clear the session history (Settings/Stats reset path). */
+export function clearSessionHistory() {
+  try {
+    localStorage.removeItem(SESSION_HISTORY_KEY);
+  } catch {
+    /* ignore */
   }
 }
 
