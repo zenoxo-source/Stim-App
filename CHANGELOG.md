@@ -1,5 +1,31 @@
 # Changelog
 
+## 4.2.0 — Ownership Strict, PBKDF2-PIN & Härtung
+
+### Verhaltensänderung: Output-Ownership jetzt strikt
+- Schreibzugriffe werden **immer hart blockiert**, wenn ein anderer Owner aktiv ist (Session/Pattern/Autodrive/Audio/Ramp/Game) — vorher nur Soft-Guard-Log
+- **Ausnahmen (immer erlaubt):** Intensitäts-Slider, Master-Scale, Pulse-Width, Frequenz (`manual`/`master`-Writer) — der Mutex arbitriert zwischen automatisierten Quellen, nicht den eigenen Händen
+- Remote/MIDI/Trigger-Schreibbefehle während aktiver Owner-Session werden abgelehnt; `stop_all`/Safety bleiben erreichbar
+
+### Sicherheit
+- **Session-PIN auf PBKDF2** (100k Iterationen HMAC-SHA-256 statt SHA-256) — Format `pbkdf2$iters$salt$dk`; Bestands-PINs werden beim ersten erfolgreichen Unlock automatisch migriert
+- `npm audit`: 4 bekannte Schwachstellen in Build-Deps behoben (js-yaml, tar) → **0 Vulnerabilities**
+
+### Qualität / Refactor
+- **Legacy `pattern-editor.js` entfernt** (war seit v2 inert, DOM-IDs existierten nicht mehr)
+- Pattern-Engine (`computeNamedPatternWave`) nach `frontend/js/lib/pattern-engine.js` extrahiert — `control-deck.js` 1071 → 899 Zeilen
+- **Auto-Update-Check alle 4 h** (still, UI nur bei verfügbarem Update); Update-Scripts im Changelog/README automatisieren Version-Bumps
+
+### CI / Infrastruktur
+- CI baut jetzt zusätzlich das **fertige Paket** (`build:app`, unsigned Smoke-Test) — fängt Verpackungsfehler vor dem Release
+- Deploy-SSH-Keys aus dem Repo-Ordner nach `~/.ssh/coyoteapp-deploy/` verschoben
+- Docs: `DESIGN-restructure-autodrive.md` archiviert, `ROADMAP-4.0.md` mit Erledigt-Status
+
+### Tests
+- +14 neue Tests: LLM-Proxy-Renderer-Fallback (7), Output-Owner-Strict-Semantik (4), PIN-Migration (2), Feature-Flag-Aufräumung (1)
+- Gesamt: 648 Tests grün, Lint sauber
+
+
 ## 4.1.13 — LLM-Proxy, Secrets & Refactor
 
 ### Sicherheit

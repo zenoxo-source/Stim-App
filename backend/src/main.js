@@ -41,6 +41,8 @@ let lastBluetoothDeviceList = [];
 
 // Windows BLE often needs >15s until the advertised name is populated.
 const BLUETOOTH_SELECT_TIMEOUT_MS = 30000;
+/** Silent background update checks (no UI unless an update is found). */
+const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
 const API_KEY_FILENAME = "ai-api-key.enc";
 const GH_UPDATE_TOKEN_FILENAME = "gh-update-token.enc";
 const UPDATE_OWNER = "zenoxo-source";
@@ -477,6 +479,9 @@ function setupAutoUpdater() {
     return;
   }
 
+  // Silent background checks don't spam the UI with "checking"/"none".
+  let silentUpdateCheck = false;
+
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
@@ -498,7 +503,7 @@ function setupAutoUpdater() {
   }
 
   autoUpdater.on("checking-for-update", () => {
-    sendUpdateStatus({ status: "checking" });
+    if (!silentUpdateCheck) sendUpdateStatus({ status: "checking" });
   });
 
   autoUpdater.on("update-available", (info) => {
@@ -510,7 +515,9 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on("update-not-available", (info) => {
-    sendUpdateStatus({ status: "none", version: info?.version || app.getVersion() });
+    if (!silentUpdateCheck) {
+      sendUpdateStatus({ status: "none", version: info?.version || app.getVersion() });
+    }
   });
 
   autoUpdater.on("download-progress", (progress) => {
@@ -528,6 +535,10 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on("error", (err) => {
+    if (silentUpdateCheck) {
+      console.warn("[updater] silent periodic check failed:", err.message);
+      return;
+    }
     sendUpdateStatus({ status: "error", message: formatUpdaterError(err) });
   });
 
@@ -538,6 +549,19 @@ function setupAutoUpdater() {
       sendUpdateStatus({ status: "error", message: formatUpdaterError(err) });
     });
   }, 4000);
+
+  // Periodic silent check: no UI unless an update is actually found.
+  setInterval(() => {
+    silentUpdateCheck = true;
+    autoUpdater
+      .checkForUpdates()
+      .catch((err) => {
+        console.warn("[updater] periodic check failed:", err.message);
+      })
+      .finally(() => {
+        silentUpdateCheck = false;
+      });
+  }, UPDATE_CHECK_INTERVAL_MS);
 }
 
 function registerIpc() {

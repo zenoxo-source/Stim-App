@@ -1,11 +1,17 @@
 # Design Document: App-Restrukturierung + Autodrive-Modus (Stim App / CoyoteApp)
 
+> **ARCHIVIERT (Stand 4.2.0)** — Dieses Design-Dokument ist historisch. Die
+> spezifizierten Teile sind umgesetzt: Autodrive-Engine (4.1.x), IA-Shell (4.0.0,
+> siehe `ROADMAP-4.0.md`), Output-Ownership (strict seit 4.2.0), Legacy
+> Pattern-Editor entfernt (4.2.0). Für den aktuellen Stand siehe `AGENTS.md` +
+> `CHANGELOG.md`.
+
 | Feld | Wert |
 |------|------|
 | **Titel** | Complete App Restructure + Autodrive Mode |
 | **Autor** | TBD (Design) |
 | **Datum** | 2026-07-25 |
-| **Status** | Partially shipped through 3.14; **IA shell shipped in 4.0.0** (see `ROADMAP-4.0.md`) |
+| **Status** | Shipped (4.0.x–4.2.x); historisches Dokument |
 | **Zielversion** | 4.0.0 (inkrementell ab 3.9.x → 3.10… → 4.0) |
 | **Repo** | `C:\opencode\CoyoteApp` (Stim App v3.9.3) |
 | **Scope** | Frontend-Produktarchitektur + neuer Autodrive-Engine; **kein** Electron-Rewrite |

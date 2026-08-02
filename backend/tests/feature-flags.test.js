@@ -21,9 +21,16 @@ describe("feature-flags", () => {
   });
 
   it("persists patch", () => {
+    saveFlags({ autodrive: false });
+    assert.equal(isFlagEnabled("autodrive"), false);
+    assert.equal(isFlagEnabled("newNav"), FLAG_DEFAULTS.newNav);
+  });
+
+  it("outputOwnerStrict is gone (always-on since 4.2.0)", () => {
     saveFlags({ outputOwnerStrict: true });
-    assert.equal(isFlagEnabled("outputOwnerStrict"), true);
-    assert.equal(isFlagEnabled("autodrive"), FLAG_DEFAULTS.autodrive);
+    const f = loadFlags();
+    assert.equal(f.outputOwnerStrict, undefined);
+    assert.equal(isFlagEnabled("outputOwnerStrict"), false);
   });
 
   it("ignores unknown keys", () => {

@@ -6,12 +6,15 @@
 // Important safety rule: PANIC + SOFT-STOP are NEVER locked. They override
 // the PIN. Safety first.
 //
-// Storage: PIN is stored as SHA-256(salt + pin). The salt is per-installation
-// random. This isn't a strong KDF (use argon2/bcrypt for that), but for a
-// local 4-8 digit PIN against a casual attacker it's adequate.
+// Storage: PIN is stored as PBKDF2-HMAC-SHA-256 (100k iterations) with a
+// per-installation random salt. Format: `pbkdf2$<iterations>$<salt>$<dk>`.
+// Legacy SHA-256 hashes (pre-4.2.0) are verified and transparently migrated
+// on first successful unlock.
 
 const PIN_KEY = "stim_app_session_pin_v1";
 const SALT_KEY = "stim_app_session_pin_salt";
+const PBKDF2_ITERATIONS = 100000;
+const HASH_BITS = 256;
 
 let locked = false;
 /** Callbacks fired when lock state changes. */
@@ -39,19 +42,46 @@ function getOrCreateSalt() {
   return salt;
 }
 
+function toHex(buf) {
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 /**
- * Hash a PIN with the installation salt. Uses Web Crypto subtle SHA-256.
+ * PBKDF2-HMAC-SHA-256 derivation via Web Crypto.
+ * @param {string} pin
+ * @param {string} salt
+ * @param {number} iterations
+ * @returns {Promise<string>} hex derived key
+ */
+async function pbkdf2Derive(pin, salt, iterations) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(String(pin || "")),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const dk = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: enc.encode(salt), iterations, hash: "SHA-256" },
+    keyMaterial,
+    HASH_BITS
+  );
+  return toHex(dk);
+}
+
+/**
+ * Hash a PIN with the installation salt. Uses Web Crypto subtle PBKDF2.
  * @param {string} pin
  * @returns {Promise<string>}
  */
 export async function hashPin(pin) {
   const salt = getOrCreateSalt();
-  const data = new TextEncoder().encode(salt + ":" + String(pin || ""));
   if (crypto && crypto.subtle) {
-    const buf = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(buf))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+    const dk = await pbkdf2Derive(pin, salt, PBKDF2_ITERATIONS);
+    return `pbkdf2$${PBKDF2_ITERATIONS}$${salt}$${dk}`;
   }
   // Fallback (non-crypto) for very old environments
   let h = 0;
@@ -60,6 +90,13 @@ export async function hashPin(pin) {
     h = (h * 31 + str.charCodeAt(i)) >>> 0;
   }
   return "weak_" + h.toString(16);
+}
+
+/** Legacy pre-4.2.0 SHA-256(salt:pin) — verification + migration only. */
+async function legacySha256Hex(pin) {
+  const data = new TextEncoder().encode(getOrCreateSalt() + ":" + String(pin || ""));
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return toHex(buf);
 }
 
 /**
@@ -100,7 +137,8 @@ export function hasPin() {
 }
 
 /**
- * Verify a PIN against the stored hash.
+ * Verify a PIN against the stored hash. Legacy SHA-256 hashes are migrated
+ * to PBKDF2 on a successful match.
  * @param {string} pin
  * @returns {Promise<boolean>}
  */
@@ -108,8 +146,39 @@ export async function verifyPin(pin) {
   try {
     const stored = localStorage.getItem(PIN_KEY);
     if (!stored) return true; // no pin set = always unlocked
-    const hash = await hashPin(String(pin || ""));
-    return hash === stored;
+
+    if (stored.startsWith("pbkdf2$")) {
+      const [prefix, itersStr, salt, dk] = stored.split("$");
+      if (prefix !== "pbkdf2" || !itersStr || !salt || !dk || !(crypto && crypto.subtle)) {
+        return false;
+      }
+      const iterations = parseInt(itersStr, 10);
+      if (!Number.isInteger(iterations) || iterations < 1000 || iterations > 10000000) {
+        return false;
+      }
+      const candidate = await pbkdf2Derive(pin, salt, iterations);
+      return candidate === dk;
+    }
+
+    if (stored.startsWith("weak_")) {
+      let h = 0;
+      const str = getOrCreateSalt() + ":" + pin;
+      for (let i = 0; i < str.length; i++) {
+        h = (h * 31 + str.charCodeAt(i)) >>> 0;
+      }
+      return "weak_" + h.toString(16) === stored;
+    }
+
+    // Legacy SHA-256 format (pre-4.2.0): verify, then migrate in place.
+    const ok = (await legacySha256Hex(pin)) === stored;
+    if (ok) {
+      try {
+        localStorage.setItem(PIN_KEY, await hashPin(pin));
+      } catch {
+        /* ignore */
+      }
+    }
+    return ok;
   } catch {
     return false;
   }

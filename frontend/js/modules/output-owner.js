@@ -1,13 +1,20 @@
 // output-owner.js — Session output ownership mutex.
 // System writers (wave-loop / safety / emergency) are never claimable owners.
+// Since 4.2.0 the ownership check is ALWAYS strict: a conflicting writer that
+// does not own the output is hard-blocked (previously flag-gated via
+// `outputOwnerStrict`). "manual" (manual sliders) and "master" (master scale
+// / pulse width) are user-driven and always allowed — the mutex arbitrates
+// between automated output sources, not the user's own hands.
 
 import { AppState, log } from "../state.js";
-import { isFlagEnabled } from "./feature-flags.js";
 
 /** @typedef {"none"|"manual"|"pattern"|"session"|"audio"|"game"|"ramp"|"director"|"autodrive"|"remote"|"midi"|"replay"|"trigger"} OutputOwnerId */
 /** @typedef {"wave-loop"|"safety"|"emergency"} SystemWriterId */
 
+/** System writers are never claimable owners. */
 const SYSTEM_WRITERS = new Set(["wave-loop", "safety", "emergency"]);
+/** Writers that may always write output (system + user-driven controls). */
+const ALWAYS_ALLOWED_WRITERS = new Set(["wave-loop", "safety", "emergency", "manual", "master"]);
 
 /** @type {Map<string, () => void>} */
 const stopHandlers = new Map();
@@ -107,24 +114,13 @@ export function assertCanWrite(writerId, opts = { kind: "strength" }) {
   const owner = getOutputOwner();
   const kind = opts?.kind || "strength";
 
-  if (SYSTEM_WRITERS.has(writer)) return true;
+  if (ALWAYS_ALLOWED_WRITERS.has(writer)) return true;
   if (owner === "none") return true;
   if (writer === owner) return true;
 
-  // Autodrive-hard-while-owned (always on when owner is autodrive)
-  if (owner === "autodrive") {
-    log(`Schreibblock (Autodrive aktiv): ${writer} / ${kind}`, "warning");
-    return false;
-  }
-
-  if (isFlagEnabled("outputOwnerStrict")) {
-    log(`Schreibblock (strict owner ${owner}): ${writer} / ${kind}`, "warning");
-    return false;
-  }
-
-  // Soft phase: log only
-  log(`Owner-Hinweis: ${writer} schreibt ${kind} während Owner=${owner}`, "info");
-  return true;
+  // Hard reject: the current owner exclusively controls the output.
+  log(`Schreibblock (Owner ${owner}): ${writer} / ${kind}`, "warning");
+  return false;
 }
 
 /**

@@ -47,6 +47,32 @@ describe("output-owner", () => {
     assert.equal(assertCanWrite("autodrive", { kind: "strength" }), true);
   });
 
+  it("hard-rejects conflicting writers under ANY owner (strict global)", () => {
+    claimOutput("session");
+    assert.equal(assertCanWrite("external", { kind: "strength" }), false);
+    assert.equal(assertCanWrite("remote", { kind: "strength" }), false);
+    assert.equal(assertCanWrite("midi", { kind: "strength" }), false);
+    assert.equal(assertCanWrite("trigger", { kind: "strength" }), false);
+  });
+
+  it("always allows manual + master (user-driven) writers", () => {
+    claimOutput("session");
+    assert.equal(assertCanWrite("manual", { kind: "strength" }), true);
+    assert.equal(assertCanWrite("master", { kind: "strength" }), true);
+    assert.equal(assertCanWrite("master", { kind: "wave" }), true);
+  });
+
+  it("owner's own writes stay allowed", () => {
+    claimOutput("ramp");
+    assert.equal(assertCanWrite("ramp", { kind: "strength" }), true);
+    assert.equal(assertCanWrite("session", { kind: "strength" }), false);
+  });
+
+  it("no owner = everything allowed", () => {
+    assert.equal(assertCanWrite("external", { kind: "strength" }), true);
+    assert.equal(assertCanWrite("remote", { kind: "strength" }), true);
+  });
+
   it("forceReleaseAll clears owner and runs hooks", () => {
     let n = 0;
     registerOwnerStop("game", () => {

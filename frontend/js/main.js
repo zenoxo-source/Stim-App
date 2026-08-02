@@ -64,9 +64,6 @@ import "./modules/recorder.js";
 // Statistics dashboard
 import "./modules/stats.js";
 
-// Pattern editor v1 (legacy)
-import "./modules/pattern-editor.js";
-
 // Pattern editor v2 (current)
 import "./modules/pattern-editor-v2.js";
 

@@ -19,13 +19,13 @@
 
 ## Nicht in 4.0 (bewusst später)
 
-| Thema | Warum später |
-|-------|----------------|
-| `outputOwnerStrict` global an | Risiko für Remote/MIDI/Legacy; Soft-Guard bleibt |
-| Wave-Loop Strategy-Extract | großer Diff, wenig User-sichtbar |
-| Legacy pattern-editor.js löschen | Flag versteckt UI; Entfernen nach Nutzungsmessung |
-| Key-based i18n für alle Strings | Migrationsaufwand; DE-first bleibt |
-| STIM physisch nur Sub-View | Tab `stim` + Hotkey 4 bleiben; Subnav koppelt UX |
+| Thema | Warum später | Status |
+|-------|----------------|--------|
+| `outputOwnerStrict` global an | Risiko für Remote/MIDI/Legacy; Soft-Guard bleibt | ✅ Seit 4.2.0 global aktiv (manual/master-Writer bleiben frei) |
+| Wave-Loop Strategy-Extract | großer Diff, wenig User-sichtbar | offen |
+| Legacy pattern-editor.js löschen | Flag versteckt UI; Entfernen nach Nutzungsmessung | ✅ Entfernt in 4.2.0 |
+| Key-based i18n für alle Strings | Migrationsaufwand; DE-first bleibt | offen |
+| STIM physisch nur Sub-View | Tab `stim` + Hotkey 4 bleiben; Subnav koppelt UX | offen |
 
 ## Dateien
 

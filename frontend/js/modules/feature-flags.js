@@ -8,8 +8,7 @@ export const FLAG_DEFAULTS = Object.freeze({
   autodrive: true,
   newNav: true,
   homeDefault: true,
-  /** Soft ownership remains default; hard global mutex reserved for power users. */
-  outputOwnerStrict: false,
+  /** Legacy pattern editor is gone since 4.2.0; flag kept for stored values. */
   hideLegacyPatternEditor: true,
   /** v4.0 grouped nav + settings advanced (always-on shell; flag for docs/search). */
   navV4: true,

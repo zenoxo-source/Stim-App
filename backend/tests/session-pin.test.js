@@ -31,18 +31,60 @@ beforeEach(async () => {
 });
 
 describe("session-pin.js - hashPin", () => {
-  it("returns a deterministic hex string", async () => {
+  it("returns a deterministic pbkdf2$ hash", async () => {
     const h1 = await hashPin("1234");
     const h2 = await hashPin("1234");
     assert.equal(h1, h2);
-    assert.match(h1, /^[0-9a-f]+$/);
-    assert.ok(h1.length >= 32);
+    assert.match(h1, /^pbkdf2\$\d+\$[0-9a-f]+\$[0-9a-f]+$/);
+    const dk = h1.split("$")[3];
+    assert.equal(dk.length, 64); // 256-bit derived key
   });
 
   it("different inputs → different hashes", async () => {
     const h1 = await hashPin("1234");
     const h2 = await hashPin("5678");
     assert.notEqual(h1, h2);
+  });
+});
+
+describe("session-pin.js - legacy SHA-256 migration", () => {
+  it("verifies a legacy hash and migrates it to pbkdf2$", async () => {
+    // Simulate a pre-4.2.0 stored SHA-256(salt:pin) hash.
+    const salt = localStorage.getItem("stim_app_session_pin_salt") || "test-salt";
+    localStorage.setItem("stim_app_session_pin_salt", salt);
+    const enc = new TextEncoder();
+    const buf = await crypto.subtle.digest(
+      "SHA-256",
+      enc.encode(`${salt}:abcd1234`)
+    );
+    const legacyHash = Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    localStorage.setItem("stim_app_session_pin_v1", legacyHash);
+
+    const ok = await verifyPin("abcd1234");
+    assert.equal(ok, true);
+    const stored = localStorage.getItem("stim_app_session_pin_v1");
+    assert.match(stored, /^pbkdf2\$/);
+    // New hash must verify too (round-trip after migration).
+    assert.equal(await verifyPin("abcd1234"), true);
+  });
+
+  it("does not migrate on a wrong legacy PIN", async () => {
+    localStorage.setItem("stim_app_session_pin_salt", "test-salt");
+    const enc = new TextEncoder();
+    const buf = await crypto.subtle.digest(
+      "SHA-256",
+      enc.encode("test-salt:abcd1234")
+    );
+    const legacyHash = Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    localStorage.setItem("stim_app_session_pin_v1", legacyHash);
+
+    const ok = await verifyPin("wrong");
+    assert.equal(ok, false);
+    assert.match(localStorage.getItem("stim_app_session_pin_v1"), /^[0-9a-f]{64}$/);
   });
 });
 

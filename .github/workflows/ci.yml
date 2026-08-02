@@ -35,3 +35,6 @@ jobs:
 
       - name: Build frontend bundle
         run: npm run build:frontend
+
+      - name: Package smoke test (electron-builder, unsigned)
+        run: npm run build:app
