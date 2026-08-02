@@ -105,6 +105,60 @@ export function saveAutodriveConfig(patch = {}) {
   return merged;
 }
 
+// ---------------------------------------------------------------------------
+// F20: share codes — compact base64url of the current setup for copy/paste.
+// ---------------------------------------------------------------------------
+
+/** Encode the current (or given) setup as a compact share code. */
+export function encodeAutodriveShareCode(cfg) {
+  const c = sanitiseAutodriveConfig(cfg || loadAutodriveConfig());
+  const json = JSON.stringify({
+    t: c.templateId,
+    p: c.placement,
+    s: c.sensitivity,
+    f: c.channelFocus,
+    d: c.targetDurationMin,
+    e: c.edgeCount,
+    g: c.aggression,
+    m: c.maxSessionIntensityFactor,
+    x: c.allowClimaxPatterns ? 1 : 0,
+    a: c.balanceB,
+    h: c.hrAdaptive ? 1 : 0,
+  });
+  let bin = "";
+  for (const ch of json) bin += String.fromCharCode(ch.charCodeAt(0));
+  return "stim1:" + btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** Decode a share code back into a sanitised config (or null). */
+export function decodeAutodriveShareCode(code) {
+  try {
+    const raw = String(code || "").trim();
+    if (!raw.startsWith("stim1:")) return null;
+    const b64 = raw.slice(6).replace(/-/g, "+").replace(/_/g, "/");
+    const bin = atob(b64);
+    let json = "";
+    for (let i = 0; i < bin.length; i++) json += String.fromCharCode(bin.charCodeAt(i));
+    const d = JSON.parse(json);
+    const cfg = sanitiseAutodriveConfig({
+      templateId: d.t,
+      placement: d.p,
+      sensitivity: d.s,
+      channelFocus: d.f,
+      targetDurationMin: d.d,
+      edgeCount: d.e,
+      aggression: d.g,
+      maxSessionIntensityFactor: d.m,
+      allowClimaxPatterns: !!d.x,
+      balanceB: d.a,
+      hrAdaptive: !!d.h,
+    });
+    return cfg;
+  } catch {
+    return null;
+  }
+}
+
 function loadLearning() {
   try {
     const raw = localStorage.getItem(LEARN_KEY);
@@ -290,6 +344,9 @@ export function startAutodrive(patch = {}) {
   engineState = createInitialState(cfg, now, learn);
   engineState.softA = AppState.softLimitA;
   engineState.softB = AppState.softLimitB;
+  // F19: fresh replay timeline per session.
+  timeline = [];
+  timelineStart = now;
 
   const factor = cfg.maxSessionIntensityFactor ?? 0.95;
   const ceil = Math.max(
@@ -545,6 +602,8 @@ export function stopAutodrive(reason = "manuell") {
           templateId: snap.config?.templateId || "",
           reason: snap.reason || "manuell",
           config: snap.config ? { ...snap.config } : null,
+          // F19: replay chart data (kept when ≥ 2 samples).
+          timeline: timeline.length >= 2 ? timeline.slice(-600) : undefined,
         };
         const history = loadSessionHistory();
         history.push(entry);
@@ -555,6 +614,8 @@ export function stopAutodrive(reason = "manuell") {
       } catch {
         /* history optional */
       }
+      timeline = [];
+      timelineStart = 0;
       if (snap.marked && snap.config) {
         const c = snap.config;
         localStorage.setItem(
@@ -799,6 +860,10 @@ export function buildTrustLine(st) {
 /** @type {ReturnType<typeof setTimeout>|null} */
 let probeTimer = null;
 
+// F19: per-session replay timeline (1 sample per 2 s, ring-capped).
+let timeline = [];
+let timelineStart = 0;
+
 /**
  * Short A or B probe pulse for first-run / contact check.
  * @param {"A"|"B"} channel
@@ -971,6 +1036,26 @@ export function injectFeedback(feedback) {
   notifyUi();
 }
 
+// F16: HR biofeedback may end the refractory rest early (HR settled).
+export function endRefractoryEarly() {
+  if (!engineState || engineState.phase !== "COOLDOWN") return false;
+  const before = engineState.phase;
+  engineState = reduceAutodrive(engineState, {
+    type: "REFRACTORY_DONE",
+    nowMs: Date.now(),
+    softA: AppState.softLimitA,
+    softB: AppState.softLimitB,
+  });
+  if (engineState.phase !== before) {
+    log(
+      `HR-Refraktär beendet → ${getPhaseLabel(engineState.phase)} (Versuch ${engineState.climaxCount || 1}/${engineState.config.climaxTarget || 1}).`,
+      "info"
+    );
+  }
+  notifyUi();
+  return engineState.phase === "BUILD";
+}
+
 function engineTick() {
   if (!engineState || engineState.phase === "IDLE") {
     stopAutodrive("idle");
@@ -1020,6 +1105,20 @@ function engineTick() {
   if (engineState.pendingPrompt && engineState.lastPromptAt === now) {
     hapticPulse([25, 40, 25]);
   }
+
+  // F19: record replay timeline (~1 sample / 2 s).
+  if (!timelineStart) timelineStart = now;
+  const tSec = (now - timelineStart) / 1000;
+  const lastT = timeline[timeline.length - 1];
+  if (!lastT || tSec - lastT.t >= 2) {
+    timeline.push({
+      t: Math.round(tSec),
+      rel: Math.round((engineState.relStrength || 0) * 100),
+      phase: engineState.phase,
+    });
+    if (timeline.length > 1200) timeline.splice(0, timeline.length - 1200);
+  }
+
   notifyUi();
 }
 

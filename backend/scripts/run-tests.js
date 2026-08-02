@@ -17,9 +17,15 @@ if (files.length === 0) {
   process.exit(1);
 }
 
-const result = spawnSync(process.execPath, ['--test', ...files], {
-  stdio: 'inherit',
-  cwd: path.join(__dirname, '..'),
-});
+// Cap parallelism: many parallel processes on loaded machines drop loopback
+// segments, which shows up as flaky 3s-RTO delays in WebSocket tests.
+const result = spawnSync(
+  process.execPath,
+  ['--test', '--test-concurrency=4', ...files],
+  {
+    stdio: 'inherit',
+    cwd: path.join(__dirname, '..'),
+  }
+);
 
 process.exit(result.status === null ? 1 : result.status);

@@ -28,6 +28,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("buttplug-vibrate", handler);
     return () => ipcRenderer.removeListener("buttplug-vibrate", handler);
   },
+  // Buttplug CLIENT (sync external devices).
+  connectButtplugClient: (port) => ipcRenderer.invoke("buttplugClient:connect", port),
+  disconnectButtplugClient: () => ipcRenderer.invoke("buttplugClient:disconnect"),
+  getButtplugClientStatus: () => ipcRenderer.invoke("buttplugClient:status"),
+  syncButtplugClient: (speed) => ipcRenderer.send("buttplugClient:vibrate", speed),
+  onButtplugClientStatus: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on("buttplug-client-status", handler);
+    return () => ipcRenderer.removeListener("buttplug-client-status", handler);
+  },
   platform: process.platform,
   getVersion: () => ipcRenderer.invoke("app:getVersion"),
   isPackaged: () => ipcRenderer.invoke("app:isPackaged"),

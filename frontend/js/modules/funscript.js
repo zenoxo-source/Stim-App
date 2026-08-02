@@ -328,6 +328,7 @@ function renderFunscriptUi() {
           <small style="display:block;opacity:0.6;">${s.actions.length} Aktionen · ${s.range}x${s.inverted ? " · invertiert" : ""}</small>
         </span>
         <span class="hotkey-combo">
+          <button type="button" class="btn btn-secondary btn-sm" data-fs-preview="${esc(s.id)}" title="Wellenform-Vorschau">👁</button>
           ${player && player.actions === s.actions ? `<button type="button" class="btn btn-secondary btn-sm" data-fs-stop="1">Stop</button>` : `<button type="button" class="btn btn-sm" data-fs-play="${esc(s.id)}">Play</button>`}
           <button type="button" class="btn btn-secondary btn-sm" data-fs-del="${esc(s.id)}">✕</button>
         </span>
@@ -349,6 +350,75 @@ function renderFunscriptUi() {
       renderFunscriptUi();
     });
   });
+  list.querySelectorAll("[data-fs-preview]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const id = b.getAttribute("data-fs-preview");
+      const script = all.find((s) => s.id === id);
+      if (!script) return;
+      let canvas = document.getElementById("fs-preview-" + id);
+      if (canvas) {
+        canvas.style.display = canvas.style.display === "none" ? "block" : "none";
+        if (canvas.style.display === "block") drawFunscriptPreview(canvas, script.actions);
+        return;
+      }
+      canvas = document.createElement("canvas");
+      canvas.id = "fs-preview-" + id;
+      canvas.className = "fs-preview-canvas";
+      canvas.width = 600;
+      canvas.height = 90;
+      b.closest(".hotkey-row").after(canvas);
+      drawFunscriptPreview(canvas, script.actions);
+    });
+  });
+}
+
+// F21: funscript waveform preview — downsampled position polyline + time axis.
+function drawFunscriptPreview(canvas, actions) {
+  if (!canvas || !Array.isArray(actions) || actions.length < 2) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = canvas.clientWidth || 600;
+  const h = canvas.clientHeight || 90;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const padL = 34;
+  const padR = 8;
+  const padT = 8;
+  const padB = 16;
+  const pw = w - padL - padR;
+  const ph = h - padT - padB;
+  const t0 = actions[0].at;
+  const t1 = actions[actions.length - 1].at;
+  const span = Math.max(1, t1 - t0);
+  const x = (at) => padL + ((at - t0) / span) * pw;
+  const y = (pos) => padT + (1 - pos / 100) * ph;
+  const step = Math.max(1, Math.ceil(actions.length / 500));
+  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.fillStyle = "rgba(255,255,255,0.4)";
+  ctx.font = "9px system-ui";
+  ctx.textAlign = "center";
+  for (let g = 0; g <= 4; g++) {
+    const gx = padL + (g / 4) * pw;
+    ctx.beginPath();
+    ctx.moveTo(gx + 0.5, padT);
+    ctx.lineTo(gx + 0.5, padT + ph);
+    ctx.stroke();
+    ctx.fillText(`${Math.round((t0 + (g / 4) * span) / 1000)}s`, gx, h - 4);
+  }
+  ctx.fillStyle = "rgba(255,255,255,0.4)";
+  ctx.textAlign = "right";
+  ctx.fillText("100", padL - 4, padT + 4);
+  ctx.fillText("0", padL - 4, padT + ph);
+  ctx.beginPath();
+  ctx.moveTo(x(actions[0].at), y(actions[0].pos));
+  for (let i = step; i < actions.length; i += step) {
+    ctx.lineTo(x(actions[i].at), y(actions[i].pos));
+  }
+  ctx.strokeStyle = "rgba(166,226,46,0.9)";
+  ctx.lineWidth = 1.25;
+  ctx.stroke();
 }
 
 // Panic clears the player.

@@ -514,8 +514,11 @@
                 <div id="autodrive-coach" class="autodrive-coach" style="display:none;"></div>
                 <div class="ad-wizard-nav">
                   <button type="button" class="btn btn-secondary" id="ad-wiz-back-fine">← Session</button>
+                  <button type="button" class="btn btn-secondary" id="btn-share-copy" title="Setup als kompakten Code kopieren (Share-Codes)">🔗 Code kopieren</button>
+                  <button type="button" class="btn btn-secondary" id="btn-share-paste" title="Setup aus einem Share-Code übernehmen">📋 Code einfügen</button>
                   <button type="button" class="btn btn-autodrive-go" id="ad-wiz-start">▶ Session starten</button>
                 </div>
+                <div id="ad-share-status" style="font-size:12px;opacity:.75;margin-top:8px;min-height:16px;"></div>
               </div>
             </div>
 
@@ -630,6 +633,7 @@
           <button type="button" id="ad-fs-nudge-down" class="btn btn-secondary" data-i18n="intensity">− Intensität</button>
           <button type="button" id="ad-fs-nudge-up" class="btn btn-secondary" data-i18n="intensity">+ Intensität</button>
         </div>
+        <canvas id="ad-fs-scope" class="ad-fs-scope" width="640" height="140"></canvas>
         <p class="ad-fs-tip" id="ad-fs-tip"></p>
         <div class="ad-fs-feedback">
           <button type="button" class="ad-fs-btn weak autodrive-fb" data-fb="too_weak">Zu schwach</button>
@@ -659,6 +663,18 @@
             <div class="ad-fs-ritual-sub">Atme mit dem Kreis — der Körper braucht den Abbau.</div>
             <div id="ad-fs-ritual-summary" class="ad-fs-ritual-summary"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- F19: session replay chart modal -->
+      <div id="ad-replay-modal" class="ad-replay-modal" style="display:none;" aria-modal="true" role="dialog">
+        <div class="ad-replay-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <h3 style="margin:0;font-size:15px;">Session-Verlauf</h3>
+            <button type="button" id="ad-replay-close" class="btn btn-secondary btn-sm">×</button>
+          </div>
+          <canvas id="ad-replay-canvas" class="ad-replay-canvas" width="760" height="240"></canvas>
+          <div id="ad-replay-meta" class="ad-replay-meta"></div>
         </div>
       </div>
 
@@ -2388,6 +2404,18 @@
                   <button type="button" id="btn-buttplug-toggle" class="btn btn-sm">▶ Buttplug-Server starten</button>
                 </div>
                 <div id="buttplug-status" style="font-size:12px; opacity:0.75;">Gestoppt</div>
+                <div style="border-top:1px solid rgba(255,255,255,0.08); padding-top:10px; display:flex; flex-direction:column; gap:8px;">
+                  <p style="font-size:12px; color: var(--text-muted); margin: 0;">
+                    Sync-Richtung: Zusatzgeräte (Lovense, TheHandy …) über einen Buttplug-Server
+                    (z.B. Intiface Central) im Takt der Intensität mitlaufen lassen.
+                  </p>
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:12px; opacity:0.75;">Port:</span>
+                    <input type="number" id="bpc-port" value="12345" min="1024" max="65535" style="width:80px;padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;">
+                    <button type="button" id="btn-bpc-toggle" class="btn btn-sm">🔗 Sync-Geräte verbinden (Intiface)</button>
+                  </div>
+                  <div id="bpc-status" style="font-size:12px; opacity:0.75;">Getrennt</div>
+                </div>
               </div>
             </div>
 

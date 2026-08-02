@@ -23,6 +23,12 @@ const {
 } = require("./remote-server");
 const { runLLMRequest, abortLLM } = require("./llm-proxy");
 const { startButtplugServer, stopButtplugServer, getButtplugStatus } = require("./buttplug-server");
+const {
+  connectButtplugClient,
+  disconnectButtplugClient,
+  getButtplugClientStatus,
+  syncVibrate,
+} = require("./buttplug-client");
 
 // Single instance lock (skipped in E2E tests so parallel launches work).
 const gotTheLock = process.env.STIM_APP_E2E === "1" ? true : app.requestSingleInstanceLock();
@@ -817,6 +823,18 @@ function registerIpc() {
   });
   ipcMain.handle("buttplug:stop", () => stopButtplugServer());
   ipcMain.handle("buttplug:status", () => getButtplugStatus());
+
+  // Buttplug CLIENT: drive external devices in sync with the stim output.
+  ipcMain.handle("buttplugClient:connect", (_event, port) =>
+    connectButtplugClient(port, (status) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("buttplug-client-status", status);
+      }
+    })
+  );
+  ipcMain.handle("buttplugClient:disconnect", () => disconnectButtplugClient());
+  ipcMain.handle("buttplugClient:status", () => getButtplugClientStatus());
+  ipcMain.on("buttplugClient:vibrate", (_event, speed) => syncVibrate(speed));
 }
 
 app.on("second-instance", () => {

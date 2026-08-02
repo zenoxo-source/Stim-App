@@ -2138,6 +2138,14 @@ textarea.text-input { resize: vertical; min-height: 100px; }
   border-bottom: none;
 }
 
+.fs-preview-canvas {
+  width: 100%;
+  height: 90px;
+  display: block;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid var(--border-color);
+}
+
 .hotkey-row .hotkey-label {
   font-size: 13px;
   color: var(--text-secondary);
@@ -3313,6 +3321,28 @@ textarea.text-input { resize: vertical; min-height: 100px; }
 
 .ad-fs-nudge { display: flex; gap: 10px; }
 .ad-fs-nudge .btn { flex: 1; min-height: 48px; font-weight: 600; }
+.ad-replay-modal {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+}
+.ad-replay-card {
+  width: min(760px, 92vw);
+  background: #141418;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 16px;
+}
+.ad-replay-canvas { width: 100%; height: auto; background: rgba(0, 0, 0, 0.4); border-radius: 8px; }
+.ad-replay-meta { margin-top: 8px; font-size: 12px; color: var(--text-muted); display: flex; gap: 14px; flex-wrap: wrap; }
+.ad-fs-scope {
+  width: 100%;
+  height: 140px;
+  margin-top: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
 .ad-fs-clock { font-size: 14px; color: var(--text-muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
 .ad-fs.phase-EDGE_HOLD { background: radial-gradient(ellipse at top, #1a1028 0%, #0a0a0c 55%); }
 .ad-fs.phase-CLIMAX_PUSH { background: radial-gradient(ellipse at top, #2a1008 0%, #0a0a0c 50%); }

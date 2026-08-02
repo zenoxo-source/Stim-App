@@ -1,5 +1,35 @@
 # Changelog
 
+## 5.0.0 — Sinn & Synchronität: HR-Refraktär, Buttplug-Client, Scope & Replay
+
+### Klimax-Automatik (v4.8/v4.9 → v5.0)
+- **HR-Refraktär-Erkennung:** Bei Multi-Climax-Sessions beendet der HR-Gurt die Erholungsphase automatisch, sobald der Puls zur Baseline zurückgekehrt ist (≥ 8 stabile Samples nach mind. 45 s) — kein blindes Warten mehr; der nächste Versuch startet von selbst
+
+### Ökosystem
+- **Buttplug-CLIENT:** Zusatzgeräte (Lovense, TheHandy …) über einen Buttplug-Server (Intiface Central) im Takt der Intensität synchron mitsteuern — die Umkehrrichtung des v4.9-Servers. Verbindung im Settings-Panel, Auto-Reconnect, Live-Geräteliste
+- **Buttplug-Server stabilisiert:** DeviceAdded nur noch auf `StartScanning`/`RequestDeviceList` (Spec-konform) — behebt den Rahmenverlust im Handshake
+
+### Erlebnis
+- **Live-Wellenform-Scope im Fullscreen:** Oszilloskop der tatsächlich gesendeten Amplituden (Kanal A/B + Frequenz) bei laufender Session
+- **Session-Replay-Charts:** Jede Session zeichnet eine Verlaufskurve (Intensität + Phasen-Bänder + ⚡-Markierung am Climax) — per 📈-Button in „Letzte Sessions" abrufbar
+
+### Partner & Mobile
+- **Mobile-Remote ausgebaut:** Pattern-Auswahl, Autodrive-Start/Stopp, Feedback-Buttons (Fast/Jetzt/Fertig …) und Live-Phasenanzeige — das Handy ist jetzt eine vollwertige Partner-Fernbedienung
+
+### Feinschliff
+- **Share-Codes:** Autodrive-Setup als kompakter `stim1:`-Code kopieren/einfügen (Wizard, Schritt „Optionen")
+- **Funscript-Wellenform-Vorschau:** 👁 zeigt die Positionskurve jedes Skripts
+- **i18n:** EN-Schlüssel für alle neuen UI-Elemente (v4.9 + v5.0)
+- **E2E erweitert:** Wizard-Navigation, Share-Code-Buttons, Master-Slider-Roundtrip (4 Tests), Suite-Konkurrenz gedeckelt
+
+### Fixes
+- undici-WebSocket verliert bei mehreren Frames pro Task die 2. Nachricht (Handler-Swap → persistente Queue); betrifft Test-Client + Buttplug-Client
+- ws-Client verliert unter Last Server→Client-Frames → nativer WebSocket im Buttplug-Client
+
+### Tests
+- 669 Unit-Tests grün (stabil auch unter CPU-Last), 4 E2E-Tests grün, Lint sauber
+
+
 ## 4.9.0 — Buttplug.io, Herzfrequenz-Biofeedback & E2E-Tests
 
 ### Ökosystem-Anschluss

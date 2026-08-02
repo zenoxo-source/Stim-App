@@ -25,6 +25,8 @@ import {
   applyDebrief,
   exportAutodriveSetup,
   importAutodriveSetup,
+  encodeAutodriveShareCode,
+  decodeAutodriveShareCode,
   getSoftLimitCoachMessage,
   clearSoftLimitCoach,
   getAutodriveStatsSummary,
@@ -175,6 +177,132 @@ window.addEventListener("stim:autodrive-phase", (e) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// F18: live oscilloscope — draws the actual wire values (amp A/B, freq) that
+// are currently being sent to the device while the fullscreen is open.
+// ---------------------------------------------------------------------------
+
+const SCOPE_LEN = 480;
+/** @type {{ampA:number,ampB:number,freq:number}[]} */
+let scopeBuf = [];
+let scopeRaf = null;
+
+/** Push one sample per engine tick (≈100 ms) — called from notifyUi listeners. */
+export function pushScopeSample(st) {
+  if (!scopeBuf) scopeBuf = [];
+  // Wire amplitude ≈ relative strength × active pattern amplitude (or plain %).
+  const rel = Number(st.relStrength) || 0;
+  const ampA = rel * (Number.isFinite(AppState.lastWaveAmpA) ? AppState.lastWaveAmpA : 100);
+  const ampB = rel * (Number.isFinite(AppState.lastWaveAmpB) ? AppState.lastWaveAmpB : 100);
+  scopeBuf.push({
+    ampA,
+    ampB,
+    freq: Number(st.wireFreq) || 0,
+  });
+  if (scopeBuf.length > SCOPE_LEN) scopeBuf.shift();
+}
+
+function scopeLoop() {
+  scopeRaf = null;
+  const canvas = document.getElementById("ad-fs-scope");
+  const fs = document.getElementById("autodrive-fullscreen");
+  if (!canvas || !fs || fs.style.display === "none") return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = canvas.clientWidth || 640;
+  const h = canvas.clientHeight || 140;
+  if (canvas.width !== w * dpr) canvas.width = w * dpr;
+  if (canvas.height !== h * dpr) canvas.height = h * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  if (scopeBuf.length < 2) {
+    ctx.fillStyle = "rgba(255,255,255,0.18)";
+    ctx.font = "11px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("Waveform", w / 2, h / 2);
+    scopeRaf = requestAnimationFrame(scopeLoop);
+    return;
+  }
+
+  const n = scopeBuf.length;
+  const x = (i) => (i / (n - 1)) * w;
+  const mid = h / 2;
+  const scale = (amp) => Math.max(3, Math.min(mid - 4, amp));
+
+  // Grid.
+  ctx.strokeStyle = "rgba(255,255,255,0.07)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let gx = 0; gx <= 4; gx++) {
+    const g = Math.round((gx / 4) * w) + 0.5;
+    ctx.moveTo(g, 0);
+    ctx.lineTo(g, h);
+  }
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,0.07)";
+  ctx.beginPath();
+  for (let gy = 0; gy <= 4; gy++) {
+    const g = Math.round((gy / 4) * h) + 0.5;
+    ctx.moveTo(0, g);
+    ctx.lineTo(w, g);
+  }
+  ctx.stroke();
+
+  // Channel A (top half, warm) and B (bottom half, cool), mirrored around mid.
+  const drawLine = (getVal, color, sign) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const v = getVal(i);
+      const y = mid + sign * scale(v);
+      if (i === 0) ctx.moveTo(x(i), y);
+      else ctx.lineTo(x(i), y);
+    }
+    ctx.stroke();
+  };
+  drawLine((i) => scopeBuf[i].ampA, "rgba(255,120,60,0.85)", -1);
+  drawLine((i) => scopeBuf[i].ampB, "rgba(80,190,255,0.85)", 1);
+
+  // Freq as a dim center sparkline.
+  const hi = Math.max(10, ...scopeBuf.map((s) => s.freq));
+  ctx.strokeStyle = "rgba(255,255,255,0.25)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const y = mid + 0.3 * (scopeBuf[i].freq / hi - 0.5) * h;
+    if (i === 0) ctx.moveTo(x(i), y);
+    else ctx.lineTo(x(i), y);
+  }
+  ctx.stroke();
+
+  // Right-edge live dot + 2 s label.
+  const last = scopeBuf[n - 1];
+  ctx.fillStyle = "rgba(255,120,60,0.9)";
+  ctx.beginPath();
+  ctx.arc(w - 2, mid - scale(last.ampA), 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(80,190,255,0.9)";
+  ctx.beginPath();
+  ctx.arc(w - 2, mid + scale(last.ampB), 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.35)";
+  ctx.font = "10px system-ui";
+  ctx.textAlign = "right";
+  ctx.fillText(`${Math.round((n * 0.1 * 10) / 10)} s`, w - 4, h - 6);
+
+  scopeRaf = requestAnimationFrame(scopeLoop);
+}
+
+/** Start/stop the scope render loop depending on fullscreen visibility. */
+function scopeSync() {
+  const fs = document.getElementById("autodrive-fullscreen");
+  if (fs && fs.style.display !== "none" && !scopeRaf && typeof document !== "undefined") {
+    scopeRaf = requestAnimationFrame(scopeLoop);
+  }
+}
+
 function paintDashboard(st) {
   const badge = document.getElementById("autodrive-running-badge");
   if (badge) {
@@ -264,6 +392,10 @@ function paintDashboard(st) {
   refreshHomeSummary();
   paintCoach();
   paintOnboarding();
+
+  // F18: live scope — sample each painted tick, render while fullscreen is open.
+  pushScopeSample(st);
+  scopeSync();
 }
 
 /** F4: last sessions list on Home with 1-click restart. */
@@ -295,7 +427,10 @@ function paintHistory() {
           : "";
       return `<div class="stat-list-row ad-history-row" data-hidx="${history.indexOf(h)}">
         <span>${date} · ${min} Min · Phase ${esc(h.phase || "—")} · Edges ${h.edges || 0}${tpl}${mark}${learnLine}</span>
-        <button type="button" class="btn btn-secondary btn-sm ad-history-restart" title="Session erneut starten">↻</button>
+        <span style="display:flex;gap:6px;">
+          ${h.timeline && h.timeline.length >= 2 ? `<button type="button" class="btn btn-secondary btn-sm ad-history-chart" title="Session-Verlauf anzeigen">📈</button>` : ""}
+          <button type="button" class="btn btn-secondary btn-sm ad-history-restart" title="Session erneut starten">↻</button>
+        </span>
       </div>`;
     })
     .join("");
@@ -313,6 +448,155 @@ function paintHistory() {
       handleStartResult(r, true);
     };
   });
+  box.querySelectorAll(".ad-history-chart").forEach((b) => {
+    b.onclick = () => {
+      const row = b.closest(".ad-history-row");
+      if (!row) return;
+      openReplayChart(history[Number(row.dataset.hidx)]);
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// F19: session replay chart — strength curve + phase bands + climax marker.
+// ---------------------------------------------------------------------------
+
+const REPLAY_PHASE_COLORS = {
+  CALIBRATION: "rgba(120,120,140,0.35)",
+  TEASE: "rgba(170,110,220,0.35)",
+  BUILD: "rgba(255,120,60,0.30)",
+  EDGE_HOLD: "rgba(200,150,255,0.35)",
+  SURGE: "rgba(150,120,255,0.35)",
+  CLIMAX_PUSH: "rgba(255,60,40,0.40)",
+  AFTERCARE: "rgba(60,200,140,0.30)",
+  COOLDOWN: "rgba(90,120,160,0.30)",
+};
+
+function openReplayChart(h) {
+  const modal = document.getElementById("ad-replay-modal");
+  if (!modal) return;
+  modal.style.display = "flex";
+  document.getElementById("ad-replay-close")?.addEventListener("click", () => {
+    modal.style.display = "none";
+  });
+  const meta = document.getElementById("ad-replay-meta");
+  if (meta) {
+    const min = Math.round((h.durationMs || 0) / 60000);
+    meta.innerHTML = `<span>${min} Min</span><span>Phasen: ${escPhaseSeq(h)}</span><span>Peak ${Math.round((h.peakRel || 0) * 100)}%</span>${
+      h.marked ? "<span style='color:#a6e22e;'>✅ Climax markiert</span>" : ""
+    }`;
+  }
+  drawReplayChart(document.getElementById("ad-replay-canvas"), h);
+}
+
+function escPhaseSeq(h) {
+  const seen = [];
+  (h.timeline || []).forEach((s) => {
+    const last = seen[seen.length - 1];
+    if (last !== s.phase) seen.push(s.phase);
+  });
+  return seen.join(" → ") || h.phase || "—";
+}
+
+function drawReplayChart(canvas, h) {
+  if (!canvas) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = canvas.clientWidth || 760;
+  const hgt = canvas.clientHeight || 240;
+  canvas.width = w * dpr;
+  canvas.height = hgt * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, hgt);
+
+  const tl = h.timeline || [];
+  if (tl.length < 2) {
+    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.font = "13px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("Keine Verlaufsdaten für diese Session.", w / 2, hgt / 2);
+    return;
+  }
+
+  const padL = 36;
+  const padR = 10;
+  const padT = 12;
+  const padB = 22;
+  const pw = w - padL - padR;
+  const ph = hgt - padT - padB;
+  const t0 = tl[0].t;
+  const t1 = tl[tl.length - 1].t;
+  const span = Math.max(1, t1 - t0);
+  const x = (t) => padL + ((t - t0) / span) * pw;
+  const y = (rel) => padT + (1 - rel / 100) * ph;
+
+  // Phase bands.
+  let bandStart = 0;
+  for (let i = 1; i <= tl.length; i++) {
+    const s = tl[i - 1];
+    const sNext = i < tl.length ? tl[i] : null;
+    if (!sNext || sNext.phase !== s.phase) {
+      ctx.fillStyle = REPLAY_PHASE_COLORS[s.phase] || "rgba(255,255,255,0.05)";
+      ctx.fillRect(x(tl[bandStart].t), padT, x(s.t) - x(tl[bandStart].t), ph);
+      bandStart = i;
+    }
+  }
+
+  // Grid + time labels.
+  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.fillStyle = "rgba(255,255,255,0.4)";
+  ctx.font = "10px system-ui";
+  ctx.textAlign = "center";
+  for (let g = 0; g <= 6; g++) {
+    const tx = padL + (g / 6) * pw;
+    ctx.beginPath();
+    ctx.moveTo(tx + 0.5, padT);
+    ctx.lineTo(tx + 0.5, padT + ph);
+    ctx.stroke();
+    ctx.fillText(`${Math.round(t0 + (g / 6) * span)}s`, tx, hgt - 6);
+  }
+  ctx.fillStyle = "rgba(255,255,255,0.4)";
+  ctx.textAlign = "right";
+  ctx.fillText("100%", padL - 4, padT + 4);
+  ctx.fillText("0%", padL - 4, padT + ph);
+
+  // Strength curve (area + line).
+  ctx.beginPath();
+  ctx.moveTo(x(tl[0].t), padT + ph);
+  tl.forEach((s) => ctx.lineTo(x(s.t), y(s.rel)));
+  ctx.lineTo(x(tl[tl.length - 1].t), padT + ph);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(255,120,60,0.18)";
+  ctx.fill();
+  ctx.beginPath();
+  tl.forEach((s, i) => {
+    if (i === 0) ctx.moveTo(x(s.t), y(s.rel));
+    else ctx.lineTo(x(s.t), y(s.rel));
+  });
+  ctx.strokeStyle = "rgba(255,140,80,0.95)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Climax marker at the time of the marked feedback (approx. peak within CLIMAX_PUSH).
+  if (h.marked) {
+    const pushSamples = tl.filter((s) => s.phase === "CLIMAX_PUSH" || s.phase === "AFTERCARE");
+    const pushT = pushSamples.length
+      ? pushSamples[0].t
+      : tl.reduce((best, s) => (s.rel > best.rel ? s : best), tl[0]).t;
+    const cx = x(pushT);
+    ctx.strokeStyle = "rgba(166,226,46,0.9)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(cx + 0.5, padT);
+    ctx.lineTo(cx + 0.5, padT + ph);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#a6e22e";
+    ctx.font = "bold 13px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("⚡", cx, padT - 4);
+  }
 }
 
 function paintOnboarding() {
@@ -1090,6 +1374,50 @@ function wireSetupListeners() {
   document.getElementById("ad-wiz-start")?.addEventListener("click", () => {
     markAutodriveOnboardingSeen();
     handleStartResult(startAutodrive(collectConfigFromUi()));
+  });
+
+  // F20: share codes — copy current setup / apply a pasted one.
+  document.getElementById("btn-share-copy")?.addEventListener("click", async () => {
+    collectConfigFromUi();
+    const code = encodeAutodriveShareCode();
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(code);
+      copied = true;
+    } catch {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = code;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+        copied = true;
+      } catch {
+        /* ignore */
+      }
+    }
+    const st = document.getElementById("ad-share-status");
+    if (st) st.textContent = copied ? `Code kopiert: ${code}` : code;
+    if (copied && st) setTimeout(() => (st.textContent = ""), 8000);
+  });
+  document.getElementById("btn-share-paste")?.addEventListener("click", () => {
+    const code = window.prompt("Share-Code einfügen (stim1:…):");
+    if (!code) return;
+    const cfg = decodeAutodriveShareCode(code);
+    const st = document.getElementById("ad-share-status");
+    if (!cfg) {
+      if (st) st.textContent = "Ungültiger Share-Code.";
+      return;
+    }
+    saveAutodriveConfig(cfg);
+    const sel = document.getElementById("autodrive-template");
+    if (sel) sel.value = cfg.templateId || "classic";
+    buildTemplateGrid(cfg.templateId || "classic");
+    applySetupPreset(cfg.setupPresetId || "");
+    paintDashboard(getAutodriveState());
+    if (st) st.textContent = "Setup übernommen — Session starten oder anpassen.";
+    log("Share-Code angewendet: " + (cfg.templateId || "classic"), "info");
   });
 }
 

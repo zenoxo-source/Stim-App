@@ -74,7 +74,12 @@ function handleMessage(client, msg) {
       break;
     case "StartScanning":
     case "StopScanning":
+      // Spec order: acknowledge the command, then announce the device as an
+      // event. Only push DeviceAdded in response to an explicit request —
+      // frames sent unrequested right after the handshake race the client's
+      // OPEN state and are silently dropped by some ws stacks.
       ok(client, id);
+      send(client, { Type: "DeviceAdded", Device: deviceDescriptor() });
       break;
     case "StopAllDevices":
       try {
@@ -169,11 +174,9 @@ function startButtplugServer(port, onVibrate) {
       const timestamps = [];
       client._rate = timestamps;
       log("buttplug client connected");
-      // readyState may still be CONNECTING during the 'connection' event —
-      // defer the announcement one tick so the send guard doesn't drop it.
-      setImmediate(() => {
-        send(client, { Type: "DeviceAdded", Device: deviceDescriptor() });
-      });
+      // No unsolicited DeviceAdded here: only push messages in response to
+      // client requests (RequestDeviceList / StartScanning). Server-initiated
+      // frames at connect time race the client handshake and get dropped.
       client.on("message", (raw) => {
         if (raw.length > MAX_MESSAGE_BYTES) {
           client.close(1009, "too big");

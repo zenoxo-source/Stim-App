@@ -56,6 +56,12 @@ button:active{transform:scale(.97)}
 #status{font-size:12px;opacity:.7;margin:10px 0;white-space:pre-wrap}
 .big{background:#a80000;border-color:#a80000;color:#fff;font-weight:700}
 #conn{color:#a6e22e}.off{color:#f92672}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{flex:0 0 auto;padding:6px 10px;font-size:12px}
+.chips button.on{background:#a86a00;border-color:#a86a00}
+#ad-phase{font-weight:700}
+.fb{display:flex;flex-wrap:wrap;gap:6px}
+.fb button{flex:1 1 30%;padding:12px 6px;font-size:13px}
 </style></head><body>
 <h1>⚡ Stim App Remote</h1>
 <div id="status" class="off">Verbindung wird aufgebaut…</div>
@@ -65,6 +71,18 @@ button:active{transform:scale(.97)}
 <div class="ctl"><div class="row"><span>Master</span><input type="range" id="sm" min="0" max="100" value="100"><span class="val" id="vm">100%</span></div></div>
 <div class="row" style="margin-top:14px"><button id="stop">⏹ Stop</button><button id="panic" class="big">STOPP</button></div>
 <div class="row" style="margin-top:8px"><button id="reset">Zurücksetzen</button></div>
+<h2>Patterns</h2>
+<div class="chips" id="patterns">…</div>
+<h2>Autodrive <span id="ad-phase"></span></h2>
+<div class="row" style="margin-top:8px"><button id="ad-start">▶ Klassik starten</button><button id="ad-stop">Autodrive stoppen</button></div>
+<div class="fb" style="margin-top:8px">
+  <button data-fb="too_weak">Zu schwach</button>
+  <button data-fb="good">Gut</button>
+  <button data-fb="too_strong">Zu stark</button>
+  <button data-fb="almost">🔥 Fast</button>
+  <button data-fb="now">⚡ Jetzt</button>
+  <button data-fb="climaxed">✓ Fertig</button>
+</div>
 <script>
 const q = new URLSearchParams(location.search);
 const proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -76,7 +94,7 @@ function connect(){
   const token = q.get('token');
   if(!token){ setStatus('Token fehlt in der URL (?token=…)'); return; }
   ws = new WebSocket(proto + '://' + location.host + '/?token=' + encodeURIComponent(token));
-  ws.onopen = () => { connected = true; setStatus('Verbunden', true); send({type:'get_state'}); };
+  ws.onopen = () => { connected = true; setStatus('Verbunden', true); send({type:'get_state'}); loadPatterns(); refreshAd(); };
   ws.onclose = () => { connected = false; setStatus('Verbindung getrennt — neu verbinden…'); setTimeout(connect, 3000); };
   ws.onerror = () => setStatus('Fehler');
   ws.onmessage = (ev) => {
@@ -89,8 +107,25 @@ function connect(){
       sv('sa', a); document.getElementById('va').textContent = a;
       sv('sb', b); document.getElementById('vb').textContent = b;
       setStatus('Verbunden · A ' + a + ' · B ' + b, true);
+      if(s.activePattern){ document.querySelectorAll('#patterns button').forEach(bt => bt.classList.toggle('on', bt.dataset.p === s.activePattern)); }
     }
   };
+}
+async function loadPatterns(){
+  const r = await send({type:'get_patterns'});
+  if(!r || !r.patterns) return;
+  const box = document.getElementById('patterns');
+  box.innerHTML = '';
+  r.patterns.forEach(p => {
+    const bt = document.createElement('button');
+    bt.dataset.p = p; bt.textContent = p;
+    bt.onclick = () => send({type:'set_pattern', name: p});
+    box.appendChild(bt);
+  });
+}
+async function refreshAd(){
+  const r = await send({type:'autodrive_state'});
+  if(r && r.autodrive){ document.getElementById('ad-phase').textContent = r.autodrive.phase || ''; }
 }
 const sendStrength = (ch) => { const v = parseInt(document.getElementById(ch).value,10); send({type:'set_intensity', channel: ch, value: v}); };
 document.getElementById('sa').addEventListener('input', sendStrength.bind(null,'A'));
@@ -99,6 +134,11 @@ document.getElementById('sm').addEventListener('input', ()=>{ document.getElemen
 document.getElementById('stop').onclick = () => send({type:'stop_all'});
 document.getElementById('reset').onclick = () => { document.getElementById('sa').value=0; document.getElementById('sb').value=0; document.getElementById('sm').value=100; document.getElementById('vm').textContent='100%'; send({type:'set_intensity', value:0}); send({type:'set_master', value:100}); };
 document.getElementById('panic').onclick = () => send({type:'stop_all'});
+document.getElementById('ad-start').onclick = async () => { const r = await send({type:'autodrive_start', quick: true}); if(!r || !r.ok) setStatus('Autodrive: ' + ((r && r.error) || 'Fehler'), false); refreshAd(); };
+document.getElementById('ad-stop').onclick = async () => { await send({type:'autodrive_stop'}); refreshAd(); };
+document.querySelectorAll('.fb button').forEach(bt => {
+  bt.onclick = async () => { const r = await send({type:'autodrive_feedback', feedback: bt.dataset.fb}); if(r && r.ok) refreshAd(); };
+});
 connect();
 </script></body></html>`;
 

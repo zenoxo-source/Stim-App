@@ -6,6 +6,7 @@ import { updateAIDashboard, startWaveLoop, stopWaveLoop } from "../control-deck.
 import { updateOutputStatus } from "./status-ui.js";
 import { trackStat, recordBatterySample } from "./stats.js";
 import { maybeAutoLoadAssignedProfile } from "./profiles.js";
+import { syncExternalDevices } from "./buttplug.js";
 import { unlockAchievement } from "./fun.js";
 import {
   blockDuringPanicCooldown,
@@ -373,6 +374,12 @@ export function sendStrengthCommand(valA, valB, opts = {}) {
   const aB = AppState.activePattern ? AppState.lastWaveAmpB || 0 : 100;
   // force: master/strength changes must always hit the wire (not coalesced away)
   sendB0Now(fA, aA, fB, aB, { force: true });
+  // F17: sync external Buttplug devices with the normalized strength level.
+  try {
+    syncExternalDevices(AppState.strengthA, AppState.strengthB);
+  } catch {
+    /* optional */
+  }
 }
 
 /**

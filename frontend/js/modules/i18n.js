@@ -977,6 +977,83 @@ export const MAP = [
     de: "Update jetzt installieren? Die App wird beendet und neu gestartet.",
     en: "Install update now? The app will quit and restart.",
   },
+  // ------------------------------------------------------------------
+  // v4.9 / v5.0 UI additions
+  // ------------------------------------------------------------------
+  { key: "fs_speed", de: "Speed", en: "Speed" },
+  { key: "fs_invert", de: "Invertieren", en: "Invert" },
+  { key: "fs_range", de: "Range", en: "Range" },
+  { key: "fs_offset", de: "Offset (ms)", en: "Offset (ms)" },
+  { key: "fs_loop", de: "Schleife", en: "Loop" },
+  { key: "fs_preview", de: "Vorschau", en: "Preview" },
+  {
+    key: "bp_card_title",
+    de: "🔌 Buttplug.io (experimentell)",
+    en: "🔌 Buttplug.io (experimental)",
+  },
+  {
+    key: "bp_server_help",
+    de: "Steuere den Coyote aus Buttplug-fähigen Apps (XToys, Funscript-Player, Milovana-Teasen …): VibrateCmd → Intensität (Soft-Limit-gedeckelt). Nur localhost. Experimentell.",
+    en: "Control the Coyote from Buttplug-capable apps (XToys, Funscript players, Milovana teases …): VibrateCmd → intensity (capped at soft limits). Localhost only. Experimental.",
+  },
+  {
+    key: "bp_client_help",
+    de: "Sync-Richtung: Zusatzgeräte (Lovense, TheHandy …) über einen Buttplug-Server (z.B. Intiface Central) im Takt der Intensität mitlaufen lassen.",
+    en: "Sync direction: have extra devices (Lovense, TheHandy …) run in sync with the intensity via a Buttplug server (e.g. Intiface Central).",
+  },
+  {
+    key: "bp_connect_client",
+    de: "🔗 Sync-Geräte verbinden (Intiface)",
+    en: "🔗 Connect sync devices (Intiface)",
+  },
+  { key: "hr_card_title", de: "❤️ Herzfrequenz-Biofeedback", en: "❤️ Heart-rate biofeedback" },
+  { key: "hr_connect", de: "HR-Gurt verbinden", en: "Connect HR strap" },
+  { key: "hr_disconnect", de: "HR-Gurt trennen", en: "Disconnect HR strap" },
+  {
+    key: "hr_status_off",
+    de: "Kein Gerät verbunden — BLE-HR-Gurt (Polar H10 & kompatibel) wählen.",
+    en: "No device connected — pick a BLE HR strap (Polar H10 & compatible).",
+  },
+  { key: "hr_baseline", de: "Baseline", en: "Baseline" },
+  {
+    key: "hr_adaptive",
+    de: "Puls-adaptiv (Autodrive reagiert auf Anstieg/Abfall)",
+    en: "Pulse-adaptive (Autodrive reacts to rise/fall)",
+  },
+  { key: "program_card_title", de: "🌙 Abendprogramm", en: "🌙 Evening program" },
+  {
+    key: "program_help",
+    de: "Gestufte Kurz-Sessions mit Ausklang — für den Abend.",
+    en: "Staged short sessions with wind-down — for the evening.",
+  },
+  { key: "program_stop", de: "Programm stoppen", en: "Stop program" },
+  { key: "ad_replay_title", de: "Session-Verlauf", en: "Session history" },
+  { key: "ad_replay_btn", de: "Session-Verlauf anzeigen", en: "Show session curve" },
+  { key: "ad_replay_meta_peak", de: "Peak", en: "Peak" },
+  { key: "ad_replay_marked", de: "✅ Climax markiert", en: "✅ Climax marked" },
+  { key: "ad_scope_hint", de: "Waveform", en: "Waveform" },
+  { key: "story_narrate", de: "Vorlesen", en: "Narrate" },
+  { key: "story_narrator_on", de: "Erzähler an", en: "Narrator on" },
+  { key: "story_narrator_off", de: "Erzähler aus", en: "Narrator off" },
+  { key: "voice_persona", de: "Persona", en: "Persona" },
+  {
+    key: "multiband_label",
+    de: "Multiband-Audio (Bass/Mitten/Höhen getrennt)",
+    en: "Multiband audio (bass/mids/highs separate)",
+  },
+  {
+    key: "session_pin_lan",
+    de: "LAN-Zugriff erfordert einen Session-PIN.",
+    en: "LAN access requires a session PIN.",
+  },
+  {
+    key: "fs_streaming",
+    de: "Streaming aktiv — externe Player senden Positionen.",
+    en: "Streaming active — external players send positions.",
+  },
+  { key: "share_code", de: "Share-Code", en: "Share code" },
+  { key: "share_copy", de: "Code kopieren", en: "Copy code" },
+  { key: "share_paste", de: "Code einfügen", en: "Paste code" },
 ];
 
 // -------------------------------------------------------------------------

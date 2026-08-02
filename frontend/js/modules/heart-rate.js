@@ -6,7 +6,12 @@
 // feedback derived from real arousal (rate-limited, safe).
 
 import { log } from "../state.js";
-import { isAutodriveActive, getAutodriveState, injectFeedback } from "./autodrive.js";
+import {
+  isAutodriveActive,
+  getAutodriveState,
+  injectFeedback,
+  endRefractoryEarly,
+} from "./autodrive.js";
 
 const HEART_RATE_SERVICE = "heart_rate"; // 0x180D
 const HEART_RATE_MEASUREMENT = "00002a37-0000-1000-8000-00805f9b34fb";
@@ -128,14 +133,44 @@ export function disconnectHeartRate() {
 
 const AUTO_INJECT_MIN_GAP_MS = 20000;
 const AUTO_PHASES = new Set(["TEASE", "EDGE_HOLD", "SURGE", "BUILD"]);
+/** F16: refractory detection — settled samples needed to end COOLDOWN early. */
+let settledCount = 0;
+let refractoryFired = false;
 
 function hrMonitorTick() {
   if (!connected || !baselineReady) return;
-  if (!isAutodriveActive()) return;
-  const cfg = getAutodriveState()?.config;
-  if (!cfg || cfg.hrAdaptive !== true) return;
-  const phase = getAutodriveState()?.phase;
-  if (!AUTO_PHASES.has(phase)) return;
+  const st = getAutodriveState();
+  if (!isAutodriveActive() || !st) return;
+  const cfg = st.config;
+  if (!cfg) return;
+  const phase = st.phase;
+
+  // F16: multi-climax refractory — end COOLDOWN early when HR has settled.
+  if (
+    phase === "COOLDOWN" &&
+    (cfg.climaxTarget || 1) > 1 &&
+    (st.climaxCount || 0) >= 1 &&
+    (st.climaxCount || 0) < (cfg.climaxTarget || 1) &&
+    !refractoryFired
+  ) {
+    const settled = Math.abs(currentHr - baseline) <= 6;
+    if (settled) settledCount += 1;
+    else settledCount = 0;
+    // ~8 samples (≈8–16 s) of settled HR, and at least 45 s of rest.
+    const restSec = (Date.now() - (st.phaseStartedAt || Date.now())) / 1000;
+    if (settledCount >= 8 && restSec >= 45) {
+      refractoryFired = true;
+      settledCount = 0;
+      log(
+        `HR-Refraktär erkannt (${currentHr} bpm ≈ Baseline ${baseline}) — nächster Versuch.`,
+        "info"
+      );
+      endRefractoryEarly();
+    }
+    return;
+  }
+  if (phase !== "COOLDOWN") refractoryFired = false;
+  if (cfg.hrAdaptive !== true || !AUTO_PHASES.has(phase)) return;
 
   const now = Date.now();
   if (now - lastAutoInjectAt < AUTO_INJECT_MIN_GAP_MS) return;

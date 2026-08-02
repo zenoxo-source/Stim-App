@@ -693,6 +693,19 @@ export function reduceAutodrive(state, event) {
     return applyFeedback(s, event.feedback, now);
   }
 
+  // F16: biofeedback ended the refractory rest early (HR settled) → next cycle.
+  if (event.type === "REFRACTORY_DONE") {
+    if (
+      s.phase === "COOLDOWN" &&
+      (s.config.climaxTarget || 1) > 1 &&
+      (s.climaxCount || 0) >= 1 &&
+      (s.climaxCount || 0) < (s.config.climaxTarget || 1)
+    ) {
+      return setPhase(s, "BUILD", now, shareMs(s.targetDurationMs, "BUILD", s.config));
+    }
+    return s;
+  }
+
   return s;
 }
 
