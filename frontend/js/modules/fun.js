@@ -21,6 +21,14 @@ const ACHIEVEMENT_DEFS = {
   daily: { title: "Tagesheld", desc: "Tages-Challenge geschafft" },
   quick_play: { title: "Überraschungsgast", desc: "Quick Play gestartet" },
   ten_games: { title: "Spielwütig", desc: "10 Spiele gestartet" },
+  // F3: milestones (unlocked via stim:unlock-achievement events from stats).
+  sessions_10: { title: "Zehn in Folge", desc: "10 Sessions abgeschlossen" },
+  sessions_50: { title: "Halbes Jahrhundert", desc: "50 Sessions abgeschlossen" },
+  sessions_100: { title: "Dreistellig", desc: "100 Sessions abgeschlossen" },
+  streak_3: { title: "Drei Tage am Stück", desc: "3 Tage in Folge eine Session" },
+  streak_7: { title: "Woche gefüllt", desc: "7 Tage in Folge eine Session" },
+  stim_100h: { title: "Strom-Legende", desc: "100 Stunden Stimulation" },
+  climax_10: { title: "Zielgenau", desc: "10 Climax-Markierungen" },
 };
 
 const DAILY_POOL = [
@@ -154,6 +162,18 @@ export function unlockAchievement(id) {
   log(`Erfolg freigeschaltet: ${def.title}`, "success");
   refreshAchievementsUI();
   return true;
+}
+
+// F3: milestone achievements are unlocked by the stats layer via events
+// (avoids an import cycle stats → fun → sessions → stats).
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("stim:unlock-achievement", (e) => {
+    try {
+      if (e && e.detail && e.detail.id) unlockAchievement(e.detail.id);
+    } catch {
+      /* ignore */
+    }
+  });
 }
 
 function refreshAchievementsUI() {

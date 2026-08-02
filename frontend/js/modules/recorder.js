@@ -204,3 +204,55 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 export { RECORDER };
+
+// ---------------------------------------------------------------------------
+// F5: auto-record sessions (Autodrive + multi-phase sessions).
+// ---------------------------------------------------------------------------
+
+const AUTORECORD_KEY = "stim_app_autorecord";
+
+/** @returns {boolean} whether session auto-recording is enabled. */
+export function isAutoRecordEnabled() {
+  try {
+    return localStorage.getItem(AUTORECORD_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Start recording automatically (no-op if disabled or already recording). */
+export function startAutoRecording(reason) {
+  if (!isAutoRecordEnabled()) return;
+  if (RECORDER.recording) return;
+  RECORDER.start();
+  log(`Auto-Aufnahme gestartet (${reason}).`, "info");
+}
+
+/** Stop automatic recording (no-op if not recording). */
+export function stopAutoRecording(reason) {
+  if (!RECORDER.recording) return;
+  RECORDER.stop();
+  log(`Auto-Aufnahme beendet (${reason}).`, "info");
+}
+
+if (typeof document !== "undefined") {
+  const wireAutoRecordUi = () => {
+    const box = document.getElementById("check-autorecord");
+    if (box) {
+      box.checked = isAutoRecordEnabled();
+      box.addEventListener("change", () => {
+        try {
+          localStorage.setItem(AUTORECORD_KEY, box.checked ? "1" : "0");
+        } catch {
+          /* ignore */
+        }
+        log(`Auto-Aufnahme: ${box.checked ? "Aktiv" : "Inaktiv"}.`, "info");
+      });
+    }
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wireAutoRecordUi, { once: true });
+  } else {
+    wireAutoRecordUi();
+  }
+}

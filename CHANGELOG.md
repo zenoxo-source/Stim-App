@@ -1,5 +1,29 @@
 # Changelog
 
+## 4.7.0 — Komplettes Backup, Auto-Aufnahme & Milestone-Achievements
+
+### Neu: Daten-Backup ⭳⭱
+- **Komplettes Backup** aller lokalen Daten (Settings, Patterns, Profile, Hotkeys, Autodrive-Learning & -Historie, Stats, Scheduler, Trigger, Stories) als eine JSON-Datei
+- Import mit Validierung + 5-MB-Cap; Buttons in den Einstellungen
+
+### Neu: Recorder-Auto-Start 🎙
+- Checkbox „Session automatisch aufnehmen": Autodrive- und Multi-Phase-Sessions starten/stoppen die Aufnahme automatisch
+
+### Neu: Hotkeys & Achievements
+- **4 neue umbindbare Hotkey-Aktionen:** Session Pause/Resume, Shock-Burst, Autodrive stoppen, STIM Play/Pause (global)
+- **7 neue Milestone-Achievements:** 10/50/100 Sessions, 3/7-Tage-Streak, 100 STIM-Stunden, 10 Climax-Markierungen
+
+### Neu: Playlist
+- Lange aktive Track-Namen scrollen als Marquee; alle Namen mit Ellipsis + Tooltip (Klick-zu-Sprung existierte)
+
+### Sicherheit
+- Import-Größen-Caps (512 KB) für Autodrive-Setup- und Pattern-Import
+- `npm audit`: 0 Vulnerabilities; Audio-Datei-Validierung geprüft
+
+### Tests
+- 648 Tests grün, Lint sauber
+
+
 ## 4.6.0 — Climax-Overlay, Setup-Export & Profil-Auto-Load
 
 ### Neu: Autodrive

@@ -8,6 +8,10 @@
 import { AppState, DOM, CONSTANTS } from "../state.js";
 import { registerHotkey } from "./hotkeys.js";
 import { updateSlidersA, updateSlidersB } from "../control-deck.js";
+import { SESSION_STATE } from "./sessions.js";
+import { fireShock } from "./shock.js";
+import { stopAutodrive } from "./autodrive.js";
+import { toggleStimPlayback } from "./audio.js";
 
 const TAB_MAP = {
   1: "home",
@@ -136,6 +140,51 @@ export function registerDefaultHotkeys() {
     label: "Ramp abbrechen",
     defaultCombo: "Mod+R",
     handler: () => document.getElementById("btn-ramp-cancel")?.click(),
+  });
+
+  // F2: session pause/resume (no conflict with the panic shortcut).
+  registerHotkey({
+    id: "session-pause",
+    label: "Session Pause/Resume",
+    defaultCombo: "Mod+Shift+P",
+    handler: () => {
+      if (gameBlocksKeys()) return;
+      if (SESSION_STATE.sessionPaused) SESSION_STATE.resume();
+      else SESSION_STATE.pause();
+    },
+  });
+
+  // Shock burst (respects cooldown/PIN inside fireShock).
+  registerHotkey({
+    id: "shock-burst",
+    label: "Shock-Burst",
+    defaultCombo: "Mod+Shift+X",
+    handler: () => {
+      if (gameBlocksKeys()) return;
+      fireShock();
+    },
+  });
+
+  // Autodrive stop (life-safe; also available while hidden via tray/hotkey).
+  registerHotkey({
+    id: "autodrive-stop",
+    label: "Autodrive stoppen",
+    defaultCombo: "Mod+Shift+A",
+    handler: () => {
+      if (gameBlocksKeys()) return;
+      stopAutodrive("hotkey");
+    },
+  });
+
+  // STIM play/pause from any tab.
+  registerHotkey({
+    id: "stim-toggle",
+    label: "STIM Play/Pause (global)",
+    defaultCombo: "Mod+Shift+M",
+    handler: () => {
+      if (gameBlocksKeys()) return;
+      toggleStimPlayback();
+    },
   });
 }
 

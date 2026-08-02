@@ -1593,6 +1593,23 @@ input[type="range"]::-webkit-slider-thumb:hover {
   color: inherit;
   font-size: 14px;
 }
+/* F4: long track names — ellipsis, marquee-scroll for the active track. */
+.stim-playlist-item .pl-name {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stim-playlist-item.active .pl-name.pl-scroll {
+  text-overflow: clip;
+  animation: pl-marquee 9s linear infinite alternate;
+}
+@keyframes pl-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(-1 * min(140px, 100%))); }
+}
 .limit-warn {
   color: #fd971f !important;
   font-weight: 600;

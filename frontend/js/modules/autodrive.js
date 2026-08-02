@@ -19,6 +19,7 @@ import {
 import { blockIfLocked as blockIfPinLocked } from "./session-pin.js";
 import { sendSoftStop, sendStrengthCommand, sendWaveformCommand } from "./bluetooth.js";
 import { trackStat } from "./stats.js";
+import { startAutoRecording, stopAutoRecording } from "./recorder.js";
 import { isFlagEnabled } from "./feature-flags.js";
 
 export {
@@ -258,6 +259,11 @@ export function startAutodrive(patch = {}) {
     `Autodrive gestartet: ${cfg.templateId || "custom"} · ${cfg.targetDurationMin} Min · Ziel ${cfg.goal}`,
     "success"
   );
+  try {
+    startAutoRecording("autodrive");
+  } catch {
+    /* optional */
+  }
   requestWakeLock();
   notifyUi();
   return { ok: true };
@@ -392,6 +398,13 @@ export function stopAutodrive(reason = "manuell") {
   }
 
   releaseWakeLock();
+
+  // F5: stop auto-recording when the session ends.
+  try {
+    stopAutoRecording(reason);
+  } catch {
+    /* optional */
+  }
 
   if (wasActive && snap) {
     log(`Autodrive gestoppt (${reason}).`, "info");
@@ -824,6 +837,9 @@ export function exportAutodriveSetup() {
 /** Import + validate an Autodrive setup JSON file. */
 export async function importAutodriveSetup(file) {
   try {
+    if (file && file.size > 512 * 1024) {
+      return { ok: false, error: "Datei zu groß (max 512 KB)." };
+    }
     const text = await file.text();
     const data = JSON.parse(text);
     if (!data || data.type !== "autodrive-setup" || !data.config) {

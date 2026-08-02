@@ -4,6 +4,7 @@ import { ensureGameStrength } from "./games-extra.js";
 import { updateAIDashboard } from "../control-deck.js";
 import { sendSoftStop } from "./bluetooth.js";
 import { trackStat } from "./stats.js";
+import { startAutoRecording, stopAutoRecording } from "./recorder.js";
 
 const SESSIONS = {
   SLOW_BURN: {
@@ -442,6 +443,12 @@ const SESSION_STATE = {
     updateAIDashboard();
     updateSessionUI();
     log(`Session "${session.name}" gestartet (${session.durationSec}s)`, "success");
+    // F5: auto-record the session when enabled.
+    try {
+      startAutoRecording("session");
+    } catch {
+      /* optional */
+    }
   },
 
   stop() {
@@ -455,6 +462,12 @@ const SESSION_STATE = {
     updateSessionUI();
     trackStat("session_completed");
     log(`Session "${name}" beendet.`, "info");
+    // F5: stop auto-recording.
+    try {
+      stopAutoRecording("session");
+    } catch {
+      /* optional */
+    }
 
     // F5: auto-advance the queue (unless disconnected / panic-cleared).
     if (AppState.isConnected) {

@@ -185,6 +185,10 @@ export const PATTERN_EDITOR2 = {
 
   importPatterns(file) {
     var self = this;
+    if (file && file.size > 512 * 1024) {
+      log("Import abgebrochen: Datei zu groß (max 512 KB).", "error");
+      return;
+    }
     var reader = new FileReader();
     reader.onload = function (e) {
       try {

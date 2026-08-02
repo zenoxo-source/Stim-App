@@ -40,6 +40,25 @@ function saveStats(stats) {
   }
 }
 
+function dispatchUnlock(id) {
+  try {
+    window.dispatchEvent(new CustomEvent("stim:unlock-achievement", { detail: { id } }));
+  } catch {
+    /* ignore */
+  }
+}
+
+function dailyStreak(days) {
+  let streak = 0;
+  const d = new Date();
+  if (!days[d.toISOString().slice(0, 10)]) d.setDate(d.getDate() - 1);
+  while (days[d.toISOString().slice(0, 10)]) {
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
+
 export function trackStat(key, value) {
   const stats = loadStats();
   if (key === "pattern_used") {
@@ -58,16 +77,27 @@ export function trackStat(key, value) {
     if (!stats.days || typeof stats.days !== "object") stats.days = {};
     const day = new Date().toISOString().slice(0, 10);
     stats.days[day] = (stats.days[day] || 0) + 1;
+    // F3: milestone achievements.
+    if (stats.sessionsCompleted >= 10) dispatchUnlock("sessions_10");
+    if (stats.sessionsCompleted >= 50) dispatchUnlock("sessions_50");
+    if (stats.sessionsCompleted >= 100) dispatchUnlock("sessions_100");
+    const streak = dailyStreak(stats.days);
+    if (streak >= 3) dispatchUnlock("streak_3");
+    if (streak >= 7) dispatchUnlock("streak_7");
   } else if (key === "recording_created") {
     stats.recordingsCreated += 1;
   } else if (key === "remote_command") {
     stats.remoteCommands += 1;
   } else if (key === "play_time") {
     stats.totalPlayTimeSec += value;
+    if (stats.totalPlayTimeSec >= 360000) dispatchUnlock("stim_100h");
   } else if (typeof key === "string" && key.startsWith("autodrive_")) {
     // Counters for Autodrive analytics (starts/stops/success/debrief/feedback)
     if (!stats.autodrive) stats.autodrive = {};
     stats.autodrive[key] = (stats.autodrive[key] || 0) + 1;
+    if (key === "autodrive_climax_marked" && stats.autodrive[key] >= 10) {
+      dispatchUnlock("climax_10");
+    }
   }
   saveStats(stats);
 }
@@ -179,13 +209,7 @@ export function renderStats() {
   // F5: today's count + current daily streak.
   const todayKey = new Date().toISOString().slice(0, 10);
   const todayCount = days[todayKey] || 0;
-  let streak = 0;
-  const dCursor = new Date();
-  if (!days[dCursor.toISOString().slice(0, 10)]) dCursor.setDate(dCursor.getDate() - 1);
-  while (days[dCursor.toISOString().slice(0, 10)]) {
-    streak++;
-    dCursor.setDate(dCursor.getDate() - 1);
-  }
+  const streak = dailyStreak(days);
   const todayLine = `Heute: <strong>${todayCount}</strong> · Serie: <strong>${streak}</strong> ${streak === 1 ? "Tag" : "Tage"}`;
 
   const daysActive = stats.firstUsed

@@ -75,7 +75,7 @@ function renderPlaylist() {
           ? ` <span style="opacity:0.5;">${formatTime(t.duration)}</span>`
           : "";
         return `<div class="stim-playlist-item ${active}" data-index="${i}">
-        <span class="pl-name">${i + 1}. ${safe}${dur}</span>
+        <span class="pl-name${active && t.name && t.name.length > 30 ? " pl-scroll" : ""}" title="${safe}">${i + 1}. ${safe}${dur}</span>
         <button type="button" class="pl-remove" data-remove="${i}" title="Entfernen">×</button>
       </div>`;
       })

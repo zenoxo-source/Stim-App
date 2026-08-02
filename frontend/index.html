@@ -1973,7 +1973,12 @@
                   <input type="file" id="input-import-settings" accept="application/json,.json" style="display:none;">
                   <button type="button" id="btn-show-onboarding" class="btn btn-secondary btn-sm" data-i18n="settings_onboarding">Einführung</button>
                 </div>
-                <p class="settings-hint" data-i18n="export_help">Export ohne API-Keys. Import überschreibt Soft-Limits, Wave-Freq, Balance und AI-Endpoint.</p>
+                <div class="btn-row" style="margin-top: 4px;">
+                  <button type="button" id="btn-backup-export" class="btn btn-secondary btn-sm" title="Alle lokalen Daten (Settings, Patterns, Profile, Hotkeys, Stats, Autodrive …) sichern">⭳ Komplettes Backup</button>
+                  <button type="button" id="btn-backup-import" class="btn btn-secondary btn-sm" title="Backup wiederherstellen">⭱ Backup einspielen</button>
+                  <input type="file" id="input-backup-import" accept="application/json,.json" style="display:none;">
+                </div>
+                <p class="settings-hint">Backup enthält alle lokalen Daten inkl. API-Key-Einstellungen (Key selbst liegt verschlüsselt im System-Speicher und ist nicht enthalten).</p>
               </div>
             </div>
 
@@ -2044,6 +2049,9 @@
                   <button type="button" id="btn-recorder-load" class="btn btn-secondary btn-sm" data-i18n="profile_load">Laden</button>
                   <input type="file" id="input-recorder-load" accept="application/json,.json" style="display:none;">
                 </div>
+                <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; margin-top: 8px;" title="Autodrive- und Multi-Phase-Sessions automatisch aufnehmen">
+                  <input type="checkbox" id="check-autorecord"> Session automatisch aufnehmen
+                </label>
                 <details style="margin-top: 8px;">
                   <summary style="font-size: 12px; cursor: pointer; color: var(--text-muted);" data-i18n="edit_recording">Aufnahme bearbeiten (PR3)</summary>
                   <div style="margin-top: 8px; padding: 8px; background: var(--bg-input); border-radius: 4px;">
