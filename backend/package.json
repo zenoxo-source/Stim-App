@@ -1,6 +1,6 @@
 {
   "name": "stim-app",
-  "version": "4.1.12",
+  "version": "4.1.13",
   "description": "Stim App – DG-LAB Coyote 3.0 Control Deck (Electron)",
   "author": "zenoxo-source",
   "main": "src/main.js",
@@ -21,9 +21,9 @@
     "format": "prettier --write \"../frontend/js/**/*.js\" \"src/**/*.js\"",
     "test": "node scripts/run-tests.js",
     "icons": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-icons.ps1",
-    "version:patch": "npm version patch --no-git-tag-version && node -e \"console.log('Version:', require('./package.json').version)\"",
-    "version:minor": "npm version minor --no-git-tag-version && node -e \"console.log('Version:', require('./package.json').version)\"",
-    "version:major": "npm version major --no-git-tag-version && node -e \"console.log('Version:', require('./package.json').version)\""
+    "version:patch": "node scripts/bump-version.js patch",
+    "version:minor": "node scripts/bump-version.js minor",
+    "version:major": "node scripts/bump-version.js major"
   },
   "engines": {
     "node": ">=24.0.0"

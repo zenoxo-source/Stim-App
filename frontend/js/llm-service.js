@@ -2,6 +2,7 @@
 // Handles communication with OpenRouter/Ollama and tool execution
 import { log } from "./state.js";
 import * as ProtocolUtils from "./lib/protocol-utils.js";
+import { getLLMKeyStatus, streamChatLLM } from "./lib/llm-proxy.js";
 import { AIChatState } from "./modules/ai-state.js";
 import { updateOutputStatus } from "./modules/status-ui.js";
 import {
@@ -495,7 +496,6 @@ async function triggerLLM() {
 
   const provider = document.getElementById("ai-provider").value;
   const endpoint = document.getElementById("ai-endpoint").value;
-  const apiKey = document.getElementById("ai-api-key").value;
   const model = document.getElementById("ai-model").value;
   const systemPrompt = document.getElementById("ai-system-prompt").value;
 
@@ -515,50 +515,14 @@ async function triggerLLM() {
   const messages = [{ role: "system", content: augmentedPrompt }, ...chatHistory];
 
   try {
-    const headers = {
-      "Content-Type": "application/json",
-    };
-
+    // Friendly pre-check so users see the same message as before. The main
+    // process re-validates (defense in depth) before attaching the key.
     if (provider === "openrouter") {
-      if (!apiKey) {
+      const keyStatus = await getLLMKeyStatus();
+      if (!keyStatus.hasKey) {
         throw new Error("Fehlender API-Key für OpenRouter. Bitte unter Einstellungen eintragen.");
       }
-      headers["Authorization"] = `Bearer ${apiKey}`;
-      headers["HTTP-Referer"] = "http://localhost:3000";
-      headers["X-Title"] = "StimApp AI";
     }
-
-    const requestBody = {
-      model: model,
-      messages: messages,
-      tools: toolsDefinition,
-      tool_choice: "auto",
-      stream: true,
-    };
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: headers,
-      body: JSON.stringify(requestBody),
-      signal: AIChatState.currentController.signal,
-    });
-
-    if (!response.ok) {
-      let msg = `API Fehler ${response.status}`;
-      if (response.status === 401) msg = "API Fehler 401: Ungültiger API-Key.";
-      else if (response.status === 403) msg = "API Fehler 403: Zugriff verweigert.";
-      else if (response.status === 429) msg = "API Fehler 429: Rate-Limit überschritten.";
-      else if (response.status >= 500)
-        msg = `API Fehler ${response.status}: Server-Fehler beim Anbieter.`;
-      throw new Error(msg);
-    }
-
-    // ---- Streaming ----
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let buffer = "";
-    let accumulatedContent = "";
-    const toolCallBuffers = {};
 
     const container = document.getElementById("ai-chat-history");
     if (container) {
@@ -571,81 +535,81 @@ async function triggerLLM() {
       AIChatState.streamingBubbleEl = div;
     }
 
-    try {
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+    // SSE parsing shared by the main-process proxy path and the browser
+    // fallback: both feed decoded text chunks into processChunk.
+    let buffer = "";
+    let accumulatedContent = "";
+    const toolCallBuffers = {};
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+    const processChunk = (text) => {
+      buffer += text;
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
 
-        for (const rawLine of lines) {
-          const line = rawLine.replace(/\r/g, "").trim();
-          if (!line || !line.startsWith("data: ")) continue;
-          const dataStr = line.slice(6).trim();
-          if (dataStr === "[DONE]") continue;
+      for (const rawLine of lines) {
+        const line = rawLine.replace(/\r/g, "").trim();
+        if (!line || !line.startsWith("data: ")) continue;
+        const dataStr = line.slice(6).trim();
+        if (dataStr === "[DONE]") continue;
 
-          let chunk;
-          try {
-            chunk = JSON.parse(dataStr);
-          } catch {
-            continue;
+        let chunk;
+        try {
+          chunk = JSON.parse(dataStr);
+        } catch {
+          continue;
+        }
+
+        const delta = chunk.choices?.[0]?.delta;
+        if (!delta) continue;
+
+        if (delta.content) {
+          accumulatedContent += delta.content;
+          if (AIChatState.streamingBubbleEl) {
+            AIChatState.streamingBubbleEl.textContent = accumulatedContent;
+            AIChatState.streamingBubbleEl.classList.remove("streaming");
           }
+          if (container) container.scrollTop = container.scrollHeight;
+        }
 
-          const delta = chunk.choices?.[0]?.delta;
-          if (!delta) continue;
-
-          if (delta.content) {
-            accumulatedContent += delta.content;
-            if (AIChatState.streamingBubbleEl) {
-              AIChatState.streamingBubbleEl.textContent = accumulatedContent;
-              AIChatState.streamingBubbleEl.classList.remove("streaming");
-            }
-            if (container) container.scrollTop = container.scrollHeight;
-          }
-
-          if (delta.tool_calls) {
-            for (const tc of delta.tool_calls) {
-              const idx = tc.index ?? 0;
-              if (!toolCallBuffers[idx]) {
-                toolCallBuffers[idx] = {
-                  id: tc.id || "",
-                  type: tc.type || "function",
-                  function: {
-                    name: tc.function?.name || "",
-                    arguments: tc.function?.arguments || "",
-                  },
-                };
-              } else {
-                if (tc.id) toolCallBuffers[idx].id = tc.id;
-                if (tc.type) toolCallBuffers[idx].type = tc.type;
-                if (tc.function?.name) toolCallBuffers[idx].function.name = tc.function.name;
-                if (tc.function?.arguments)
-                  toolCallBuffers[idx].function.arguments += tc.function.arguments;
-              }
+        if (delta.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const idx = tc.index ?? 0;
+            if (!toolCallBuffers[idx]) {
+              toolCallBuffers[idx] = {
+                id: tc.id || "",
+                type: tc.type || "function",
+                function: {
+                  name: tc.function?.name || "",
+                  arguments: tc.function?.arguments || "",
+                },
+              };
+            } else {
+              if (tc.id) toolCallBuffers[idx].id = tc.id;
+              if (tc.type) toolCallBuffers[idx].type = tc.type;
+              if (tc.function?.name) toolCallBuffers[idx].function.name = tc.function.name;
+              if (tc.function?.arguments)
+                toolCallBuffers[idx].function.arguments += tc.function.arguments;
             }
           }
         }
       }
-    } catch (streamErr) {
-      if (streamErr.name === "AbortError") {
-        if (AIChatState.streamingBubbleEl) {
-          AIChatState.streamingBubbleEl.remove();
-          AIChatState.streamingBubbleEl = null;
-        }
-        reader.releaseLock?.();
-        AIChatState.isProcessing = false;
-        AIChatState.currentController = null;
-        btnSend.disabled = false;
-        statusText.textContent = "Bereit.";
-        return;
-      }
-      throw streamErr;
-    } finally {
-      reader.releaseLock?.();
-    }
+    };
+
+    // Runs in the main process (key stays there); falls back to a direct
+    // fetch when window.electronAPI is absent.
+    await streamChatLLM(
+      {
+        provider,
+        endpoint,
+        model,
+        messages,
+        tools: toolsDefinition,
+        toolChoice: "auto",
+        referer: "http://localhost:3000",
+        title: "StimApp AI",
+      },
+      { signal: AIChatState.currentController.signal, onChunk: processChunk }
+    );
 
     // Finalize bubble
     if (AIChatState.streamingBubbleEl) {

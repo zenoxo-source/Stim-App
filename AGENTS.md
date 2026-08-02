@@ -23,7 +23,7 @@ npm test                 # Run all tests (node --test, ESM)
 npm run format           # Prettier format
 
 # Versioning
-npm run version:patch    # Bump patch version (3.0.0 → 3.0.1)
+npm run version:patch    # Bump patch version (3.0.0 → 3.0.1); also updates README **Version:** + prepends CHANGELOG entry
 npm run version:minor    # Bump minor version (3.0.0 → 3.1.0)
 npm run version:major    # Bump major version (3.0.0 → 4.0.0)
 ```
@@ -50,8 +50,8 @@ npm run version:major    # Bump major version (3.0.0 → 4.0.0)
 - Tests run with `node --test` (ESM); `backend/tests/package.json` declares `{"type": "module"}`
 
 ### Release Flow
-1. Bump version: `npm run version:patch` (or minor/major)
-2. Update `CHANGELOG.md` **and the `**Version:**` line in `README.md`** (these drift easily)
+1. Bump version: `npm run version:patch` (or minor/major) — updates `package.json` **and** README/CHANGELOG
+2. Fill in the CHANGELOG entry the bump script inserted (`## X.Y.Z – <Titel>` placeholder)
 3. Commit: `git commit -m "feat: vX.Y.Z – ..."`
 4. Tag: `git tag -a vX.Y.Z -m "vX.Y.Z: ..."`
 5. Push: `git push origin main && git push origin vX.Y.Z`
@@ -62,10 +62,14 @@ npm run version:major    # Bump major version (3.0.0 → 4.0.0)
 - `frontend/js/state.js` — AppState (central mutable state) + DOM cache + `log`; re-exports CONSTANTS
 - `frontend/js/constants.js` — All constants (BLE UUIDs, limits, intervals)
 - `frontend/js/lib/protocol-utils.js` — Pure protocol helpers (tested)
+- `frontend/js/lib/autodrive-data.js` — Static Autodrive templates + placement profiles (split from the engine)
+- `frontend/js/lib/llm-proxy.js` — Renderer-side LLM wrapper (main-process proxy + browser fallback)
 - `frontend/js/modules/bluetooth.js` — BLE connection + V3 protocol implementation
 - `frontend/js/control-deck.js` — Wave loop + pattern engine + slider handlers
 - `frontend/js/modules/ai-state.js` — Shared mutable chat state (AbortController/streaming bubble) consumed by `llm-service.js` + `safety.js`
 - `frontend/js/modules/remote.js` — WebSocket remote command handler
 - `frontend/js/modules/recorder.js` — Session recording & replay
+- `backend/src/llm-proxy.js` — Main-process LLM proxy (endpoint allowlist, safeStorage key, SSE forwarding; tested)
 - `backend/scripts/build-frontend.js` — esbuild bundler (dev + prod output)
+- `backend/scripts/bump-version.js` — Version bump across package.json/README/CHANGELOG
 - `backend/tests/helpers/dom-mock.js` — Browser-API shims for Node test runner

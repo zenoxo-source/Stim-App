@@ -7,6 +7,13 @@ import { sendV3Init } from "./bluetooth.js";
 const SETTINGS_KEY = "stim_app_settings_v1";
 const LEGACY_SETTINGS_KEY = "coyote_app_settings_v1";
 
+// The raw API key never lives in the renderer. The settings input only
+// receives it while the user types; the stored key is shown as a masked
+// hint. apiKeyDirty gates writes so unrelated settings changes cannot
+// overwrite or delete the stored key by accident.
+let apiKeyDirty = false;
+let apiKeyHasStored = false;
+
 const defaultSettings = {
   softLimitA: 150,
   softLimitB: 150,
@@ -79,14 +86,33 @@ export function saveSettings() {
       })
     );
 
-    const apiKey = DOM["ai-api-key"]?.value ?? "";
-    if (window.electronAPI && typeof window.electronAPI.setApiKey === "function") {
+    if (apiKeyDirty && window.electronAPI && typeof window.electronAPI.setApiKey === "function") {
+      const apiKey = DOM["ai-api-key"]?.value ?? "";
+      apiKeyHasStored = Boolean(apiKey);
       window.electronAPI.setApiKey(apiKey).catch((err) => {
         console.warn("Failed to store API key securely:", err);
       });
+      updateApiKeyIndicator();
     }
   } catch (e) {
     console.warn("Failed to save settings:", e);
+  }
+}
+
+function updateApiKeyIndicator() {
+  const input = DOM["ai-api-key"];
+  const clearBtn = document.getElementById("btn-ai-key-clear");
+  const statusEl = document.getElementById("ai-key-status");
+  if (input) {
+    input.placeholder = apiKeyHasStored
+      ? "•••••• (Key gespeichert — bei Bedarf überschreiben)"
+      : "sk-or-v1-… · safeStorage";
+  }
+  if (clearBtn) clearBtn.style.display = apiKeyHasStored && !(input && input.value) ? "" : "none";
+  if (statusEl) {
+    statusEl.textContent = apiKeyHasStored
+      ? "API-Key ist verschlüsselt gespeichert (safeStorage) und wird nur im Main-Prozess verwendet."
+      : "API-Key wird nur lokal auf diesem Gerät gespeichert.";
   }
 }
 
@@ -150,40 +176,52 @@ export function applySettings(settings) {
 
   if (DOM["ai-provider"]) DOM["ai-provider"].value = settings.aiProvider;
   if (DOM["ai-endpoint"]) DOM["ai-endpoint"].value = settings.aiEndpoint;
-  if (DOM["ai-api-key"]) DOM["ai-api-key"].value = settings.aiApiKey || "";
+  if (DOM["ai-api-key"]) {
+    // Only a plain-browser context shows the (legacy, plaintext) stored key —
+    // in the Electron app the key lives in safeStorage and must not reach the
+    // renderer, so the input starts empty (masked hint only).
+    DOM["ai-api-key"].value =
+      window.electronAPI && typeof window.electronAPI.getApiKeyStatus === "function"
+        ? ""
+        : settings.aiApiKey || "";
+  }
   if (DOM["ai-model"]) DOM["ai-model"].value = settings.aiModel;
   if (DOM["ai-system-prompt"]) DOM["ai-system-prompt"].value = settings.aiSystemPrompt;
 }
 
 async function loadApiKeySecurely(settings) {
-  let key = "";
-  if (window.electronAPI && typeof window.electronAPI.getApiKey === "function") {
-    try {
-      key = (await window.electronAPI.getApiKey()) || "";
-    } catch (e) {
-      console.warn("Failed to load secure API key:", e);
-    }
-  }
-
-  if (!key && settings.aiApiKey) {
-    key = settings.aiApiKey;
-    if (window.electronAPI && typeof window.electronAPI.setApiKey === "function") {
-      await window.electronAPI.setApiKey(key);
+  if (window.electronAPI && typeof window.electronAPI.getApiKeyStatus === "function") {
+    // Legacy migration: move a plaintext key from localStorage into safeStorage.
+    if (settings.aiApiKey) {
       try {
-        const raw = localStorage.getItem(SETTINGS_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          delete parsed.aiApiKey;
-          localStorage.setItem(SETTINGS_KEY, JSON.stringify(parsed));
+        const ok = await window.electronAPI.setApiKey(settings.aiApiKey);
+        if (ok) {
+          const raw = localStorage.getItem(SETTINGS_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            delete parsed.aiApiKey;
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(parsed));
+          }
+          log("API-Key in geschützten Speicher migriert (safeStorage).", "info");
         }
       } catch (e) {
-        // ignore
+        console.warn("Failed to migrate API key:", e);
       }
-      log("API-Key in geschützten Speicher migriert (safeStorage).", "info");
     }
+    try {
+      const status = await window.electronAPI.getApiKeyStatus();
+      apiKeyHasStored = Boolean(status && status.hasKey);
+    } catch (e) {
+      console.warn("Failed to load API key status:", e);
+      apiKeyHasStored = false;
+    }
+    if (DOM["ai-api-key"]) DOM["ai-api-key"].value = "";
+    updateApiKeyIndicator();
+    return;
   }
 
-  if (DOM["ai-api-key"]) DOM["ai-api-key"].value = key;
+  // Plain-browser fallback: the input itself is the storage.
+  if (DOM["ai-api-key"]) DOM["ai-api-key"].value = settings.aiApiKey || "";
 }
 
 function exportSettingsFile() {
@@ -264,7 +302,6 @@ document.addEventListener("DOMContentLoaded", () => {
     "check-settings-audio",
     "ai-provider",
     "ai-endpoint",
-    "ai-api-key",
     "ai-model",
     "ai-system-prompt",
   ].forEach((id) => {
@@ -272,6 +309,28 @@ document.addEventListener("DOMContentLoaded", () => {
     if (el) {
       saveEvents.forEach((evt) => el.addEventListener(evt, saveSettings));
     }
+  });
+
+  // API-Key input: dirty-tracked save, so unrelated settings changes can
+  // never overwrite or delete the stored key by accident.
+  const apiKeyInput = DOM["ai-api-key"] || document.getElementById("ai-api-key");
+  if (apiKeyInput) {
+    apiKeyInput.addEventListener("input", () => {
+      apiKeyDirty = true;
+      updateApiKeyIndicator();
+      saveSettings();
+    });
+    apiKeyInput.addEventListener("change", saveSettings);
+  }
+  document.getElementById("btn-ai-key-clear")?.addEventListener("click", async () => {
+    apiKeyDirty = true;
+    if (apiKeyInput) apiKeyInput.value = "";
+    if (window.electronAPI && typeof window.electronAPI.setApiKey === "function") {
+      await window.electronAPI.setApiKey("");
+    }
+    apiKeyHasStored = false;
+    updateApiKeyIndicator();
+    log("API-Key gelöscht.", "info");
   });
 
   bindBalanceSlider("slider-freq-bal-a", "label-freq-bal-a", "freqBalanceA");

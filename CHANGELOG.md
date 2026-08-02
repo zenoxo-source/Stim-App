@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.1.13 — LLM-Proxy, Secrets & Refactor
+
+### Sicherheit
+- **API-Key bleibt im Main-Prozess**: LLM-/Vision-Anfragen laufen über einen neuen Proxy (`backend/src/llm-proxy.js`, Endpoint-Allowlist, Payload-Caps, Streaming via IPC). Der Key verlässt safeStorage nie mehr in Richtung Renderer; das Settings-UI zeigt nur noch einen maskierten Hinweis (`••••abcd`) mit Lösch-Button
+- safeStorage-Klartext-Fallback warnt jetzt laut und schreibt Secrets mit 0600-Rechten (Unix)
+- `secrets:getApiKey`-IPC entfernt — der Renderer kann den vollen Key nicht mehr lesen
+
+### Qualität / Refactor
+- `autodrive-engine.js` (2254 → 1835 Zeilen): statische Templates/Placement-Profile nach `frontend/js/lib/autodrive-data.js` extrahiert
+- HTML-Single-Source: veralteten `autodrive-section.html`-Splice-Workflow entfernt (`index.html` ist einzige Quelle)
+- Bluetooth-Geräte-Dialog async (`showMessageBoxSync` → `showMessageBox`) inkl. Picker-Race-Fix
+- `npm run version:patch|minor|major` aktualisiert jetzt README-**Version:**-Zeile und legt den CHANGELOG-Eintrag automatisch an
+
+### Tests
+- 20 neue Tests für den LLM-Proxy (Allowlist, Validierung, Streaming, Abort)
+- Gesamt: 634 Tests grün, Lint sauber
+
+
 ## 4.1.12 — Autodrive 2 Loops · 1 Kanal & Wizard
 
 ### Autodrive

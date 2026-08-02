@@ -2182,7 +2182,11 @@
                 </div>
                 <div class="control-row stacked">
                   <span class="control-label">API Key (Cloud)</span>
-                  <input type="password" id="ai-api-key" class="text-input" placeholder="sk-or-v1-… · safeStorage">
+                  <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="password" id="ai-api-key" class="text-input" placeholder="sk-or-v1-… · safeStorage" autocomplete="new-password" style="flex:1;">
+                    <button type="button" id="btn-ai-key-clear" class="btn btn-secondary btn-sm" style="display:none;" title="Gespeicherten API-Key löschen">Löschen</button>
+                  </div>
+                  <span class="hint-muted" id="ai-key-status">API-Key wird nur lokal auf diesem Gerät gespeichert.</span>
                 </div>
                 <div class="control-row stacked">
                   <span class="control-label" data-i18n="settings_model">Modell</span>

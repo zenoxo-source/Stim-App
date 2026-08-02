@@ -16,6 +16,7 @@ import { getMemorySnapshot, addMemory } from "./ai-memory.js";
 import { aiPlayPattern, aiCreateCustomPattern, aiStopAll } from "./ai-bridge.js";
 import { updateSlidersA, updateSlidersB, updateAIDashboard } from "../control-deck.js";
 import { isPanicCooldownActive } from "./safety-extras.js";
+import { chatLLM } from "../lib/llm-proxy.js";
 
 const DIRECTOR_KEY = "stim_app_director_v1";
 
@@ -621,45 +622,38 @@ async function callDirectorLLM(messages, signal) {
   const provider = (document.getElementById("ai-provider")?.value || "ollama").toLowerCase();
   const endpoint =
     document.getElementById("ai-endpoint")?.value || "http://localhost:11434/v1/chat/completions";
-  const apiKey = document.getElementById("ai-api-key")?.value || "";
   const model = document.getElementById("ai-model")?.value || "qwen2.5";
 
-  const headers = { "Content-Type": "application/json" };
-  if (provider === "openrouter") {
-    if (!apiKey) throw new Error("OpenRouter API-Key fehlt (in Einstellungen)");
-    headers["Authorization"] = `Bearer ${apiKey}`;
-    headers["HTTP-Referer"] = "http://localhost:3000";
-    headers["X-Title"] = "StimApp Director";
-  }
+  // Key lives in the main process (safeStorage); request runs there.
+  const bodyMessages = [
+    { role: "system", content: messages.system },
+    { role: "user", content: messages.user },
+  ];
 
-  const body = {
+  const result = await chatLLM({
+    provider,
+    endpoint,
     model,
-    messages: [
-      { role: "system", content: messages.system },
-      { role: "user", content: messages.user },
-    ],
+    messages: bodyMessages,
     stream: false,
     temperature: 0.9,
-    max_tokens: 400,
-  };
-
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
+    maxTokens: 400,
+    referer: "http://localhost:3000",
+    title: "StimApp Director",
     signal,
   });
-  if (!res.ok) {
-    let detail = "";
-    try {
-      detail = await res.text();
-    } catch {
-      /* ignore */
+
+  if (!result.ok) {
+    if (result.aborted) {
+      const err = new Error("aborted");
+      err.name = "AbortError";
+      throw err;
     }
-    throw new Error(`HTTP ${res.status} ${detail.slice(0, 200)}`);
+    if (result.error) throw new Error(result.error);
+    const detail = result.detail || "";
+    throw new Error(`HTTP ${result.status} ${detail.slice(0, 200)}`);
   }
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
+  const content = result.data?.choices?.[0]?.message?.content;
   if (typeof content !== "string") throw new Error("Leere LLM-Antwort");
   return content;
 }

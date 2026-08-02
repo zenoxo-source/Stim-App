@@ -19,6 +19,7 @@ const {
   handleRendererResponse,
   broadcastState,
 } = require("./remote-server");
+const { runLLMRequest, abortLLM } = require("./llm-proxy");
 
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
@@ -75,7 +76,20 @@ function writeSecretFile(filename, value) {
     if (safeStorage.isEncryptionAvailable()) {
       fs.writeFileSync(keyPath, safeStorage.encryptString(text));
     } else {
-      fs.writeFileSync(keyPath, text, "utf8");
+      // Fallback: plaintext. safeStorage is unavailable (e.g. headless Linux);
+      // warn loudly and restrict the file to the current user so other local
+      // accounts cannot read the secret.
+      console.warn(
+        `safeStorage unavailable — storing ${filename} in PLAINTEXT at ${keyPath} (user-only permissions).`
+      );
+      fs.writeFileSync(keyPath, text, { encoding: "utf8", mode: 0o600 });
+      if (process.platform !== "win32") {
+        try {
+          fs.chmodSync(keyPath, 0o600);
+        } catch (err) {
+          console.warn(`Failed to set 0600 permissions on ${filename}:`, err.message);
+        }
+      }
     }
     return true;
   } catch (err) {
@@ -214,27 +228,39 @@ function createWindow() {
       const buttons = matches.slice(0, 6).map((d) => deviceLabel(d));
       buttons.push("Abbrechen");
 
-      const choice = dialog.showMessageBoxSync(mainWindow, {
-        type: "question",
-        buttons,
-        defaultId: 0,
-        cancelId: buttons.length - 1,
-        title: "Coyote Gerät wählen",
-        message: "Mehrere passende Geräte gefunden.",
-        detail: "Bitte das gewünschte DG-LAB Coyote Gerät auswählen.",
-      });
-
-      const selected = matches[choice];
-      clearBluetoothSelect();
-      if (selected) {
-        console.log(`User selected: ${deviceLabel(selected)} (${selected.deviceId})`);
-        callback(selected.deviceId);
-      } else {
-        console.log("User cancelled device selection.");
-        callback("");
-      }
+      dialog
+        .showMessageBox(mainWindow, {
+          type: "question",
+          buttons,
+          defaultId: 0,
+          cancelId: buttons.length - 1,
+          title: "Coyote Gerät wählen",
+          message: "Mehrere passende Geräte gefunden.",
+          detail: "Bitte das gewünschte DG-LAB Coyote Gerät auswählen.",
+        })
+        .then(({ response }) => {
+          const selected = matches[response];
+          clearBluetoothSelect();
+          if (selected) {
+            console.log(`User selected: ${deviceLabel(selected)} (${selected.deviceId})`);
+            callback(selected.deviceId);
+          } else {
+            console.log("User cancelled device selection.");
+            callback("");
+          }
+        })
+        .catch((err) => {
+          console.warn("Device picker dialog failed:", err.message);
+          clearBluetoothSelect();
+          callback("");
+        });
       return;
     }
+
+    // Picker dialog is open — ignore new scan events until the user decides.
+    // (The old sync dialog blocked the main process, hiding this race; the
+    // async dialog must not re-arm the timeout fallback while it is up.)
+    if (bluetoothPickerActive) return;
 
     // Still scanning — arm timeout once with best-effort fallbacks.
     if (!bluetoothSelectTimer) {
@@ -564,7 +590,12 @@ function registerIpc() {
 
   ipcMain.handle("updater:hasToken", () => Boolean(getGithubUpdateToken()));
 
-  ipcMain.handle("secrets:getApiKey", () => readSecretFile(API_KEY_FILENAME));
+  ipcMain.handle("secrets:keyStatus", () => {
+    const key = readSecretFile(API_KEY_FILENAME);
+    const hasKey = Boolean(key);
+    // Only a masked hint — the raw key never crosses the IPC boundary.
+    return { hasKey, hint: hasKey ? `••••${key.slice(-4)}` : "" };
+  });
   ipcMain.handle("secrets:setApiKey", (event, apiKey) => {
     // Validate input type and length to defuse any path-traversal / memory-bomb attempts.
     if (typeof apiKey !== "string") return false;
@@ -632,6 +663,27 @@ function registerIpc() {
   ipcMain.on("remote:broadcast", (_event, state) => {
     if (!state || typeof state !== "object") return;
     broadcastState(state);
+  });
+
+  // LLM proxy (see llm-proxy.js): the OpenRouter key stays in the main
+  // process; streaming chunks are routed back via webContents.send.
+  ipcMain.handle("llm:chat", async (event, payload) => {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return { ok: false, error: "payload fehlt oder ist ungültig." };
+    }
+    const sender = event.sender;
+    const send = (channel, data) => {
+      if (sender && !sender.isDestroyed()) sender.send(channel, data);
+    };
+    return runLLMRequest({
+      ...payload,
+      apiKey: readSecretFile(API_KEY_FILENAME),
+      send,
+    });
+  });
+
+  ipcMain.on("llm:abort", (_event, reqId) => {
+    if (typeof reqId === "string" && reqId) abortLLM(reqId);
   });
 }
 

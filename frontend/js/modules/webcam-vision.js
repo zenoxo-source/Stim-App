@@ -14,6 +14,7 @@
 
 import { DOM, log } from "../state.js";
 import { AIChatState } from "./ai-state.js";
+import { chatLLM } from "../lib/llm-proxy.js";
 
 const WEBCAM_KEY = "stim_app_webcam_vision_v1";
 
@@ -180,7 +181,6 @@ export async function enable(patch) {
     return { ok: false, error: `Provider „${provider}" unterstützt keine Vision-API.` };
   }
   const endpoint = document.getElementById("ai-endpoint")?.value;
-  const apiKey = document.getElementById("ai-api-key")?.value;
   const mainModel = document.getElementById("ai-model")?.value;
   const model = cfg.visionModel || mainModel;
   if (!endpoint || !model) {
@@ -208,11 +208,11 @@ export async function enable(patch) {
 
   // Capture loop
   intervalHandle = setInterval(
-    () => analyzeOnce(cfg, endpoint, apiKey, provider, model),
+    () => analyzeOnce(cfg, endpoint, provider, model),
     Math.max(2000, cfg.intervalMs)
   );
   // Immediate first capture
-  setTimeout(() => analyzeOnce(cfg, endpoint, apiKey, provider, model), 500);
+  setTimeout(() => analyzeOnce(cfg, endpoint, provider, model), 500);
 
   log(`Webcam-Vision aktiv (Interval ${cfg.intervalMs}ms, Model ${model}).`, "warning");
   updateIndicator(true);
@@ -260,7 +260,7 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
  * Capture one frame + send to LLM. The LLM's response becomes available via
  * getLastAnalysis(). Frame is discarded immediately after the request.
  */
-async function analyzeOnce(cfg, endpoint, apiKey, provider, model) {
+async function analyzeOnce(cfg, endpoint, provider, model) {
   if (!videoEl) return;
   const frame = captureFrameToBase64(videoEl, cfg.maxWidth, cfg.maxHeight, cfg.jpegQuality);
   if (!frame) return;
@@ -273,22 +273,22 @@ async function analyzeOnce(cfg, endpoint, apiKey, provider, model) {
   AIChatState.currentController = controller;
 
   try {
-    const headers = { "Content-Type": "application/json" };
-    if (provider === "openrouter" && apiKey) {
-      headers.Authorization = `Bearer ${apiKey}`;
-    }
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
+    // Request runs in the main process; the OpenRouter key stays there.
+    const result = await chatLLM({
+      provider,
+      endpoint,
+      model: body.model,
+      messages: body.messages,
+      stream: false,
       signal: controller.signal,
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      log(`Webcam-Vision Fehler ${res.status}: ${text.slice(0, 200)}`, "error");
+    if (!result.ok) {
+      if (result.aborted) return;
+      const reason = result.error || `HTTP ${result.status || "?"}`;
+      log(`Webcam-Vision Fehler: ${reason}`, "error");
       return;
     }
-    const data = await res.json();
+    const data = result.data;
     const text =
       data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || "(keine Antwort)";
     lastAnalysisText = typeof text === "string" ? text : JSON.stringify(text);
