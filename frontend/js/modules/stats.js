@@ -54,6 +54,10 @@ export function trackStat(key, value) {
     stats.connectionsTotal += 1;
   } else if (key === "session_completed") {
     stats.sessionsCompleted += 1;
+    // F4: per-day session counts for the weekly overview.
+    if (!stats.days || typeof stats.days !== "object") stats.days = {};
+    const day = new Date().toISOString().slice(0, 10);
+    stats.days[day] = (stats.days[day] || 0) + 1;
   } else if (key === "recording_created") {
     stats.recordingsCreated += 1;
   } else if (key === "remote_command") {
@@ -149,6 +153,29 @@ export function renderStats() {
         })
         .join("")
     : `<span style="font-size:11px;opacity:0.5;">Noch keine Daten – beim nächsten Verbinden wird gemessen.</span>`;
+  // F4: last-7-days session overview.
+  const days = stats.days || {};
+  const dayNames = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+  const week = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    week.push({
+      day: d.toISOString().slice(0, 10),
+      label: dayNames[d.getDay()],
+      count: days[d.toISOString().slice(0, 10)] || 0,
+    });
+  }
+  const weekMax = Math.max(1, ...week.map((w) => w.count));
+  const weekBars = week
+    .map(
+      (w) =>
+        `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;">
+          <span style="font-size:10px;opacity:0.7;">${w.count}</span>
+          <span class="batt-bar" style="height:${Math.max(4, Math.round((w.count / weekMax) * 48))}px;background:${w.count ? "#5ab3ff" : "rgba(255,255,255,0.12)"};" title="${w.day}: ${w.count}"></span>
+          <span style="font-size:9px;opacity:0.5;">${w.label}</span>
+        </div>`
+    )
+    .join("");
 
   const daysActive = stats.firstUsed
     ? Math.max(1, Math.ceil((Date.now() - new Date(stats.firstUsed).getTime()) / 86400000))
@@ -227,6 +254,10 @@ export function renderStats() {
           <div><span class="stat-value">${batt.max}%</span><div class="stat-label">Max</div></div>
         </div>
         <div class="batt-bars" style="display:flex;align-items:flex-end;gap:3px;height:56px;">${battBars}</div>
+      </div>
+      <div class="stat-list">
+        <h4>Letzte 7 Tage (Sessions)</h4>
+        <div class="batt-bars" style="display:flex;align-items:flex-end;gap:4px;height:56px;">${weekBars}</div>
       </div>
     </div>
   `;

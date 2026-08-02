@@ -41,6 +41,8 @@ import { assertCanWrite, forceReleaseAll } from "./output-owner.js";
 let connectInProgress = false;
 /** True while the user intentionally disconnects (suppresses lost-link notification). */
 let manualDisconnect = false;
+/** True once a low-battery notification was shown this charge cycle. */
+let batteryLowNotified = false;
 /** Stable disconnect handler so we don't stack gattserverdisconnected listeners. */
 let onGattDisconnected = null;
 
@@ -553,6 +555,23 @@ async function readBatteryStatus() {
       recordBatterySample(AppState.batteryLevel);
     } catch {
       /* stats optional */
+    }
+    // Low-battery alarm: notify once per charge cycle, re-arm above 25 %.
+    if (AppState.batteryLevel <= 20 && !batteryLowNotified) {
+      batteryLowNotified = true;
+      try {
+        if (window.electronAPI && typeof window.electronAPI.notify === "function") {
+          window.electronAPI.notify(
+            "Batterie niedrig",
+            `Coyote-Batterie bei ${AppState.batteryLevel}% – Aufladen empfohlen.`
+          );
+        }
+      } catch {
+        /* optional */
+      }
+      log(`Batterie niedrig: ${AppState.batteryLevel}%`, "warning");
+    } else if (AppState.batteryLevel >= 25) {
+      batteryLowNotified = false;
     }
     log(`Batterieladestand: ${AppState.batteryLevel}%`, "info");
   } catch (err) {

@@ -11,15 +11,30 @@
 import { log } from "../state.js";
 import { injectFeedback, isAutodriveActive } from "./autodrive.js";
 
-/** Ordered phrase → feedback token list. First match wins. */
+/** Ordered phrase → feedback token list. First match wins (DE + EN). */
 const PHRASES = [
-  { match: /zu schwach|zu wenig|schwächer|schwacher|schwaecher/i, token: "too_weak" },
-  { match: /zu stark|zu viel|stärker|starker|staerker|heftiger/i, token: "too_strong" },
-  { match: /passt|gut so|super|genau richtig|sehr gut/i, token: "good" },
-  { match: /fast|beinahe|gleich da|kurz davor|knapp davor/i, token: "almost" },
-  { match: /jetzt|abspritzen|komm jetzt|kommst du|komme/i, token: "now" },
-  { match: /gekommen|abgespritzt|fertig|geschafft/i, token: "climaxed" },
-  { match: /noch nicht|warten|halt/i, token: "not_yet" },
+  {
+    match: /zu schwach|zu wenig|schwächer|schwacher|schwaecher|too weak|not enough|weaker/i,
+    token: "too_weak",
+  },
+  {
+    match: /zu stark|zu viel|stärker|starker|staerker|heftiger|too strong|stronger|more intense/i,
+    token: "too_strong",
+  },
+  {
+    match: /passt|gut so|super|genau richtig|sehr gut|good|perfect|nice|feels good/i,
+    token: "good",
+  },
+  {
+    match: /fast|beinahe|gleich da|kurz davor|knapp davor|almost|close|about to/i,
+    token: "almost",
+  },
+  {
+    match: /jetzt|abspritzen|komm jetzt|kommst du|komme|now|come now|make me come|do it now/i,
+    token: "now",
+  },
+  { match: /gekommen|abgespritzt|fertig|geschafft|came|done|finished|i came/i, token: "climaxed" },
+  { match: /noch nicht|warten|halt|not yet|wait/i, token: "not_yet" },
 ];
 
 const MIN_REPEAT_MS = 1500;

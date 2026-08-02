@@ -17,11 +17,67 @@ export const PATTERN_EDITOR2 = {
   editorVisAnimId: null,
   liveStep: 0,
   liveInterval: null,
+  // Undo/Redo (F2): snapshots of {steps, channelA, channelB, customName}.
+  undoStack: [],
+  redoStack: [],
+  MAX_UNDO: 40,
+  _gesture: false,
+  _gestureTimer: null,
 
   init() {
     this.channelA = new Array(this.steps).fill(50);
     this.channelB = new Array(this.steps).fill(50);
+    this.undoStack = [];
+    this.redoStack = [];
     this.loadCustomPatterns();
+  },
+
+  snapshot() {
+    return {
+      steps: this.steps,
+      channelA: [...this.channelA],
+      channelB: [...this.channelB],
+      customName: this.customName,
+    };
+  },
+
+  pushUndo() {
+    if (this.undoStack.length >= this.MAX_UNDO) this.undoStack.shift();
+    this.undoStack.push(this.snapshot());
+    this.redoStack = [];
+    this.updateUndoButtons();
+  },
+
+  restoreState(s) {
+    if (!s) return;
+    this.steps = s.steps || 16;
+    this.channelA = [...(s.channelA || [])];
+    this.channelB = [...(s.channelB || [])];
+    this.customName = s.customName || "";
+    this.rebuildGrid();
+    this.updateUI();
+    this.updateUndoButtons();
+  },
+
+  undo() {
+    if (this.undoStack.length === 0) return;
+    this.redoStack.push(this.snapshot());
+    const prev = this.undoStack.pop();
+    this.restoreState(prev);
+  },
+
+  redo() {
+    if (this.redoStack.length === 0) return;
+    this.undoStack.push(this.snapshot());
+    const next = this.redoStack.pop();
+    this.restoreState(next);
+  },
+
+  updateUndoButtons() {
+    const u = document.getElementById("btn-editor-undo");
+    const r = document.getElementById("btn-editor-redo");
+    if (u) u.disabled = this.undoStack.length === 0;
+    if (r) r.disabled = this.redoStack.length === 0;
   },
 
   loadCustomPatterns() {
@@ -619,6 +675,77 @@ export function stopEditorVisualizers() {
 
 document.addEventListener("DOMContentLoaded", function () {
   PATTERN_EDITOR2.init();
+
+  // F2: wrap every mutating operation so it lands in the undo stack.
+  var UNDOABLE_OPS = [
+    "setStepCount",
+    "clear",
+    "randomize",
+    "smooth",
+    "presetSine",
+    "presetSaw",
+    "presetSquare",
+    "presetRamp",
+    "presetTriangle",
+    "copyAToB",
+    "copyBToA",
+    "mirror",
+    "invert",
+    "phaseShift",
+    "fadeIn",
+    "fadeOut",
+    "scale",
+    "loadPattern",
+  ];
+  UNDOABLE_OPS.forEach(function (m) {
+    var orig = PATTERN_EDITOR2[m];
+    if (typeof orig === "function") {
+      PATTERN_EDITOR2[m] = function () {
+        this.pushUndo();
+        return orig.apply(this, arguments);
+      };
+    }
+  });
+  // setStep is called on every slider input tick — coalesce per gesture.
+  var origSetStep = PATTERN_EDITOR2.setStep;
+  PATTERN_EDITOR2.setStep = function (channel, index, value) {
+    if (!this._gesture) {
+      this.pushUndo();
+      this._gesture = true;
+      clearTimeout(this._gestureTimer);
+      this._gestureTimer = setTimeout(
+        (function (self) {
+          return function () {
+            self._gesture = false;
+          };
+        })(this),
+        600
+      );
+    }
+    return origSetStep.call(this, channel, index, value);
+  };
+  PATTERN_EDITOR2.updateUndoButtons();
+
+  // Undo/Redo buttons + keyboard
+  document.getElementById("btn-editor-undo")?.addEventListener("click", function () {
+    PATTERN_EDITOR2.undo();
+  });
+  document.getElementById("btn-editor-redo")?.addEventListener("click", function () {
+    PATTERN_EDITOR2.redo();
+  });
+  window.addEventListener("keydown", function (e) {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    var t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
+    if (e.key.toLowerCase() === "z") {
+      e.preventDefault();
+      if (e.shiftKey) PATTERN_EDITOR2.redo();
+      else PATTERN_EDITOR2.undo();
+    } else if (e.key.toLowerCase() === "y") {
+      e.preventDefault();
+      PATTERN_EDITOR2.redo();
+    }
+  });
 
   document.getElementById("btn-editor-clear")?.addEventListener("click", function () {
     PATTERN_EDITOR2.clear();

@@ -1,5 +1,31 @@
 # Changelog
 
+## 4.5.0 — Session-Queue, Undo/Redo & Battery-Alarm
+
+### Neu: Session-Queue 📋
+- „+"-Buttons an allen 5 Session-Karten → Queue-Panel in der Library (Liste, ✕-Entfernen, „▶ Queue starten", Leeren)
+- **Auto-Advance:** endet eine Session (oder wird manuell gestoppt), startet die nächste automatisch; Panic/Disconnect unterbricht die Queue nicht
+- Queue wird in localStorage persistiert
+
+### Neu: Pattern-Editor Undo/Redo ↶↷
+- Snapshot-Stack (max. 40) über alle 18 Editor-Operationen (Presets, Kanal-Ops, Clear, Random, Smooth, Shift, Fade, Steps, Load)
+- Slider-Drags pro Geste zusammengefasst; Buttons + `Strg+Z`/`Strg+Y` (deaktiviert beim Tippen im Namensfeld)
+
+### Neu: Battery & Stats
+- **Battery-Alarm:** System-Notification einmalig pro Ladezyklus, wenn der Coyote unter 20 % fällt (re-armt bei ≥25 %)
+- **Wochenübersicht in den Stats:** 7-Tage-Balken mit Sessions pro Tag (Tages-Tracking ab jetzt)
+
+### Neu: Voice-Feedback auf Englisch 🎤
+- Erkennt zusätzlich englische Befehle („too weak", „good", „almost", „come now", „i came" …)
+
+### Sicherheit
+- **XSS-Fix:** Home-Story-Karten renderten Label/Beschreibung user-erstellter Stories unescaped — jetzt escaped
+- Audit weiterer Sinks (Game-Config, Wiring-Checklist, Sessions-Katalog) — keine weiteren Funde
+
+### Tests
+- 648 Tests grün, Lint sauber
+
+
 ## 4.4.0 — Voice-Feedback, Media-Keys & Session-Historie
 
 ### Neu: Autodrive Voice-Feedback 🎤

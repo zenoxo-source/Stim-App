@@ -358,6 +358,67 @@ const SESSIONS = {
   },
 };
 
+const SESSION_QUEUE_KEY = "stim_app_session_queue_v1";
+
+// ---------------------------------------------------------------------------
+// F5: Session queue — play multiple sessions back-to-back.
+// ---------------------------------------------------------------------------
+
+function loadSessionQueue() {
+  try {
+    const raw = localStorage.getItem(SESSION_QUEUE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSessionQueue(queue) {
+  try {
+    localStorage.setItem(SESSION_QUEUE_KEY, JSON.stringify(queue));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** @returns {string[]} queued session ids, oldest first. */
+export function getSessionQueue() {
+  return loadSessionQueue();
+}
+
+/** Add a session id to the queue (no duplicates). */
+export function addToSessionQueue(id) {
+  const queue = loadSessionQueue();
+  if (!queue.includes(id)) {
+    queue.push(id);
+    saveSessionQueue(queue);
+  }
+  return queue;
+}
+
+/** Remove a session id from the queue. */
+export function removeFromSessionQueue(id) {
+  const queue = loadSessionQueue().filter((q) => q !== id);
+  saveSessionQueue(queue);
+  return queue;
+}
+
+export function clearSessionQueue() {
+  saveSessionQueue([]);
+}
+
+/** Start the first queued session immediately (shifts the queue). */
+export function startSessionQueue() {
+  const queue = loadSessionQueue();
+  if (queue.length === 0) return { ok: false, error: "Queue ist leer." };
+  if (!AppState.isConnected) return { ok: false, error: "Nicht verbunden." };
+  const id = queue.shift();
+  saveSessionQueue(queue);
+  SESSION_STATE.start(id);
+  return { ok: true };
+}
+
 const SESSION_STATE = {
   activeSession: null,
   sessionStartTime: 0,
@@ -394,6 +455,17 @@ const SESSION_STATE = {
     updateSessionUI();
     trackStat("session_completed");
     log(`Session "${name}" beendet.`, "info");
+
+    // F5: auto-advance the queue (unless disconnected / panic-cleared).
+    if (AppState.isConnected) {
+      const queue = loadSessionQueue();
+      if (queue.length > 0) {
+        const nextId = queue.shift();
+        saveSessionQueue(queue);
+        log(`Session-Queue: nächste Session startet (${queue.length} offen).`, "info");
+        this.start(nextId);
+      }
+    }
   },
 
   pause() {
@@ -449,6 +521,7 @@ function updateSessionUI() {
   const timeEl = document.getElementById("session-time");
   const progressEl = document.getElementById("session-progress");
   const btnPause = document.getElementById("btn-session-pause");
+  renderSessionQueueUI();
 
   if (!SESSION_STATE.activeSession) {
     if (indicator) indicator.style.display = "none";
@@ -481,6 +554,82 @@ function updateSessionUI() {
   document.querySelectorAll(".session-card").forEach((c) => {
     c.classList.toggle("active", c.getAttribute("data-session") === session.id);
   });
+}
+
+function renderSessionQueueUI() {
+  const panel = document.getElementById("session-queue-panel");
+  if (!panel) return;
+  const queue = loadSessionQueue();
+  panel.style.display = queue.length > 0 ? "block" : "none";
+  const list = document.getElementById("session-queue-list");
+  if (!list) return;
+  if (queue.length === 0) {
+    list.innerHTML = "";
+    return;
+  }
+  list.innerHTML = queue
+    .map((id) => {
+      const s = Object.values(SESSIONS).find((x) => x.id === id);
+      const name = s ? s.name : id;
+      return `<div class="hotkey-row" data-qid="${escapeHtml(id)}">
+        <span class="hotkey-label"><strong>${escapeHtml(name)}</strong></span>
+        <span class="hotkey-combo">
+          <button type="button" class="btn btn-secondary btn-sm" data-q-del="${escapeHtml(id)}">✕</button>
+        </span>
+      </div>`;
+    })
+    .join("");
+  list.querySelectorAll("[data-q-del]").forEach((b) => {
+    b.addEventListener("click", () => {
+      removeFromSessionQueue(b.getAttribute("data-q-del"));
+      renderSessionQueueUI();
+    });
+  });
+}
+
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// ---------------------------------------------------------------------------
+// Queue UI wiring (buttons live in the Library sessions card).
+// ---------------------------------------------------------------------------
+
+if (typeof document !== "undefined") {
+  const wireQueueUi = () => {
+    document.getElementById("btn-queue-start")?.addEventListener("click", () => {
+      const r = startSessionQueue();
+      if (!r.ok) log(`Session-Queue: ${r.error}`, "error");
+    });
+    document.getElementById("btn-queue-clear")?.addEventListener("click", () => {
+      clearSessionQueue();
+      renderSessionQueueUI();
+      log("Session-Queue geleert.", "info");
+    });
+    // "+" buttons on each session card add to the queue.
+    document.querySelectorAll(".session-queue-btn").forEach((btn) => {
+      if (btn.dataset.qWired) return;
+      btn.dataset.qWired = "1";
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute("data-queue");
+        const q = addToSessionQueue(id);
+        renderSessionQueueUI();
+        log(`Session in Queue: ${q.length} Eintrag/-(e).`, "info");
+      });
+    });
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wireQueueUi, { once: true });
+  } else {
+    wireQueueUi();
+  }
+  renderSessionQueueUI();
 }
 
 export { SESSIONS, SESSION_STATE };

@@ -993,26 +993,31 @@
               <span class="pattern-icon">🔥</span>
               <span class="pattern-name">Slow Burn</span>
               <span style="font-size: 11px; color: var(--text-muted);">5:00</span>
+              <button type="button" class="btn btn-secondary btn-sm session-queue-btn" data-queue="slow_burn" title="In Session-Queue">+</button>
             </div>
             <div class="session-card" id="session-ocean-ride" data-session="ocean_ride">
               <span class="pattern-icon">🌊</span>
               <span class="pattern-name">Ocean Ride</span>
               <span style="font-size: 11px; color: var(--text-muted);">6:00</span>
+              <button type="button" class="btn btn-secondary btn-sm session-queue-btn" data-queue="ocean_ride" title="In Session-Queue">+</button>
             </div>
             <div class="session-card" id="session-electric-storm" data-session="electric_storm">
               <span class="pattern-icon">⛈️</span>
               <span class="pattern-name">Electric Storm</span>
               <span style="font-size: 11px; color: var(--text-muted);">4:00</span>
+              <button type="button" class="btn btn-secondary btn-sm session-queue-btn" data-queue="electric_storm" title="In Session-Queue">+</button>
             </div>
             <div class="session-card" id="session-deep-dive" data-session="deep_dive">
               <span class="pattern-icon">🐙</span>
               <span class="pattern-name">Deep Dive</span>
               <span style="font-size: 11px; color: var(--text-muted);">7:00</span>
+              <button type="button" class="btn btn-secondary btn-sm session-queue-btn" data-queue="deep_dive" title="In Session-Queue">+</button>
             </div>
             <div class="session-card" id="session-rollercoaster" data-session="rollercoaster">
               <span class="pattern-icon">🎢</span>
               <span class="pattern-name">Rollercoaster</span>
               <span style="font-size: 11px; color: var(--text-muted);">6:00</span>
+              <button type="button" class="btn btn-secondary btn-sm session-queue-btn" data-queue="rollercoaster" title="In Session-Queue">+</button>
             </div>
           </div>
           <div id="session-indicator" style="display: none; margin-top: 16px; background: rgba(0,120,212,0.08); border-radius: 10px; padding: 14px;">
@@ -1028,6 +1033,14 @@
               <button id="btn-session-pause" class="btn btn-secondary" style="padding: 4px 12px; font-size: 14px;">⏸</button>
               <button id="btn-session-stop" class="btn btn-secondary" style="padding: 4px 12px; font-size: 14px;">⏹</button>
             </div>
+          </div>
+          <div id="session-queue-panel" style="display:none; margin-top:14px; padding:12px; background:rgba(0,120,212,0.06); border-radius:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:600; font-size:13px;">Session-Queue</span>
+              <button type="button" id="btn-queue-clear" class="btn btn-secondary btn-sm">Leeren</button>
+            </div>
+            <div id="session-queue-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+            <button type="button" id="btn-queue-start" class="btn" style="margin-top:10px; width:100%;">▶ Queue starten</button>
           </div>
         </div>
       </section>
@@ -1453,6 +1466,9 @@
                   <button type="button" id="btn-editor-shift-right" class="btn btn-secondary btn-sm" title="Nach rechts schieben" data-i18n-title="editor_shift_right">Shift ▷</button>
                   <button type="button" id="btn-editor-fade-in" class="btn btn-secondary btn-sm" title="Einblenden (0→100)" data-i18n-title="title_fade_in">◧ Fade In</button>
                   <button type="button" id="btn-editor-fade-out" class="btn btn-secondary btn-sm" title="Ausblenden (100→0)" data-i18n-title="title_fade_out">Fade Out ◨</button>
+                  <span style="font-size:11px;opacity:0.6;align-self:center;margin-left:8px;">Undo:</span>
+                  <button type="button" id="btn-editor-undo" class="btn btn-secondary btn-sm" title="Rückgängig (Strg+Z)" disabled>↶</button>
+                  <button type="button" id="btn-editor-redo" class="btn btn-secondary btn-sm" title="Wiederholen (Strg+Y)" disabled>↷</button>
                 </div>
                 <div style="display:flex; gap:10px; align-items:center; font-size:12px;">
                   <span style="opacity:0.6;" data-i18n="editor_steps">Schritte:</span>

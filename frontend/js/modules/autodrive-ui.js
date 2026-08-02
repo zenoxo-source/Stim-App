@@ -1054,9 +1054,9 @@ function paintHomeExtras() {
     stories.innerHTML = listStories()
       .map(
         (s) =>
-          `<button type="button" class="story-card" data-story="${s.id}">
-            <strong>${s.label}</strong>
-            <span>${s.description}</span>
+          `<button type="button" class="story-card" data-story="${ProtocolUtils.escapeHtml(s.id)}">
+            <strong>${ProtocolUtils.escapeHtml(s.label)}</strong>
+            <span>${ProtocolUtils.escapeHtml(s.description || "")}</span>
           </button>`
       )
       .join("");
