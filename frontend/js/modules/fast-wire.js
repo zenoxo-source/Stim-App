@@ -18,6 +18,7 @@ import {
   detuneFreqs,
   blendStep,
   beatStep,
+  applyVibrato,
 } from "../lib/wire-shaping.js";
 
 const WIRE_CFG_KEY = "wireShapingCfg";
@@ -144,6 +145,13 @@ function fastTick() {
     step.fB = d.fB;
   }
 
+  // F22: frequency vibrato (micro-freq texture on both channels).
+  if (cfg.freqVibrato && cfg.freqVibrato !== "none") {
+    const v = applyVibrato(step.fA, step.fB, cfg.freqVibrato, now);
+    step.fA = v.fA;
+    step.fB = v.fB;
+  }
+
   sendB0Now(step.fA, step.aA, step.fB, step.aB, { force: true, writer: "fast-wire" });
   metrics.writes += 1;
 }
@@ -218,6 +226,7 @@ export function initFastWire() {
       beatBpm: parseInt(el("ws-beat-bpm")?.value, 10) || 120,
       beatPattern: el("ws-beat-pattern")?.value || "throb",
       beatBaseAmp: parseInt(el("ws-beat-baseamp")?.value, 10) || 70,
+      freqVibrato: el("ws-freq-vibrato")?.value || "none",
     });
     sync();
   };
@@ -232,12 +241,14 @@ export function initFastWire() {
   set("ws-dither", cfg.dither);
   set("ws-detune", cfg.detuneHz);
   set("ws-crossfade", cfg.crossfadeMs);
+  set("ws-freq-vibrato", cfg.freqVibrato);
   document.getElementById("ws-fast")?.addEventListener("change", readCfg);
   document.getElementById("ws-shape-a")?.addEventListener("change", readCfg);
   document.getElementById("ws-shape-b")?.addEventListener("change", readCfg);
   document.getElementById("ws-dither")?.addEventListener("change", readCfg);
   document.getElementById("ws-detune")?.addEventListener("change", readCfg);
   document.getElementById("ws-crossfade")?.addEventListener("change", readCfg);
+  document.getElementById("ws-freq-vibrato")?.addEventListener("change", readCfg);
 
   // Beat section.
   const tapTimes = [];

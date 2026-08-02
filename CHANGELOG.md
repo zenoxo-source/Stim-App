@@ -1,5 +1,29 @@
 # Changelog
 
+## 5.1.2 — Autodrive-Fixes: Pause-Zeit, Feedback-Loop, Vibrato & Coyote-Tuning
+
+### Bugfixes (Autodrive)
+- **Pause-Hygiene:** `RESUME` setzt `lastTickAt` zurück + verschiebt `maxDurationAt` um die Pausendauer — Session-Uhr springt nicht mehr nach vorne, und lange Pausen beenden die Session nicht mehr sofort (Auto-Stop)
+- **Feedback-Rate-Limit pro Typ:** „Zu schwach" → sofort „Gut" wird nicht mehr verschluckt (vorher 1200-ms-Sperre für alle Typen); gleiche Typen bleiben doppelklick-geschützt
+- **Feedback wirkt sofort:** `applyAdaptiveEnvelope` hält sich 2 s nach einem Feedback zurück (alpha 0.02) — der Intensitäts-Sprung des Users landet sichtbar auf der Haut statt im Envelope-Glättungsfilter
+- **Kalibrierung 2.0:** Nach der ersten User-Antwort wird das Niveau gehalten statt durch die Zeitrampe überschrieben
+
+### Coyote-3-Abstimmung
+- **Frequenz-Vibrato:** Die 4 Frequenz-Slots pro Kanal tragen jetzt Mikro-Gradienten (Flattern/Warble/Gegenläufig) — Textur direkt im B0-Paket, auch im Fast-Wire-Pfad
+- **Optimierte Frequenz-Bänder:** TEASE tiefer (25–70 für Kontrast), EDGE_HOLD/Holds im tiefen Dröhnen-Bereich (40–70), Fullband: EDGE_HOLD 40–90, SURGE 60–150, Push-Rampe bis 400 logisch (nur der Push fährt in „sharp")
+
+### Fullscreen
+- **Echte Phasen-Restzeit + Phasen-Balken** (statt nur Session-Uhr)
+- **Feedback-Toast:** Jede Antwort wird sichtbar bestätigt („↗ Zu schwach → +10 %", „✓ Gut", „🔥 Fast")
+
+### E2E-Infrastruktur
+- Onboarding-Overlay wird im E2E-Modus übersprungen (blockierte Pointer-Events)
+- `launchApp` erzwingt Rendering (Background-Throttling aus, Fenster sichtbar) — das occluded-unsichtbare Electron-Fenster lieferte 0×0-Bounding-Boxen; Sichtbarkeits-Assertions auf DOM-Basis (3× stabil 4/4)
+
+### Tests
+- 699 Unit-Tests grün (12 neue: Pause/Resume-Zeit, Auto-Stop-Shift, Rate-Limit pro Typ, Fresh-Feedback, Vibrato), 4 E2E-Tests grün, Lint sauber
+
+
 ## 5.1.1 — macOS-Build-Fix
 
 - `build/icon.png` auf 1024×1024 skaliert (electron-builder verlangt ≥512 px für DMG/App-Icon — der macOS-Build war seit v4.4.0 rot); `icon-512.png` ergänzt

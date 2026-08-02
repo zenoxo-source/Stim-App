@@ -108,8 +108,9 @@ const PHASE_FREQ = Object.freeze({
   CALIBRATING: { lo: 25, hi: 40 },
   WARMUP: { lo: 30, hi: 50 },
   BUILD: { lo: 40, hi: 70 },
-  TEASE: { lo: 35, hi: 90 },
-  EDGE_HOLD: { lo: 45, hi: 65 },
+  // F22: deeper lows for contrast, more dynamic range than before (35–90).
+  TEASE: { lo: 25, hi: 70 },
+  EDGE_HOLD: { lo: 40, hi: 70 },
   SURGE: { lo: 55, hi: 100 },
   CLIMAX_PUSH: { lo: 60, hi: 120 },
   AFTERCARE: { lo: 20, hi: 40 },
@@ -124,10 +125,12 @@ const PHASE_FREQ_FULL = Object.freeze({
   CALIBRATING: { lo: 15, hi: 35 },
   WARMUP: { lo: 15, hi: 45 },
   BUILD: { lo: 30, hi: 80 },
-  TEASE: { lo: 20, hi: 70 },
-  EDGE_HOLD: { lo: 60, hi: 130 },
-  SURGE: { lo: 120, hi: 260 },
-  CLIMAX_PUSH: { lo: 80, hi: 420 },
+  TEASE: { lo: 18, hi: 60 },
+  // F22: long holds stay in the deep/buzz zone (habituation + comfort),
+  // surge climbs into "high", only the push ramps into "sharp".
+  EDGE_HOLD: { lo: 40, hi: 90 },
+  SURGE: { lo: 60, hi: 150 },
+  CLIMAX_PUSH: { lo: 70, hi: 400 },
   AFTERCARE: { lo: 12, hi: 30 },
 });
 
@@ -625,6 +628,7 @@ export function reduceAutodrive(state, event) {
       resumePhase: s.phase,
       phase: "PAUSED",
       frozenPhaseElapsed: now - s.phaseStartedAt,
+      pausedAt: now,
       pausedStrengthA: event.strengthA ?? s.pausedStrengthA,
       pausedStrengthB: event.strengthB ?? s.pausedStrengthB,
     };
@@ -636,12 +640,18 @@ export function reduceAutodrive(state, event) {
       0,
       (s.phaseDeadlineAt || now) - s.phaseStartedAt - s.frozenPhaseElapsed
     );
+    const pauseDur = Math.max(0, now - (s.pausedAt || now));
     return {
       ...s,
       phase: s.resumePhase,
       resumePhase: null,
       phaseStartedAt: now - s.frozenPhaseElapsed,
       phaseDeadlineAt: now + remaining,
+      // F22: pause hygiene — the session clock and the auto-stop clock must
+      // not run during a pause.
+      maxDurationAt: (s.maxDurationAt || now) + pauseDur,
+      lastTickAt: now,
+      pausedAt: null,
       frozenPhaseElapsed: 0,
     };
   }
@@ -695,12 +705,21 @@ export function reduceAutodrive(state, event) {
   }
 
   if (event.type === "FEEDBACK" && event.feedback && VALID_FEEDBACK.has(event.feedback)) {
-    if (s.lastFeedbackAt && now - s.lastFeedbackAt < FEEDBACK_RATE_MS) {
-      if (!["climaxed", "now", "not_yet", "almost"].includes(event.feedback)) {
-        return s;
-      }
+    // F22: rate-limit only the SAME feedback type (double-click protection).
+    // Different feedback right after another must not be swallowed — a quick
+    // "Zu schwach" → "Gut" sequence has to land.
+    const sameType = s.lastFeedbackType === event.feedback;
+    const exempt =
+      event.feedback === "climaxed" || event.feedback === "now" || event.feedback === "not_yet";
+    if (sameType && !exempt && s.lastFeedbackAt && now - s.lastFeedbackAt < FEEDBACK_RATE_MS) {
+      return s;
     }
-    s = { ...s, lastFeedbackAt: now, lastFeedback: event.feedback };
+    s = {
+      ...s,
+      lastFeedbackAt: now,
+      lastFeedback: event.feedback,
+      lastFeedbackType: event.feedback,
+    };
     return applyFeedback(s, event.feedback, now);
   }
 
@@ -1235,13 +1254,23 @@ function applyAdaptiveEnvelope(s, now) {
     target = clamp(Math.max(target, 0.9 + 0.04 * s.pushBoostRemaining), 0.85, 1);
   }
 
-  // Calibration: forced slow ramp for threshold discovery
+  // Calibration: forced slow ramp for threshold discovery — until the user
+  // responds once ("calibrated"), then the user's level is held.
   if (s.phase === "CALIBRATING") {
-    target = 0.07 + 0.18 * pp;
+    target = s.calibrated ? cur : 0.07 + 0.18 * pp;
   }
 
+  // F22: fresh feedback must be VISIBLE — within 2 s of a user response the
+  // envelope stays out of the way so the adjustment lands on the skin.
   const cur = s.relStrength || baseline;
-  const alpha = s.phase === "CLIMAX_PUSH" ? 0.2 : s.phase === "TEASE" ? 0.22 : 0.12;
+  const freshFeedback = s.lastFeedbackAt != null && now - s.lastFeedbackAt < 2000;
+  const alpha = freshFeedback
+    ? 0.02
+    : s.phase === "CLIMAX_PUSH"
+      ? 0.2
+      : s.phase === "TEASE"
+        ? 0.22
+        : 0.12;
   const next = cur + (target - cur) * alpha;
 
   return { ...s, relStrength: clamp(next, 0, 1) };

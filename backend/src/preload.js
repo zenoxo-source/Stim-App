@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
+  isE2E: process.env.STIM_APP_E2E === "1",
   onBeforeClose: (callback) => ipcRenderer.on("app-before-close", callback),
   confirmClose: () => ipcRenderer.send("close-confirmed"),
   preventClose: () => ipcRenderer.send("close-prevented"),

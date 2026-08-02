@@ -633,11 +633,14 @@
         <div class="ad-fs-bars">
           <div class="autodrive-bar-label"><span>Session</span><span id="ad-fs-eta">—</span></div>
           <div class="autodrive-bar-track tall"><div id="ad-fs-progress" class="autodrive-bar-fill session"></div></div>
+          <div class="autodrive-bar-label"><span>Phase</span><span id="ad-fs-phase-eta">—</span></div>
+          <div class="autodrive-bar-track tall"><div id="ad-fs-phase-progress" class="autodrive-bar-fill phase"></div></div>
           <div class="autodrive-bar-label"><span data-i18n="intensity">Intensität</span><span id="ad-fs-rel-label">0%</span></div>
           <div class="autodrive-bar-track tall"><div id="ad-fs-rel" class="autodrive-bar-fill rel"></div></div>
           <div class="autodrive-bar-label"><span>Edge-Score</span></div>
           <div class="autodrive-bar-track tall"><div id="ad-fs-edge" class="autodrive-bar-fill edge"></div></div>
         </div>
+        <div id="ad-fs-feedback-toast" class="ad-fs-feedback-toast" style="display:none;"></div>
         <div class="ad-fs-nudge">
           <button type="button" id="ad-fs-nudge-down" class="btn btn-secondary" data-i18n="intensity">− Intensität</button>
           <button type="button" id="ad-fs-nudge-up" class="btn btn-secondary" data-i18n="intensity">+ Intensität</button>
@@ -2437,6 +2440,15 @@
                       <option value="2000">2 s</option>
                       <option value="3000">3 s</option>
                       <option value="5000">5 s</option>
+                    </select>
+                  </label>
+                  <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
+                    Vibrato
+                    <select id="ws-freq-vibrato" class="select-control" style="width:110px;">
+                      <option value="none">Aus</option>
+                      <option value="flutter">Flattern</option>
+                      <option value="warble">Warble</option>
+                      <option value="detune">Gegenläufig</option>
                     </select>
                   </label>
                 </div>

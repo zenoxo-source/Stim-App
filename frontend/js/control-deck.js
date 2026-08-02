@@ -112,6 +112,7 @@ function drawStimOutputHistory() {
 // so existing importers and tests keep working unchanged.
 import { computeNamedPatternWave } from "./lib/pattern-engine.js";
 export { computeNamedPatternWave };
+import { vibratoDelta } from "./lib/wire-shaping.js";
 
 // v5.1: 25 ms fast wire path (shaping/beat) — the wave loop stores the base
 // step instead of sending while the fast path owns the wire.
@@ -120,6 +121,7 @@ import {
   setShapingBase,
   syncFastWire,
   stopFastWire,
+  getWireShapingCfg,
 } from "./modules/fast-wire.js";
 
 // ==========================================
@@ -168,18 +170,25 @@ export function startWaveLoop() {
   /**
    * F10: 4×25 ms micro-slots — sample the pattern at sub-ticks so the B0
    * packet carries a smooth intensity ramp instead of 4 identical slots.
-   * Freq stays at the tick's final value; only amplitudes vary per slot.
+   * F22: frequency vibrato varies the per-slot freq for texture.
    */
   function microSlots(patternId, tick, computePattern, fA, fB) {
     if (!patternId || typeof computePattern !== "function") return undefined;
     try {
+      const vib = getWireShapingCfg().freqVibrato || "none";
       const ampAt = (i, get) => {
         const w = computePattern(patternId, tick + i * 0.25);
         return get(w);
       };
+      const tBase = Date.now();
+      const fAt = (i, base) => {
+        if (vib === "none") return base;
+        const d = vibratoDelta(vib, tBase + i * 25, 0);
+        return base > 0 ? Math.max(10, Math.min(240, Math.round(base + d))) : 0;
+      };
       return {
-        A: [0, 1, 2, 3].map((i) => ({ freq: fA, intensity: ampAt(i, (w) => w.aA) })),
-        B: [0, 1, 2, 3].map((i) => ({ freq: fB, intensity: ampAt(i, (w) => w.aB) })),
+        A: [0, 1, 2, 3].map((i) => ({ freq: fAt(i, fA), intensity: ampAt(i, (w) => w.aA) })),
+        B: [0, 1, 2, 3].map((i) => ({ freq: fAt(i, fB), intensity: ampAt(i, (w) => w.aB) })),
       };
     } catch {
       return undefined;

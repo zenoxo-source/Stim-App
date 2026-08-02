@@ -303,6 +303,40 @@ function scopeSync() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// F22: transient feedback toast — the user sees that their response landed.
+// ---------------------------------------------------------------------------
+
+const FB_TOAST = {
+  too_weak: { label: "↗ Zu schwach → +10 %", cls: "neutral" },
+  good: { label: "✓ Gut — gehalten", cls: "pos" },
+  too_strong: { label: "↘ Zu stark → abgesenkt", cls: "neg" },
+  almost: { label: "🔥 Fast — Edge +20", cls: "strong" },
+  now: { label: "⚡ Jetzt — Push!", cls: "strong" },
+  not_yet: { label: "↩ Noch nicht — gehalten", cls: "neutral" },
+  nudge_up: { label: "↗ Intensität +", cls: "neutral" },
+  nudge_down: { label: "↘ Intensität −", cls: "neutral" },
+};
+
+let lastToastFb = null;
+let toastTimer = null;
+
+function paintFeedbackToast(st) {
+  const toast = document.getElementById("ad-fs-feedback-toast");
+  if (!toast) return;
+  const fb = st.lastFeedback;
+  if (!fb || fb === lastToastFb) return;
+  lastToastFb = fb;
+  const meta = FB_TOAST[fb];
+  toast.textContent = meta ? meta.label : fb;
+  toast.className = "ad-fs-feedback-toast " + (meta ? meta.cls : "neutral");
+  toast.style.display = "block";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.style.display = "none";
+  }, 2200);
+}
+
 function paintDashboard(st) {
   const badge = document.getElementById("autodrive-running-badge");
   if (badge) {
@@ -350,8 +384,14 @@ function paintDashboard(st) {
     }
     const eta = document.getElementById("ad-fs-eta");
     if (eta) eta.textContent = formatUiMs(st.remainingMs);
+    // F22: real phase time (instead of only the session clock).
+    const phaseEta = document.getElementById("ad-fs-phase-eta");
+    if (phaseEta) phaseEta.textContent = formatUiMs(st.phaseRemainingMs);
+    const phaseBar = document.getElementById("ad-fs-phase-progress");
+    if (phaseBar) phaseBar.style.width = `${Math.round((st.phaseProgress || 0) * 100)}%`;
     const relL = document.getElementById("ad-fs-rel-label");
     if (relL) relL.textContent = `${Math.round((st.relStrength || 0) * 100)}%`;
+    paintFeedbackToast(st);
   }
 
   // Compact freq envelope (current · max) — paintFreq lives in autodrive notifyUi;

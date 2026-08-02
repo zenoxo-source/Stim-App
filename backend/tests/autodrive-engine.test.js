@@ -685,4 +685,111 @@ describe("autodrive-engine — Climax-Fabrik (F1)", () => {
     s = reduceAutodrive(s, { type: "PHASE_TIMEOUT", nowMs: s.phaseDeadlineAt });
     assert.equal(s.phase, "IDLE");
   });
+
+  // -----------------------------------------------------------------------
+  // F22: pause hygiene — session clock and auto-stop clock must not run
+  // while paused.
+  // -----------------------------------------------------------------------
+
+  it("pause/resume does not inflate the session clock", () => {
+    let s = createInitialState(classicCfg({ skipCalibration: true }), t0);
+    for (let i = 1; i <= 5; i++) {
+      s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + i * 100, softA: 150, softB: 150 });
+    }
+    const before = s.effectiveElapsedMs;
+    s = reduceAutodrive(s, { type: "PAUSE", nowMs: t0 + 1000, strengthA: 0, strengthB: 0 });
+    // 10 s pause without ticks.
+    s = reduceAutodrive(s, { type: "RESUME", nowMs: t0 + 11000 });
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 11100, softA: 150, softB: 150 });
+    assert.ok(
+      s.effectiveElapsedMs - before < 1000,
+      `session clock must not jump by the pause duration (was ${before}, now ${s.effectiveElapsedMs})`
+    );
+  });
+
+  it("pause shifts the auto-stop clock", () => {
+    let s = createInitialState(classicCfg({ skipCalibration: true, autoStopMinutes: 30 }), t0);
+    const before = s.maxDurationAt;
+    s = reduceAutodrive(s, { type: "PAUSE", nowMs: t0 + 500 });
+    // 60 s pause.
+    s = reduceAutodrive(s, { type: "RESUME", nowMs: t0 + 60500 });
+    assert.ok(
+      s.maxDurationAt - before >= 55000,
+      `maxDurationAt must shift by the pause (shifted ${s.maxDurationAt - before})`
+    );
+  });
+
+  it("session does not auto-stop right after a long pause", () => {
+    let s = createInitialState(
+      classicCfg({ skipCalibration: true, autoStopMinutes: 30 }),
+      t0
+    );
+    // Pause for longer than the remaining max duration would be.
+    s = reduceAutodrive(s, { type: "PAUSE", nowMs: t0 + 5000 });
+    s = reduceAutodrive(s, { type: "RESUME", nowMs: t0 + 31 * 60 * 1000 });
+    s = reduceAutodrive(s, {
+      type: "TICK",
+      nowMs: t0 + 31 * 60 * 1000 + 100,
+      softA: 150,
+      softB: 150,
+    });
+    assert.notEqual(s.phase, "AFTERCARE");
+    assert.notEqual(s.phase, "COOLDOWN");
+  });
+
+  // -----------------------------------------------------------------------
+  // F22: feedback — per-type rate limit + fresh feedback sticks.
+  // -----------------------------------------------------------------------
+
+  it("rate limit only blocks the same feedback type", () => {
+    let s = createInitialState(classicCfg({ skipCalibration: true }), t0);
+    const first = reduceAutodrive(s, {
+      type: "FEEDBACK",
+      feedback: "too_weak",
+      nowMs: t0 + 100,
+      softA: 150,
+      softB: 150,
+    });
+    assert.equal(first.lastFeedback, "too_weak");
+    // Different type within the rate window must land.
+    const second = reduceAutodrive(first, {
+      type: "FEEDBACK",
+      feedback: "good",
+      nowMs: t0 + 200,
+      softA: 150,
+      softB: 150,
+    });
+    assert.equal(second.lastFeedback, "good");
+    // Same type within the window is dropped.
+    const third = reduceAutodrive(second, {
+      type: "FEEDBACK",
+      feedback: "good",
+      nowMs: t0 + 300,
+      softA: 150,
+      softB: 150,
+    });
+    assert.equal(third.lastFeedback, "good");
+  });
+
+  it("envelope stays out of the way right after feedback", () => {
+    let s = createInitialState(classicCfg({ skipCalibration: true }), t0);
+    const fb = reduceAutodrive(s, {
+      type: "FEEDBACK",
+      feedback: "too_weak",
+      nowMs: t0 + 100,
+      softA: 150,
+      softB: 150,
+    });
+    const boosted = fb.relStrength;
+    const ticked = reduceAutodrive(fb, {
+      type: "TICK",
+      nowMs: t0 + 200,
+      softA: 150,
+      softB: 150,
+    });
+    assert.ok(
+      ticked.relStrength >= boosted - 0.02,
+      `fresh feedback must stick (boosted ${boosted}, after tick ${ticked.relStrength})`
+    );
+  });
 });

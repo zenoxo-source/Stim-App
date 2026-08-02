@@ -3,7 +3,23 @@ import { AppState } from "../state.js";
 
 const ONBOARDING_KEY = "stim_app_onboarding_done_v1";
 
+// E2E smoke tests: the guided overlay would intercept pointer events and
+// block automation — skip it entirely.
+function isE2E() {
+  try {
+    return (
+      (window.electronAPI && window.electronAPI.isE2E === true) ||
+      (window.navigator &&
+        window.navigator.userAgent &&
+        /StimAppE2E/.test(window.navigator.userAgent))
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
 function isOnboardingDone() {
+  if (isE2E()) return true;
   try {
     return localStorage.getItem(ONBOARDING_KEY) === "1";
   } catch (e) {

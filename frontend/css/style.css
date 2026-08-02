@@ -3321,6 +3321,30 @@ textarea.text-input { resize: vertical; min-height: 100px; }
 
 .ad-fs-nudge { display: flex; gap: 10px; }
 .ad-fs-nudge .btn { flex: 1; min-height: 48px; font-weight: 600; }
+.ad-fs-feedback-toast {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 20, 24, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #e8e8ec;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 20;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+  animation: ad-toast-in 0.18s ease-out;
+}
+@keyframes ad-toast-in {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+.ad-fs-feedback-toast.pos { color: #a6e22e; }
+.ad-fs-feedback-toast.neg { color: #f92672; }
+.ad-fs-feedback-toast.neutral { color: #e8b4ff; }
+.ad-fs-feedback-toast.strong { color: #ffb080; }
 .ad-replay-modal {
   position: fixed; inset: 0; z-index: 9999;
   display: flex; align-items: center; justify-content: center;

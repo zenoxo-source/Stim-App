@@ -376,6 +376,52 @@ export function melodyToWireFreq(pitchHz, cfg) {
 }
 
 // ---------------------------------------------------------------------------
+// Frequency vibrato — the Coyote carries 4 frequency slots per channel per
+// B0 packet; micro-variation between them reads as texture ("Flattern",
+// "Warble", opposing detune).
+// ---------------------------------------------------------------------------
+
+export const FREQ_VIBRATO_MODES = {
+  none: { rate: 0, amt: 0 },
+  flutter: { rate: 6, amt: 2 }, // fast small tremor
+  warble: { rate: 1.5, amt: 4 }, // slow wide sway
+  detune: { rate: 0.5, amt: 3 }, // channels move in opposition → beating
+};
+
+/**
+ * Frequency offsets for a channel at time tMs.
+ * @param {"none"|"flutter"|"warble"|"detune"} mode
+ * @param {number} tMs
+ * @param {number} channel 0 = A, 1 = B
+ * @returns {number} freq delta (already scaled, not clamped)
+ */
+export function vibratoDelta(mode, tMs, channel) {
+  const m = FREQ_VIBRATO_MODES[mode] || FREQ_VIBRATO_MODES.none;
+  if (m.rate <= 0 || m.amt <= 0) return 0;
+  const phase = channel === 1 ? 2.1 : 0; // B slightly offset
+  return Math.round(m.amt * Math.sin((2 * Math.PI * m.rate * tMs) / 1000 + phase));
+}
+
+/**
+ * Apply vibrato to both wire frequencies.
+ * @param {number} fA
+ * @param {number} fB
+ * @param {"none"|"flutter"|"warble"|"detune"} mode
+ * @param {number} tMs
+ * @returns {{fA:number, fB:number}}
+ */
+export function applyVibrato(fA, fB, mode, tMs) {
+  if (!mode || mode === "none") return { fA, fB };
+  const dA = vibratoDelta(mode, tMs, 0);
+  const dB = vibratoDelta(mode, tMs, 1);
+  const wc = (v) => Math.max(10, Math.min(240, Math.round(v)));
+  return {
+    fA: fA > 0 ? wc(fA + dA) : 0,
+    fB: fB > 0 ? wc(fB + dB) : 0,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Fast-wire configuration
 // ---------------------------------------------------------------------------
 
@@ -390,6 +436,8 @@ export const DEFAULT_WIRE_SHAPING = {
   beatBpm: 120,
   beatPattern: "throb",
   beatBaseAmp: 70,
+  // F22: frequency vibrato via the 4-slot micro-grid.
+  freqVibrato: "none",
 };
 
 export function sanitiseWireShaping(raw) {
@@ -408,5 +456,6 @@ export function sanitiseWireShaping(raw) {
     beatBpm: Math.max(40, Math.min(240, Number(r.beatBpm) || 120)),
     beatPattern: BEAT_PATTERNS[r.beatPattern] ? r.beatPattern : "throb",
     beatBaseAmp: Math.max(20, Math.min(100, Number(r.beatBaseAmp) || 70)),
+    freqVibrato: FREQ_VIBRATO_MODES[r.freqVibrato] ? r.freqVibrato : "none",
   };
 }

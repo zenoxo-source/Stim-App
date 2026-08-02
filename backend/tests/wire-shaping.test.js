@@ -18,6 +18,8 @@ import {
   melodyToWireFreq,
   sanitiseWireShaping,
   DEFAULT_WIRE_SHAPING,
+  vibratoDelta,
+  applyVibrato,
 } from "../../frontend/js/lib/wire-shaping.js";
 
 describe("wire-shaping.js - pulse shapes", () => {
@@ -212,8 +214,44 @@ describe("wire-shaping.js - config", () => {
     assert.equal(c.beatBpm, 240);
     assert.equal(c.shapeA, "none");
     assert.equal(c.shapeB, "none");
+    assert.equal(c.freqVibrato, "none");
     const d = sanitiseWireShaping(null);
     assert.deepEqual(d, DEFAULT_WIRE_SHAPING);
+  });
+
+  test("sanitise accepts only known vibrato modes", () => {
+    const c = sanitiseWireShaping({ freqVibrato: "warble" });
+    assert.equal(c.freqVibrato, "warble");
+    const b = sanitiseWireShaping({ freqVibrato: "bogus" });
+    assert.equal(b.freqVibrato, "none");
+  });
+});
+
+describe("wire-shaping.js - frequency vibrato", () => {
+  test("vibratoDelta is bounded by the mode amount", () => {
+    for (const mode of ["flutter", "warble", "detune"]) {
+      for (let t = 0; t < 20000; t += 37) {
+        const d = vibratoDelta(mode, t, 0);
+        assert.ok(Math.abs(d) <= 4, `${mode}: delta ${d} out of bounds`);
+      }
+    }
+  });
+
+  test("none is identity", () => {
+    assert.equal(vibratoDelta("none", 123, 0), 0);
+    const v = applyVibrato(45, 45, "none", 500);
+    assert.equal(v.fA, 45);
+    assert.equal(v.fB, 45);
+  });
+
+  test("applyVibrato stays in wire range and preserves inactivity", () => {
+    for (let t = 0; t < 30000; t += 53) {
+      const v = applyVibrato(45, 45, "flutter", t);
+      assert.ok(v.fA >= 10 && v.fA <= 240);
+      assert.ok(v.fB >= 10 && v.fB <= 240);
+    }
+    const off = applyVibrato(0, 45, "warble", 100);
+    assert.equal(off.fA, 0);
   });
 });
 
