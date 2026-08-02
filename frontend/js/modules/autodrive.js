@@ -501,6 +501,30 @@ export function hasLastSuccess() {
   }
 }
 
+/** Replay the LAST session (regardless of outcome) with its config. */
+export function startLastSession() {
+  try {
+    const raw = localStorage.getItem(LAST_SESSION_KEY);
+    if (!raw) return { ok: false, error: "Noch keine Session gespeichert." };
+    const snap = JSON.parse(raw);
+    const cfg = snap.config || {};
+    return startAutodrive({ ...cfg, skipCalibration: true });
+  } catch {
+    return { ok: false, error: "Letzte Session ungültig." };
+  }
+}
+
+export function hasLastSession() {
+  try {
+    const raw = localStorage.getItem(LAST_SESSION_KEY);
+    if (!raw) return false;
+    const snap = JSON.parse(raw);
+    return !!snap.config;
+  } catch {
+    return false;
+  }
+}
+
 export function getLastSessionSnapshot() {
   try {
     const raw = localStorage.getItem(LAST_SESSION_KEY);

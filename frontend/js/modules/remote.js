@@ -1,6 +1,7 @@
 // remote.js - WebSocket remote command handler
 // Receives commands from the backend WebSocket server and executes them.
 import { AppState, CONSTANTS, log } from "../state.js";
+import * as ProtocolUtils from "../lib/protocol-utils.js";
 import {
   updateSlidersA,
   updateSlidersB,
@@ -271,12 +272,16 @@ function renderRemoteCmdLog() {
       return e.indexOf("] WARN:") >= 0;
     });
 
+  // Log entries contain attacker-controlled command types / error text —
+  // always escape before rendering as HTML.
+  const escape = (t) =>
+    ProtocolUtils.escapeHtml ? ProtocolUtils.escapeHtml(String(t)) : String(t);
   el.innerHTML =
     filtered.length === 0
       ? filterVal === "all"
         ? "[Remote] Warte auf Befehle..."
-        : '[Remote] Keine Eintr\u00e4ge f\u00fcr Filter "' + filterVal + '".'
-      : filtered.join("\n");
+        : '[Remote] Keine Eintr\u00e4ge f\u00fcr Filter "' + escape(filterVal) + '".'
+      : filtered.map(escape).join("\n");
 
   var statsEl = document.getElementById("remote-conn-stats");
   if (statsEl) {

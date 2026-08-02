@@ -674,21 +674,24 @@
       <!-- Autodrive Debrief Modal -->
       <div id="autodrive-debrief" class="ad-debrief" style="display:none;" aria-modal="true" role="dialog">
         <div class="ad-debrief-card">
-          <h2>Session-Ende</h2>
+          <h2 data-i18n="ad_debrief_title">Session-Ende</h2>
           <p id="ad-debrief-summary" class="ad-debrief-summary"></p>
-          <p class="field-label">Höhepunkt erreicht?</p>
+          <p class="field-label" data-i18n="ad_debrief_climax_q">Höhepunkt erreicht?</p>
           <div class="ad-debrief-row">
-            <button type="button" class="btn ad-debrief-climax" data-climax="yes">Ja</button>
-            <button type="button" class="btn btn-secondary ad-debrief-climax" data-climax="almost">Fast</button>
-            <button type="button" class="btn btn-secondary ad-debrief-climax" data-climax="no">Nein</button>
+            <button type="button" class="btn ad-debrief-climax" data-climax="yes" data-i18n="ad_debrief_yes">Ja</button>
+            <button type="button" class="btn btn-secondary ad-debrief-climax" data-climax="almost" data-i18n="ad_debrief_almost">Fast</button>
+            <button type="button" class="btn btn-secondary ad-debrief-climax" data-climax="no" data-i18n="ad_debrief_no">Nein</button>
           </div>
-          <p class="field-label" style="margin-top:12px;">Insgesamt zu…</p>
+          <p class="field-label" style="margin-top:12px;" data-i18n="ad_debrief_overall_q">Insgesamt zu…</p>
           <div class="ad-debrief-row">
-            <button type="button" class="btn btn-secondary ad-debrief-overall" data-overall="weak">Schwach</button>
-            <button type="button" class="btn btn-secondary ad-debrief-overall" data-overall="ok">Passt</button>
-            <button type="button" class="btn btn-secondary ad-debrief-overall" data-overall="strong">Stark</button>
+            <button type="button" class="btn btn-secondary ad-debrief-overall" data-overall="weak" data-i18n="ad_debrief_weak">Schwach</button>
+            <button type="button" class="btn btn-secondary ad-debrief-overall" data-overall="ok" data-i18n="ad_debrief_ok">Passt</button>
+            <button type="button" class="btn btn-secondary ad-debrief-overall" data-overall="strong" data-i18n="ad_debrief_strong">Stark</button>
           </div>
-          <button type="button" id="ad-debrief-skip" class="btn btn-secondary" style="margin-top:14px;width:100%;" data-i18n="onboarding_skip">Überspringen</button>
+          <div style="display:flex;gap:8px;margin-top:14px;">
+            <button type="button" id="ad-debrief-restart" class="btn" style="flex:1;display:none;" title="Letzte Session mit gleichem Setup erneut starten" data-i18n="ad_debrief_restart">↻ Erneut starten</button>
+            <button type="button" id="ad-debrief-skip" class="btn btn-secondary" style="flex:1;" data-i18n="onboarding_skip">Überspringen</button>
+          </div>
         </div>
       </div>
 

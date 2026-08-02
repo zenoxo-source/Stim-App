@@ -1,12 +1,14 @@
 // autodrive-ui.js — Home 1-tap, fullscreen session, prompts, debrief, coach
 
 import { AppState, log } from "../state.js";
+import { i18nText } from "./i18n.js";
 // log used by stories
 import {
   startAutodrive,
   startQuickClassic,
   startLastSuccess,
   hasLastSuccess,
+  startLastSession,
   pauseAutodrive,
   resumeAutodrive,
   stopAutodrive,
@@ -1054,14 +1056,21 @@ function openDebrief() {
   const snap = getLastSessionSnapshot();
   const modal = document.getElementById("autodrive-debrief");
   const summary = document.getElementById("ad-debrief-summary");
+  const restartBtn = document.getElementById("ad-debrief-restart");
   if (!modal) return;
   debriefClimax = null;
   debriefOverall = null;
+  if (restartBtn) restartBtn.style.display = snap && snap.config ? "inline-block" : "none";
   if (summary && snap) {
     const min = Math.round((snap.durationMs || 0) / 60000);
-    summary.textContent = `${min} Min · Edges ${snap.edges || 0} · Feedback zu schwach ${snap.tooWeak || 0} / zu stark ${snap.tooStrong || 0} / fast ${snap.almost || 0}${snap.marked ? " · Fertig markiert" : ""}`;
+    const phase = snap.phase ? ` · Phase ${snap.phase}` : "";
+    const peak = snap.peakRel ? ` · Peak ${Math.round(snap.peakRel * 100)}%` : "";
+    summary.textContent = `${min} Min · Edges ${snap.edges || 0} · Feedback zu schwach ${snap.tooWeak || 0} / zu stark ${snap.tooStrong || 0} / fast ${snap.almost || 0}${phase}${peak}${snap.marked ? " · Fertig markiert" : ""}`;
   } else if (summary) {
-    summary.textContent = "Kurzes Feedback hilft der nächsten Session.";
+    summary.textContent = i18nText(
+      "ad_debrief_summary_placeholder",
+      "Kurzes Feedback hilft der nächsten Session."
+    );
   }
   modal.style.display = "flex";
 }
@@ -1287,6 +1296,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
   document.getElementById("ad-debrief-skip")?.addEventListener("click", closeDebrief);
+
+  // Restart the last session 1-click from the debrief modal.
+  document.getElementById("ad-debrief-restart")?.addEventListener("click", () => {
+    const r = startLastSession();
+    closeDebrief();
+    handleStartResult(r, true);
+  });
 
   // Keyboard during fullscreen / autodrive
   window.addEventListener("keydown", (e) => {

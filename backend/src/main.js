@@ -8,6 +8,8 @@ const {
   nativeImage,
   safeStorage,
   dialog,
+  globalShortcut,
+  Notification,
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -38,6 +40,8 @@ let bluetoothSelectTimer = null;
 let bluetoothPickerActive = false;
 /** Latest scan snapshot for timeout fallbacks (names often fill in late on Windows). */
 let lastBluetoothDeviceList = [];
+/** True while a Coyote is connected (drives tray status + title). */
+let trayConnected = false;
 
 // Windows BLE often needs >15s until the advertised name is populated.
 const BLUETOOTH_SELECT_TIMEOUT_MS = 30000;
@@ -391,7 +395,25 @@ function createTray() {
   }
 
   tray = new Tray(trayIcon);
+  rebuildTrayMenu();
+  tray.on("click", () => {
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
+/**
+ * Rebuild the tray context menu. Called on create and whenever the device
+ * connection state changes, so the menu always shows live status + STOPP.
+ */
+function rebuildTrayMenu() {
+  if (!tray) return;
+  const statusLabel = trayConnected ? "Coyote verbunden" : "Nicht verbunden";
   const contextMenu = Menu.buildFromTemplate([
+    { label: statusLabel, enabled: false },
+    { type: "separator" },
     {
       label: "Anzeigen",
       click: () => {
@@ -402,6 +424,11 @@ function createTray() {
       },
     },
     {
+      label: "STOPP (Panik)",
+      click: () => triggerPanic("tray"),
+    },
+    { type: "separator" },
+    {
       label: "Beenden",
       click: () => {
         isQuitting = true;
@@ -409,14 +436,33 @@ function createTray() {
       },
     },
   ]);
-  tray.setToolTip("Stim App");
+  tray.setToolTip(`Stim App – ${statusLabel}`);
   tray.setContextMenu(contextMenu);
-  tray.on("click", () => {
-    if (mainWindow) {
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  });
+}
+
+/**
+ * Emergency stop, reachable from tray/global hotkey even while the window is
+ * hidden. The renderer does the actual device write (killAllOutput).
+ */
+function triggerPanic(source) {
+  console.warn(`[panic] triggered via ${source}`);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("app-panic");
+  } else {
+    console.warn("[panic] no window available – renderer must handle it");
+  }
+  if (process.platform === "win32" && typeof tray?.displayBalloon === "function") {
+    tray.displayBalloon({
+      iconType: "error",
+      title: "Stim App",
+      content: "STOPP ausgelöst – Ausgabe wurde gestoppt.",
+    });
+  } else if (Notification.isSupported()) {
+    new Notification({
+      title: "Stim App",
+      body: "STOPP ausgelöst – Ausgabe wurde gestoppt.",
+    }).show();
+  }
 }
 
 function sendUpdateStatus(payload) {
@@ -566,8 +612,23 @@ function setupAutoUpdater() {
 
 function registerIpc() {
   ipcMain.on("device-connected", (event, connected) => {
+    trayConnected = Boolean(connected);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setTitle(connected ? "Stim App (Verbunden)" : "Stim App");
+    }
+    rebuildTrayMenu();
+  });
+
+  // Generic user-facing notification (device lost, safety timer, …).
+  ipcMain.on("app-notify", (_event, payload) => {
+    const title = typeof payload?.title === "string" ? payload.title.slice(0, 120) : "Stim App";
+    const body =
+      typeof payload?.body === "string" && payload.body ? payload.body.slice(0, 300) : "";
+    if (!body) return;
+    if (process.platform === "win32" && typeof tray?.displayBalloon === "function") {
+      tray.displayBalloon({ iconType: "info", title, content: body });
+    } else if (Notification.isSupported()) {
+      new Notification({ title, body }).show();
     }
   });
 
@@ -725,11 +786,31 @@ app.whenReady().then(() => {
   createTray();
   setupAutoUpdater();
 
+  // Global panic hotkey — works even while the window is hidden in the tray.
+  try {
+    const ok = globalShortcut.register("CommandOrControl+Alt+S", () => triggerPanic("hotkey"));
+    if (ok) {
+      console.log("Globaler Panic-Hotkey registriert: Strg+Alt+S");
+    } else {
+      console.warn("Globaler Panic-Hotkey konnte nicht registriert werden (Konflikt?).");
+    }
+  } catch (err) {
+    console.warn("globalShortcut registration failed:", err.message);
+  }
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
+});
+
+app.on("will-quit", () => {
+  try {
+    globalShortcut.unregisterAll();
+  } catch {
+    /* ignore */
+  }
 });
 
 app.on("window-all-closed", () => {

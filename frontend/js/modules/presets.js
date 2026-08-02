@@ -109,6 +109,16 @@ function updateSafetyTimerUI() {
     stopSafetyTimer(false);
     killAllOutput();
     log("Safety-Timer abgelaufen – Ausgabe gestoppt.", "warning");
+    if (window.electronAPI && typeof window.electronAPI.notify === "function") {
+      try {
+        window.electronAPI.notify(
+          "Safety-Timer abgelaufen",
+          "Session-Auto-Stop: Ausgabe wurde gestoppt."
+        );
+      } catch {
+        /* optional */
+      }
+    }
     if (el) {
       el.textContent = "Zeit abgelaufen";
       el.classList.add("urgent");

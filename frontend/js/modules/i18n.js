@@ -315,6 +315,23 @@ export const MAP = [
   { key: "onboarding_next", de: "Weiter", en: "Next" },
   { key: "onboarding_done", de: "Fertig", en: "Done" },
 
+  // -- autodrive debrief -------------------------------------------------
+  { key: "ad_debrief_title", de: "Session-Ende", en: "Session ended" },
+  { key: "ad_debrief_climax_q", de: "Höhepunkt erreicht?", en: "Climax reached?" },
+  { key: "ad_debrief_yes", de: "Ja", en: "Yes" },
+  { key: "ad_debrief_almost", de: "Fast", en: "Almost" },
+  { key: "ad_debrief_no", de: "Nein", en: "No" },
+  { key: "ad_debrief_overall_q", de: "Insgesamt zu…", en: "Overall…" },
+  { key: "ad_debrief_weak", de: "Schwach", en: "Weak" },
+  { key: "ad_debrief_ok", de: "Passt", en: "OK" },
+  { key: "ad_debrief_strong", de: "Stark", en: "Strong" },
+  { key: "ad_debrief_restart", de: "↻ Erneut starten", en: "↻ Restart" },
+  {
+    key: "ad_debrief_summary_placeholder",
+    de: "Kurzes Feedback hilft der nächsten Session.",
+    en: "A quick feedback helps the next session.",
+  },
+
   // -- connection labels -------------------------------------------------
   { key: "conn_label", de: "Verbindung:", en: "Connection:" },
 

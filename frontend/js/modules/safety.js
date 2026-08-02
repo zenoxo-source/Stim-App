@@ -47,6 +47,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Panic from tray menu / global hotkey — works while the window is hidden.
+  if (window.electronAPI && typeof window.electronAPI.onPanic === "function") {
+    window.electronAPI.onPanic(() => {
+      killAllOutput();
+      updateOutputStatus({ panic: true });
+      log("PANIC STOP ausgelöst (Tray / Hotkey).", "error");
+      setTimeout(() => {
+        updateOutputStatus();
+      }, 2500);
+    });
+  }
+
   // Keyboard shortcuts — only life-critical panic handlers live here now.
   // Tab navigation, audio play/pause, intensity arrows are registered via
   // hotkeys.js (see modules/keyboard-bindings.js) and are user-customizable.

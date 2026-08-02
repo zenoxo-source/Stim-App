@@ -2,6 +2,7 @@
 // Features: waveform presets, channel operations, live preview, export, phase shift, fade, variable steps
 
 import { AppState, CONSTANTS, log } from "../state.js";
+import * as ProtocolUtils from "../lib/protocol-utils.js";
 import { sendSoftStop } from "./bluetooth.js";
 import { updateAIDashboard } from "../control-deck.js";
 import { ensureGameStrength } from "./games-extra.js";
@@ -473,20 +474,21 @@ export const PATTERN_EDITOR2 = {
       .map(function (name) {
         var p = self.customPatterns[name];
         var steps = (p && p.steps) || "?";
+        var esc = ProtocolUtils.escapeHtml ? ProtocolUtils.escapeHtml(name) : name;
         return (
           '<div class="stat-list-row"><span>' +
-          name +
+          esc +
           ' <span style="font-size:10px;opacity:0.5;">(' +
           steps +
           " Schritte)</span></span><span>" +
           '<button class="btn btn-secondary btn-sm pe2-load-btn" data-name="' +
-          name +
+          esc +
           '" style="padding:2px 8px;font-size:10px;">Laden</button> ' +
           '<button class="btn btn-secondary btn-sm pe2-dup-btn" data-name="' +
-          name +
+          esc +
           '" style="padding:2px 8px;font-size:10px;">Dupl.</button> ' +
           '<button class="btn btn-danger btn-sm pe2-del-btn" data-name="' +
-          name +
+          esc +
           '" style="padding:2px 8px;font-size:10px;">L\u00f6schen</button></span></div>'
         );
       })

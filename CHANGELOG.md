@@ -1,5 +1,27 @@
 # Changelog
 
+## 4.3.0 — Panic-Hotkey, Tray-STOPP & Sicherheits-Fixes
+
+### Sicherheit (Schwachstellen-Behobungen)
+- **XSS-Fix (hoch):** Remote-Befehls-Log wurde unescaped gerendert — ein authentifizierter Remote-Client konnte HTML/JS in die App injizieren. Log-Einträge werden jetzt escaped
+- Weitere XSS-Sinks abgedichtet: Pattern-/Spielnamen in den Stats, eigene Pattern-Namen im Editor (Text + Attribute), Story-Labels im Partner-Panel
+- Audit aller 66 innerHTML-Stellen; Rest ist statisch oder bereits escaped
+
+### Neu: Panic & Benachrichtigungen
+- **Globaler Panic-Hotkey `Strg+Alt+S`** — wirkt auch bei verstecktem Fenster (Tray)
+- **Tray-Menü:** Live-Status (verbunden/getrennt) + „STOPP (Panik)"-Eintrag mit Balloon-Bestätigung
+- **Verbindungsverlust-Notification** bei unerwartetem BLE-Abbruch (manuelles Trennen löst keine aus)
+- **Safety-Timer informiert** per System-Notification, wenn der Auto-Stop die Ausgabe beendet
+
+### Autodrive & Stats
+- Debrief zeigt jetzt Phase + Peak und hat **„↻ Erneut starten"** (letzte Session mit gleichem Setup, 1-Klick)
+- **Battery-Verlauf in den Stats:** Ringbuffer (240 Samples), Karte mit Aktuell/Min/Ø/Max + farbcodierte 12-Balken-Historie; wird beim Statistik-Reset mit geleert
+- i18n: Debrief-Modal komplett zweisprachig (11 neue EN-Keys)
+
+### Tests
+- 648 Tests grün, Lint sauber
+
+
 ## 4.2.0 — Ownership Strict, PBKDF2-PIN & Härtung
 
 ### Verhaltensänderung: Output-Ownership jetzt strikt

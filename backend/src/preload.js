@@ -5,6 +5,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
   confirmClose: () => ipcRenderer.send("close-confirmed"),
   preventClose: () => ipcRenderer.send("close-prevented"),
   setConnected: (connected) => ipcRenderer.send("device-connected", connected),
+  // Panic from tray / global hotkey (main → renderer).
+  onPanic: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on("app-panic", handler);
+    return () => ipcRenderer.removeListener("app-panic", handler);
+  },
+  // User-facing notification (device lost, safety timer, …).
+  notify: (title, body) => ipcRenderer.send("app-notify", { title, body }),
   platform: process.platform,
   getVersion: () => ipcRenderer.invoke("app:getVersion"),
   isPackaged: () => ipcRenderer.invoke("app:isPackaged"),

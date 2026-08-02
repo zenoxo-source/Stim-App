@@ -14,6 +14,7 @@ import {
 import { fireShock } from "./shock.js";
 import { listStories, runStory } from "./session-stories.js";
 import { log } from "../state.js";
+import * as ProtocolUtils from "../lib/protocol-utils.js";
 import { showFunToast } from "./fun.js";
 
 let shockArmUntil = 0;
@@ -49,9 +50,10 @@ function paintPartnerStories() {
   const sel = document.getElementById("partner-story");
   if (!sel || sel.dataset.filled === "1") return;
   const stories = listStories();
+  const esc = (t) => (ProtocolUtils.escapeHtml ? ProtocolUtils.escapeHtml(t) : t);
   sel.innerHTML =
     `<option value="">Story wählen…</option>` +
-    stories.map((s) => `<option value="${s.id}">${s.label}</option>`).join("");
+    stories.map((s) => `<option value="${esc(s.id)}">${esc(s.label)}</option>`).join("");
   sel.dataset.filled = "1";
 }
 

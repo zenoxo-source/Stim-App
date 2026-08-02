@@ -1,7 +1,11 @@
 // stats.js - Usage statistics dashboard
 import { AppState, log } from "../state.js";
+import { escapeHtml } from "../lib/protocol-utils.js";
 
 const STATS_DASHBOARD_KEY = "stim_app_stats_v2";
+const BATTERY_HISTORY_KEY = "stim_app_battery_history_v1";
+/** Ring buffer size for battery samples (240 ≈ 4h at 1/min polling). */
+const MAX_BATTERY_SAMPLES = 240;
 
 const defaultStats = {
   totalPlayTimeSec: 0,
@@ -78,6 +82,56 @@ function topEntries(obj, n) {
     .slice(0, n);
 }
 
+// ---------------------------------------------------------------------------
+// Battery history (F4): samples recorded by bluetooth.js battery polling.
+// ---------------------------------------------------------------------------
+
+function loadBatteryHistory() {
+  try {
+    const raw = localStorage.getItem(BATTERY_HISTORY_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Record one battery sample. Called from the BLE battery poller.
+ * @param {number} level 0–100
+ */
+export function recordBatterySample(level) {
+  const lvl = Math.max(0, Math.min(100, Math.round(Number(level) || 0)));
+  const arr = loadBatteryHistory();
+  arr.push({ t: Date.now(), level: lvl });
+  if (arr.length > MAX_BATTERY_SAMPLES) arr.splice(0, arr.length - MAX_BATTERY_SAMPLES);
+  try {
+    localStorage.setItem(BATTERY_HISTORY_KEY, JSON.stringify(arr));
+  } catch {
+    /* quota — drop oldest instead of failing */
+    try {
+      localStorage.setItem(BATTERY_HISTORY_KEY, JSON.stringify(arr.slice(-100)));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/** @returns {{ current: number, min: number, max: number, avg: number, bars: number[] }} */
+function batterySummary() {
+  const arr = loadBatteryHistory();
+  const levels = arr.map((s) => s.level);
+  if (levels.length === 0) {
+    return { current: AppState.batteryLevel || 0, min: 0, max: 0, avg: 0, bars: [] };
+  }
+  const min = Math.min(...levels);
+  const max = Math.max(...levels);
+  const avg = Math.round(levels.reduce((a, b) => a + b, 0) / levels.length);
+  // Last 12 samples as bars (oldest → newest).
+  const bars = levels.slice(-12);
+  return { current: levels[levels.length - 1], min, max, avg, bars };
+}
+
 export function renderStats() {
   const stats = loadStats();
   const container = document.getElementById("stats-content");
@@ -85,6 +139,16 @@ export function renderStats() {
 
   const topPatterns = topEntries(stats.patternsUsed, 5);
   const topGames = topEntries(stats.gamesPlayed, 5);
+  const batt = batterySummary();
+  const battBars = batt.bars.length
+    ? batt.bars
+        .map((lvl) => {
+          const pct = Math.max(0, Math.min(100, lvl));
+          const color = pct <= 20 ? "#f92672" : pct <= 50 ? "#fd971f" : "#a6e22e";
+          return `<span class="batt-bar" style="height:${Math.max(4, Math.round(pct / 2))}px;background:${color};" title="${pct}%"></span>`;
+        })
+        .join("")
+    : `<span style="font-size:11px;opacity:0.5;">Noch keine Daten – beim nächsten Verbinden wird gemessen.</span>`;
 
   const daysActive = stats.firstUsed
     ? Math.max(1, Math.ceil((Date.now() - new Date(stats.firstUsed).getTime()) / 86400000))
@@ -133,7 +197,7 @@ export function renderStats() {
             ? topPatterns
                 .map(
                   ([name, count]) =>
-                    `<div class="stat-list-row"><span>${name}</span><span>${count}×</span></div>`
+                    `<div class="stat-list-row"><span>${escapeHtml(name)}</span><span>${count}×</span></div>`
                 )
                 .join("")
             : "<p>Noch keine Patterns verwendet.</p>"
@@ -146,11 +210,23 @@ export function renderStats() {
             ? topGames
                 .map(
                   ([name, count]) =>
-                    `<div class="stat-list-row"><span>${name}</span><span>${count}×</span></div>`
+                    `<div class="stat-list-row"><span>${escapeHtml(name)}</span><span>${count}×</span></div>`
                 )
                 .join("")
             : "<p>Noch keine Spiele gespielt.</p>"
         }
+      </div>
+    </div>
+    <div class="stats-lists">
+      <div class="stat-list">
+        <h4>Batterie</h4>
+        <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px;">
+          <div><span class="stat-value">${batt.current}%</span><div class="stat-label">Aktuell</div></div>
+          <div><span class="stat-value">${batt.min}%</span><div class="stat-label">Min</div></div>
+          <div><span class="stat-value">${batt.avg}%</span><div class="stat-label">Ø</div></div>
+          <div><span class="stat-value">${batt.max}%</span><div class="stat-label">Max</div></div>
+        </div>
+        <div class="batt-bars" style="display:flex;align-items:flex-end;gap:3px;height:56px;">${battBars}</div>
       </div>
     </div>
   `;
@@ -158,6 +234,7 @@ export function renderStats() {
 
 function resetStats() {
   localStorage.removeItem(STATS_DASHBOARD_KEY);
+  localStorage.removeItem(BATTERY_HISTORY_KEY);
   renderStats();
   log("Statistik zurückgesetzt.", "info");
 }

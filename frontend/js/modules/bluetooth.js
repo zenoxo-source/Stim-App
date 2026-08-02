@@ -4,7 +4,7 @@ import { AppState, DOM, log, CONSTANTS, initDOMCache } from "../state.js";
 import * as ProtocolUtils from "../lib/protocol-utils.js";
 import { updateAIDashboard, startWaveLoop, stopWaveLoop } from "../control-deck.js";
 import { updateOutputStatus } from "./status-ui.js";
-import { trackStat } from "./stats.js";
+import { trackStat, recordBatterySample } from "./stats.js";
 import { unlockAchievement } from "./fun.js";
 import {
   blockDuringPanicCooldown,
@@ -39,6 +39,8 @@ import { assertCanWrite, forceReleaseAll } from "./output-owner.js";
 
 /** Prevent overlapping connect attempts (double-click / auto-reconnect). */
 let connectInProgress = false;
+/** True while the user intentionally disconnects (suppresses lost-link notification). */
+let manualDisconnect = false;
 /** Stable disconnect handler so we don't stack gattserverdisconnected listeners. */
 let onGattDisconnected = null;
 
@@ -546,6 +548,12 @@ async function readBatteryStatus() {
     const value = await AppState.batteryChar.readValue();
     AppState.batteryLevel = value.getUint8(0);
     updateBatteryUI(AppState.batteryLevel);
+    // Record into the stats battery history (ring buffer, no PII).
+    try {
+      recordBatterySample(AppState.batteryLevel);
+    } catch {
+      /* stats optional */
+    }
     log(`Batterieladestand: ${AppState.batteryLevel}%`, "info");
   } catch (err) {
     console.warn("Could not read battery level:", err);
@@ -644,6 +652,7 @@ function clearBatteryPolling() {
 }
 
 function onDisconnected() {
+  const wasConnected = AppState.isConnected;
   connectInProgress = false;
   AppState.isConnected = false;
   AppState.writeChar = null;
@@ -689,6 +698,22 @@ function onDisconnected() {
   if (window.electronAPI && typeof window.electronAPI.setConnected === "function") {
     window.electronAPI.setConnected(false);
   }
+
+  // Notify when the link drops unexpectedly (not via the disconnect button)
+  // so the user gets a system notification even with the window in the tray.
+  if (wasConnected && !manualDisconnect) {
+    try {
+      if (window.electronAPI && typeof window.electronAPI.notify === "function") {
+        window.electronAPI.notify(
+          "Verbindung verloren",
+          "Bluetooth-Verbindung zum Coyote unterbrochen – Reconnect läuft."
+        );
+      }
+    } catch {
+      /* optional */
+    }
+  }
+  manualDisconnect = false;
 
   scheduleReconnect();
 }
@@ -963,6 +988,7 @@ function wireConnectButton() {
       if (AppState.device && AppState.device.gatt && AppState.device.gatt.connected) {
         log("Trenne Verbindung manuell...", "info");
         clearReconnect();
+        manualDisconnect = true;
         AppState.device.gatt.disconnect();
       } else {
         resetUIOnDisconnect();
