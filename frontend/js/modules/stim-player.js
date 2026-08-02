@@ -91,6 +91,8 @@ export const STIM_DEFAULTS = Object.freeze({
   shuffle: false,
   /** Repeat the current track even in multi-track playlists. */
   repeatOne: false,
+  /** F14: map music bands (bass/mid/high) to sensation frequencies. */
+  multiband: false,
   baseStrength: 40,
   gateThreshold: 0.04,
 });
@@ -163,6 +165,7 @@ export function sanitiseStimConfig(input) {
   if (typeof input.loop === "boolean") d.loop = input.loop;
   if (typeof input.shuffle === "boolean") d.shuffle = input.shuffle;
   if (typeof input.repeatOne === "boolean") d.repeatOne = input.repeatOne;
+  if (typeof input.multiband === "boolean") d.multiband = input.multiband;
   const fm = String(input.freqMode || "");
   if (["spectrum", "fixed", "with_intensity", "inverse_intensity"].includes(fm)) {
     d.freqMode = /** @type {StimFreqMode} */ (fm);
@@ -269,6 +272,56 @@ function mapWireFreqFromSpectrum(maxBin, maxVal, cfg) {
   return Math.max(cfg.freqMin, Math.min(cfg.freqMax, wire));
 }
 
+/**
+ * F14 multiband: energy per musical band (bass/mid/high) from the frequency
+ * spectrum, normalized 0..1. fftSize 256 @44.1 kHz → ~172 Hz per bin.
+ *   bass: bins 0–1   (~0–350 Hz)   → deep "throb"   (wire 25–45)
+ *   mids: bins 2–5   (~350–870 Hz)  → "buzz"         (wire 60–100)
+ *   highs: bins 6–18 (~1–3.1 kHz)   → "sharp"        (wire 130–240)
+ */
+function spectralBands(analyser) {
+  const freqArray = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(freqArray);
+  const energy = (lo, hi) => {
+    let sum = 0;
+    const n = Math.min(hi, freqArray.length - 1) - lo + 1;
+    for (let i = lo; i <= Math.min(hi, freqArray.length - 1); i++) sum += freqArray[i];
+    return n > 0 ? sum / n / 255 : 0;
+  };
+  return { bass: energy(0, 1), mids: energy(2, 5), highs: energy(6, 18) };
+}
+
+/**
+ * F14: map band energies to a sensation frequency. The dominant band picks the
+ * range; a strong secondary band blends toward it.
+ * @param {{bass: number, mids: number, highs: number}} bands
+ * @param {object} cfg
+ */
+export function mapFreqFromBands(bands, cfg) {
+  const c = cfg || {};
+  const total = bands.bass + bands.mids + bands.highs;
+  if (total <= 0) return c.freqFixed;
+  const dom =
+    bands.bass >= bands.mids && bands.bass >= bands.highs
+      ? "bass"
+      : bands.mids >= bands.highs
+        ? "mids"
+        : "highs";
+  const base = dom === "bass" ? 30 : dom === "mids" ? 75 : 170;
+  const second =
+    dom === "bass"
+      ? Math.max(bands.mids, bands.highs)
+      : dom === "mids"
+        ? Math.max(bands.bass, bands.highs)
+        : Math.max(bands.bass, bands.mids);
+  const blend = total > 0 ? second / total : 0;
+  const logical = base + blend * (dom === "bass" ? 25 : dom === "mids" ? 60 : 70);
+  const wire = ProtocolUtils.encodeWaveFreqLogical
+    ? ProtocolUtils.encodeWaveFreqLogical(logical)
+    : Math.round(logical);
+  return Math.max(10, Math.min(240, wire));
+}
+
 function mapFreqFromIntensity(level01, cfg, inverse) {
   const t = inverse ? 1 - level01 : level01;
   return Math.round(cfg.freqMin + (cfg.freqMax - cfg.freqMin) * clamp01(t));
@@ -329,8 +382,20 @@ export function processAudioToStim(analyserA, analyserB, cfg) {
   let fA = c.freqFixed;
   let fB = c.freqFixed;
   if (c.freqMode === "spectrum") {
-    fA = mapWireFreqFromSpectrum(specA.maxBin, specA.maxVal, c);
-    fB = mapWireFreqFromSpectrum(specB.maxBin, specB.maxVal, c);
+    if (c.multiband) {
+      // F14: musical band mapping (bass → throb, mids → buzz, highs → sharp).
+      const bandsA = spectralBands(analyserA);
+      const bandsB = spectralBands(analyserB);
+      fA = mapFreqFromBands(bandsA, c);
+      fB = mapFreqFromBands(bandsB, c);
+      if (c.channelMode !== "mono_l" && c.channelMode !== "mono_r") {
+        // Keep channels related but not identical.
+        fB = Math.round((fA + fB) / 2);
+      }
+    } else {
+      fA = mapWireFreqFromSpectrum(specA.maxBin, specA.maxVal, c);
+      fB = mapWireFreqFromSpectrum(specB.maxBin, specB.maxVal, c);
+    }
   } else if (c.freqMode === "with_intensity") {
     fA = mapFreqFromIntensity(peakA, c, false);
     fB = mapFreqFromIntensity(peakB, c, false);

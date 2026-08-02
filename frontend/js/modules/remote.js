@@ -12,7 +12,7 @@ import { ensureGameStrength } from "./games-extra.js";
 import { killAllOutput } from "./safety.js";
 import { trackStat } from "./stats.js";
 import { isPanicCooldownActive } from "./safety-extras.js";
-import { isLocked as isPinLocked } from "./session-pin.js";
+import { isLocked as isPinLocked, hasPin as hasSessionPin } from "./session-pin.js";
 import {
   injectFeedback as adInjectFeedback,
   isAutodriveActive,
@@ -27,6 +27,7 @@ import {
 import { runStory } from "./session-stories.js";
 import { fireShock } from "./shock.js";
 import { sendStrengthCommand } from "./bluetooth.js";
+import { startFunscriptStream, stopFunscriptStream, streamFunscriptPos } from "./funscript.js";
 
 /** Commands allowed even during PIN lock / panic cooldown (safety + read-only). */
 const REMOTE_ALWAYS_ALLOWED = new Set(["stop_all", "get_state", "get_patterns", "get_logs"]);
@@ -208,6 +209,23 @@ const REMOTE_COMMANDS = {
       freq: msg.freq,
       channel: msg.channel,
     });
+  },
+
+  /** Funscript position streaming from external players (MultiFunPlayer etc.). */
+  stream_funscript: (msg) => {
+    const action = String(msg.action || "pos");
+    if (action === "start") return startFunscriptStream();
+    if (action === "stop") {
+      stopFunscriptStream();
+      return { ok: true };
+    }
+    if (action === "pos") {
+      if (!streamFunscriptPos(msg.pos)) {
+        return { ok: false, error: "streaming not active" };
+      }
+      return { ok: true, pos: Number(msg.pos) };
+    }
+    return { ok: false, error: "unknown action" };
   },
 
   get_state: () => {
@@ -593,7 +611,17 @@ async function toggleEditorRemote() {
       var portEl = document.getElementById("editor-remote-port");
       var port = portEl ? parseInt(portEl.value, 10) || 8080 : 8080;
       var lanEl = document.getElementById("check-remote-lan");
-      var result = await window.electronAPI.startRemote(port, lanEl ? lanEl.checked : false);
+      var lan = lanEl ? lanEl.checked : false;
+      // Security: LAN mode exposes the device on the network — require a PIN.
+      if (lan && !hasSessionPin()) {
+        log(
+          "LAN-Modus erfordert einen Session-PIN: Bitte zuerst unter Einstellungen einen PIN setzen (Session-PIN).",
+          "error"
+        );
+        updateRemoteUI();
+        return;
+      }
+      var result = await window.electronAPI.startRemote(port, lan);
       if (result.ok) {
         log(
           "Remote-Server gestartet auf ws://" +

@@ -12,12 +12,35 @@ import { blockIfLocked } from "./session-pin.js";
 import { startWaveLoop } from "../control-deck.js";
 
 const SCRIPTS_KEY = "stim_app_funscripts_v1";
+const FS_CFG_KEY = "stim_app_funscript_cfg_v1";
 const MAX_SCRIPT_BYTES = 2 * 1024 * 1024;
 const TICK_MS = 50;
 
+const FS_CFG_DEFAULTS = { speed: 1, invert: false, range: 1, offsetMs: 0, loop: false };
+
+function loadFsCfg() {
+  try {
+    return { ...FS_CFG_DEFAULTS, ...JSON.parse(localStorage.getItem(FS_CFG_KEY) || "{}") };
+  } catch {
+    return { ...FS_CFG_DEFAULTS };
+  }
+}
+function saveFsCfg(patch) {
+  const next = { ...loadFsCfg(), ...patch };
+  try {
+    localStorage.setItem(FS_CFG_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+  return next;
+}
+
 /** @type {Array<{id: string, name: string, actions: Array<{at: number, pos: number}>, range: number, inverted: boolean}>} */
 let scripts = [];
-let player = null; // {id, actions, range, inverted, startedAt, lastIdx, timer}
+let player = null; // {id, actions, startedAt, lastIdx, timer}
+/** External streaming mode (pos pushed by remote clients). */
+let streaming = false;
+let streamPos = 0;
 
 function loadScripts() {
   try {
@@ -142,6 +165,69 @@ export function startFunscript(id) {
   return { ok: true };
 }
 
+// ---------------------------------------------------------------------------
+// F2b: real-time streaming from remote clients (stream_funscript command).
+// ---------------------------------------------------------------------------
+
+/** @returns {boolean} */
+export function isFunscriptStreaming() {
+  return streaming;
+}
+
+/** Start external streaming mode (client pushes positions). */
+export function startFunscriptStream() {
+  if (!AppState.isConnected) return { ok: false, error: "Nicht verbunden." };
+  if (blockDuringPanicCooldown("Funscript-Stream")) {
+    return { ok: false, error: "Panic-Cooldown." };
+  }
+  if (blockIfLocked("Funscript-Stream")) return { ok: false, error: "PIN gesperrt." };
+  if (player) stopFunscript();
+  const claim = claimOutput("replay");
+  if (!claim.ok) return { ok: false, error: claim.error || "Claim fehlgeschlagen." };
+  streaming = true;
+  streamPos = 0;
+  if (!AppState.waveLoopInterval) startWaveLoop();
+  log("Funscript-Streaming aktiv (externe Positionen).", "success");
+  renderFunscriptUi();
+  return { ok: true };
+}
+
+/** Push one position sample (0..1) from a remote client. */
+export function streamFunscriptPos(pos) {
+  if (!streaming) return false;
+  streamPos = Math.max(0, Math.min(1, Number(pos) || 0));
+  const cfg = loadFsCfg();
+  const strength = posToStrength(
+    streamPos,
+    cfg.range,
+    cfg.invert,
+    AppState.softLimitA,
+    AppState.softLimitB
+  );
+  sendStrengthCommand(strength, strength, { writer: "replay" });
+  if (strength > 0) {
+    sendWaveformCommand(70, 100, 70, 100, { writer: "wave-loop", force: true });
+  } else {
+    sendWaveformCommand(0, 0, 0, 0, { writer: "wave-loop", force: true });
+  }
+  return true;
+}
+
+/** Stop external streaming mode. */
+export function stopFunscriptStream() {
+  if (!streaming) return;
+  streaming = false;
+  streamPos = 0;
+  try {
+    releaseOutput("replay");
+  } catch {
+    /* ignore */
+  }
+  sendSoftStop({ keepStrength: false });
+  log("Funscript-Streaming gestoppt.", "info");
+  renderFunscriptUi();
+}
+
 /** Stop the funscript player. */
 export function stopFunscript() {
   if (!player) return;
@@ -163,26 +249,32 @@ function tickPlayer() {
     stopFunscript();
     return;
   }
-  const elapsed = Date.now() - player.startedAt;
+  const cfg = loadFsCfg();
+  const totalMs = player.actions[player.actions.length - 1].at || 1;
+  // Speed + offset (ms) applied to the timeline; optional loop wraps around.
+  let elapsed = (Date.now() - player.startedAt + (cfg.offsetMs || 0)) * (cfg.speed || 1);
+  if (cfg.loop) {
+    elapsed = ((elapsed % totalMs) + totalMs) % totalMs;
+  }
   const { actions } = player;
+  if (elapsed >= totalMs) {
+    stopFunscript();
+    return;
+  }
   // Advance pointer (actions sorted by `at`).
   while (player.lastIdx < actions.length - 2 && actions[player.lastIdx + 1].at <= elapsed) {
     player.lastIdx += 1;
   }
   const a0 = actions[player.lastIdx];
   const a1 = actions[Math.min(player.lastIdx + 1, actions.length - 1)];
-  if (elapsed >= actions[actions.length - 1].at) {
-    stopFunscript();
-    return;
-  }
   // Interpolate position between the two surrounding actions.
   const span = Math.max(1, a1.at - a0.at);
   const frac = Math.max(0, Math.min(1, (elapsed - a0.at) / span));
   const pos = a0.pos + (a1.pos - a0.pos) * frac;
   const strength = posToStrength(
     pos,
-    player.range,
-    player.inverted,
+    cfg.range,
+    cfg.invert,
     AppState.softLimitA,
     AppState.softLimitB
   );
@@ -194,8 +286,7 @@ function tickPlayer() {
   }
   const progress = document.getElementById("funscript-progress");
   if (progress) {
-    const total = actions[actions.length - 1].at || 1;
-    progress.value = Math.min(100, (elapsed / total) * 100);
+    progress.value = Math.min(100, (elapsed / totalMs) * 100);
   }
 }
 
@@ -203,6 +294,22 @@ function renderFunscriptUi() {
   const list = document.getElementById("funscript-list");
   if (!list) return;
   const all = loadScripts();
+  // Streaming status row.
+  if (list) {
+    const streamRow = document.getElementById("funscript-stream-row");
+    if (streamRow) {
+      streamRow.style.display = "flex";
+      streamRow.querySelector("#fs-stream-status").textContent = streaming
+        ? "Streaming aktiv — Positionen vom Remote-Client"
+        : "Kein externes Streaming";
+      streamRow.querySelector("#fs-stream-start").style.display = streaming
+        ? "none"
+        : "inline-block";
+      streamRow.querySelector("#fs-stream-stop").style.display = streaming
+        ? "inline-block"
+        : "none";
+    }
+  }
   if (all.length === 0) {
     list.innerHTML = `<p style="font-size:12px;color:var(--text-muted);">Noch keine Skripte importiert.</p>`;
     return;
@@ -245,13 +352,19 @@ function renderFunscriptUi() {
 }
 
 // Panic clears the player.
-window.addEventListener("stim:kill-all", () => {
-  if (player) {
-    clearInterval(player.timer);
-    player = null;
-    renderFunscriptUi();
-  }
-});
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("stim:kill-all", () => {
+    if (player) {
+      clearInterval(player.timer);
+      player = null;
+      renderFunscriptUi();
+    }
+    if (streaming) {
+      streaming = false;
+      renderFunscriptUi();
+    }
+  });
+}
 
 if (typeof document !== "undefined") {
   const wire = () => {
@@ -271,6 +384,37 @@ if (typeof document !== "undefined") {
       }
       e.target.value = "";
     });
+
+    // Player config controls (speed/invert/range/offset/loop).
+    const cfg = loadFsCfg();
+    const setSel = (id, v) => {
+      const el = document.getElementById(id);
+      if (el) el.value = String(v);
+    };
+    setSel("fs-speed", cfg.speed);
+    const inv = document.getElementById("fs-invert");
+    if (inv) inv.checked = !!cfg.invert;
+    const loop = document.getElementById("fs-loop");
+    if (loop) loop.checked = !!cfg.loop;
+    const range = document.getElementById("fs-range");
+    if (range) range.value = String(cfg.range);
+    const off = document.getElementById("fs-offset");
+    if (off) off.value = String(cfg.offsetMs || 0);
+    document.getElementById("fs-speed")?.addEventListener("change", (e) => {
+      saveFsCfg({ speed: parseFloat(e.target.value) || 1 });
+    });
+    inv?.addEventListener("change", () => saveFsCfg({ invert: inv.checked }));
+    loop?.addEventListener("change", () => saveFsCfg({ loop: loop.checked }));
+    range?.addEventListener("input", () => saveFsCfg({ range: parseFloat(range.value) || 1 }));
+    off?.addEventListener("change", () => saveFsCfg({ offsetMs: parseInt(off.value, 10) || 0 }));
+
+    // External streaming controls.
+    document.getElementById("fs-stream-start")?.addEventListener("click", () => {
+      const r = startFunscriptStream();
+      if (!r.ok) log(`Funscript-Stream: ${r.error}`, "error");
+    });
+    document.getElementById("fs-stream-stop")?.addEventListener("click", stopFunscriptStream);
+
     renderFunscriptUi();
   };
   if (document.readyState === "loading") {

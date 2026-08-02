@@ -38,3 +38,6 @@ jobs:
 
       - name: Package smoke test (electron-builder, unsigned)
         run: npm run build:app
+
+      - name: E2E smoke test (Playwright + Electron)
+        run: npm run test:e2e

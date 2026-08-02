@@ -1,5 +1,33 @@
 # Changelog
 
+## 4.9.0 — Buttplug.io, Herzfrequenz-Biofeedback & E2E-Tests
+
+### Ökosystem-Anschluss
+- **Buttplug.io-Server (experimentell):** Steuere den Coyote aus Buttplug-fähigen Apps (XToys, Funscript-Player, Milovana-Teasen, VR …) — VibrateCmd → Intensität (Soft-Limit-gedeckelt). Localhost-only, Rate-Limit, Origin-Reject; 4 neue Tests
+- **Funscript-Echtzeit-Streaming:** Remote-Kommando `stream_funscript` (start/stop/pos) für externe Player (MultiFunPlayer/FapTap) + Streaming-Status-UI
+- **Funscript-Player-Upgrades:** Speed (0.5×–2×), Invert, Range-Slider, Offset (ms, für Video-Sync), Loop — persistiert
+
+### Climax-Wissenschaft
+- **Herzfrequenz-Biofeedback:** BLE-HR-Gurt (Polar H10 & kompatibel) verbinden → Baseline nach ~30 s; Puls-Anstieg +14 → Autodrive „Fast", Abfall → „Gut" (rate-limitiert, nur in Build/Tease/Edge/Surge). HR-Chip im Fullscreen, Auto-Select im Bluetooth-Picker, Option im Wizard
+- **Multiband-Audio-Analyse:** STIM-Player mappt Musikbänder (Bass→Throb, Mids→Buzz, Highs→Sharp) statt nur des dominanten Bins
+- **Atem-Sensor (Mikrofon):** Sprach-Coach synchronisiert „Ein/Aus" mit echter Atmung (RMS-Envelope), Timer-Fallback
+
+### Immersion
+- **TTS-Story-Erzähler:** Narratives werden vorgelesen (Persona-Stimme, weiblich/männlich); dedizierter Story-Bereich im AI-Tab (war verwaist)
+- **Persona-Cues im Sprach-Coach:** Mistress/Nurse/Master sprechen ihre eigene Rolle („Komm für mich. Jetzt!")
+- **Kuratiertes Abendprogramm:** 3 Programme (Klassisch, Climax-Fabrik, HFO-Ritual) als gestufte Abfolge Pattern → Session/Autodrive → Ausklang, mit Fortschrittsanzeige
+
+### Sicherheit & Qualität
+- **LAN-Modus erfordert Session-PIN** (Remote-Server)
+- **Playwright-E2E-Tests:** 2 Electron-Smoke-Tests (Deck, Settings, Library-Karten), CI-Step, `--no-sandbox` + Single-Instance-Skip unter E2E
+
+### Fixes
+- Buttplug/Remote: DeviceAdded-Race (readyState) behoben; Test-Harness-Robustheit
+
+### Tests
+- 669 Unit-Tests grün (4 neue Buttplug-Tests), 2 E2E-Tests grün, Lint sauber
+
+
 ## 4.8.0 — Climax-Fabrik, Sprach-Coach & Mobile-Steuerung
 
 ### Autodrive „Climax-Fabrik" ⚙️ (basierend auf Protokoll- & Community-Recherche)

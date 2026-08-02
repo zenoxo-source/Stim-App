@@ -64,6 +64,9 @@ import "./modules/recorder.js";
 // Funscript playback (interactive scripts → intensity)
 import "./modules/funscript.js";
 
+// Curated evening programs (patterns → session/autodrive → wind-down)
+import "./modules/program.js";
+
 // Statistics dashboard
 import "./modules/stats.js";
 
@@ -121,6 +124,12 @@ import "./modules/voice-feedback.js";
 
 // Spoken coaching (TTS): phase cues, breath cadence, bracing
 import "./modules/voice-coach.js";
+
+// Heart-rate biofeedback (BLE HR strap → Autodrive adaptation)
+import "./modules/heart-rate.js";
+
+// Buttplug.io bridge (external clients → intensity)
+import "./modules/buttplug.js";
 
 // Session UX: readiness, chrome, stories, partner, shock, export
 import "./modules/session-readiness.js";

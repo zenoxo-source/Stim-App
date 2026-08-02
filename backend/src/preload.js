@@ -19,6 +19,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("media-key", handler);
     return () => ipcRenderer.removeListener("media-key", handler);
   },
+  // Buttplug.io server (experimental).
+  startButtplug: (port) => ipcRenderer.invoke("buttplug:start", port),
+  stopButtplug: () => ipcRenderer.invoke("buttplug:stop"),
+  getButtplugStatus: () => ipcRenderer.invoke("buttplug:status"),
+  onButtplugVibrate: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on("buttplug-vibrate", handler);
+    return () => ipcRenderer.removeListener("buttplug-vibrate", handler);
+  },
   platform: process.platform,
   getVersion: () => ipcRenderer.invoke("app:getVersion"),
   isPackaged: () => ipcRenderer.invoke("app:isPackaged"),

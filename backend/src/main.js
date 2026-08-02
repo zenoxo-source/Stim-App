@@ -22,9 +22,10 @@ const {
   broadcastState,
 } = require("./remote-server");
 const { runLLMRequest, abortLLM } = require("./llm-proxy");
+const { startButtplugServer, stopButtplugServer, getButtplugStatus } = require("./buttplug-server");
 
-// Single instance lock
-const gotTheLock = app.requestSingleInstanceLock();
+// Single instance lock (skipped in E2E tests so parallel launches work).
+const gotTheLock = process.env.STIM_APP_E2E === "1" ? true : app.requestSingleInstanceLock();
 if (!gotTheLock) {
   console.log("Another instance is already running. Exiting...");
   app.quit();
@@ -139,6 +140,23 @@ function isCoyoteDevice(device) {
   );
 }
 
+/**
+ * Match heart-rate monitors (Polar H10, Wahoo TICKR, …) so the
+ * select-bluetooth-device flow can auto-select them for biofeedback.
+ */
+function isHeartRateDevice(device) {
+  const name = (device.deviceName || "").trim().toLowerCase();
+  if (!name) return false;
+  return (
+    name.includes("polar") ||
+    name.includes("h10") ||
+    name.includes("tickr") ||
+    name.includes("wahoo") ||
+    name.includes("heart rate") ||
+    name.includes("hr")
+  );
+}
+
 function deviceLabel(device) {
   return (device.deviceName || "").trim() || device.deviceId || "(unbekannt)";
 }
@@ -222,6 +240,20 @@ function createWindow() {
       clearBluetoothSelect();
       callback(id);
       return;
+    }
+
+    // Biofeedback: no Coyote present, but exactly one HR monitor → auto-select.
+    if (matches.length === 0) {
+      const hrMatches = lastBluetoothDeviceList.filter(isHeartRateDevice);
+      if (hrMatches.length === 1) {
+        console.log(
+          `Auto-selecting heart-rate device: ${deviceLabel(hrMatches[0])} (${hrMatches[0].deviceId})`
+        );
+        const id = hrMatches[0].deviceId;
+        clearBluetoothSelect();
+        callback(id);
+        return;
+      }
     }
 
     if (matches.length > 1 && !bluetoothPickerActive) {
@@ -770,6 +802,21 @@ function registerIpc() {
   ipcMain.on("llm:abort", (_event, reqId) => {
     if (typeof reqId === "string" && reqId) abortLLM(reqId);
   });
+
+  // Buttplug.io server (experimental): VibrateCmd speed → renderer intensity.
+  ipcMain.handle("buttplug:start", async (_event, port) => {
+    const p = Number(port);
+    if (!Number.isInteger(p) || p < 1024 || p > 65535) {
+      return { ok: false, error: "port must be an integer in 1024–65535" };
+    }
+    return startButtplugServer(p, (speed) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("buttplug-vibrate", { speed });
+      }
+    });
+  });
+  ipcMain.handle("buttplug:stop", () => stopButtplugServer());
+  ipcMain.handle("buttplug:status", () => getButtplugStatus());
 }
 
 app.on("second-instance", () => {

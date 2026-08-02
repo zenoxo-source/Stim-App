@@ -540,6 +540,7 @@ document.addEventListener("DOMContentLoaded", () => {
     set("stim-loop", cfg.loop, true);
     set("stim-shuffle", cfg.shuffle, true);
     set("stim-repeat-one", cfg.repeatOne, true);
+    set("stim-multiband", cfg.multiband, true);
     const sv = document.getElementById("stim-smoothing-val");
     if (sv) sv.textContent = Number(cfg.smoothing).toFixed(2);
     if (DOM["slider-sens-a"]) DOM["slider-sens-a"].value = cfg.sensitivityA;
@@ -573,6 +574,7 @@ document.addEventListener("DOMContentLoaded", () => {
       loop: chk("stim-loop", false),
       shuffle: chk("stim-shuffle", false),
       repeatOne: chk("stim-repeat-one", false),
+      multiband: chk("stim-multiband", false),
       sensitivityA: AppState.sensitivityA,
       sensitivityB: AppState.sensitivityB,
     });
@@ -595,6 +597,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "stim-loop",
     "stim-shuffle",
     "stim-repeat-one",
+    "stim-multiband",
   ].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", () => {
       readStimCfgFromUi();

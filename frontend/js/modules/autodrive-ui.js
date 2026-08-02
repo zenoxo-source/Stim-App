@@ -1240,6 +1240,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (fsPref) fsPref.checked = cfg.fullscreenPreferred !== false;
     const hybrid = document.getElementById("autodrive-hybrid");
     if (hybrid) hybrid.checked = !!cfg.hybridAudio;
+    const hrBox = document.getElementById("autodrive-hr");
+    if (hrBox) hrBox.checked = cfg.hrAdaptive === true;
+    hrBox?.addEventListener("change", () => {
+      saveAutodriveConfig({ hrAdaptive: hrBox.checked });
+      log(`Biofeedback (HR): ${hrBox.checked ? "Aktiv" : "Inaktiv"}.`, "info");
+    });
   } catch (err) {
     console.warn("autodrive UI init", err);
     buildTemplateGrid("classic");

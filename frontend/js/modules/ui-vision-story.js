@@ -3,6 +3,7 @@
 // 2. Story-Modus selection + scene display
 
 import { log } from "../state.js";
+import { speakExternal, isNarratorEnabled } from "./voice-coach.js";
 import {
   enable as enableWebcam,
   disable as disableWebcam,
@@ -167,6 +168,14 @@ function bindStoryControls() {
     }
     if (title) title.textContent = state.story.title;
     if (narrative) narrative.textContent = state.scene.narrative;
+    // F10: read the scene aloud when the narrator is on.
+    if (isNarratorEnabled() && state.scene.narrative) {
+      try {
+        speakExternal(state.scene.narrative);
+      } catch {
+        /* narrator optional */
+      }
+    }
     if (choices) {
       if (state.isEnd) {
         choices.innerHTML = `<p style="color:var(--text-muted);">— Ende —</p>`;

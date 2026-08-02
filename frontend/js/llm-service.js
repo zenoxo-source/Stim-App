@@ -225,6 +225,11 @@ let selectedPersona = "domina";
 let userName = "User";
 let currentSessionId = null;
 
+/** @returns {"domina"|"nurse"|"master"} currently selected AI persona. */
+export function getSelectedPersona() {
+  return selectedPersona || "domina";
+}
+
 // Storage Logic (migrate legacy coyote_* key once)
 const AI_SESSIONS_KEY = "stim_ai_sessions";
 const LEGACY_AI_SESSIONS_KEY = "coyote_ai_sessions";
@@ -409,6 +414,13 @@ personaCards.forEach((card) => {
     if (selectedPersona === "domina") card.style.borderColor = "var(--accent-purple)";
     if (selectedPersona === "nurse") card.style.borderColor = "#107c41";
     if (selectedPersona === "master") card.style.borderColor = "#a80000";
+    try {
+      window.dispatchEvent(
+        new CustomEvent("stim:persona-change", { detail: { persona: selectedPersona } })
+      );
+    } catch {
+      /* optional */
+    }
   });
 });
 

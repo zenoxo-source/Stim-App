@@ -462,6 +462,11 @@
                       <option value="intense">Intensiv</option>
                     </select>
                   </div>
+                  <div style="grid-column: 1 / -1;">
+                    <label style="display:flex; align-items:center; gap:6px; font-size:12px;" title="Mit verbundenem HR-Gurt (z.B. Polar H10): Puls-Anstieg → automatisch „Fast“, Puls-Abfall → „Gut“">
+                      <input type="checkbox" id="autodrive-hr"> Biofeedback (HR-Gurt): Puls steuert „Fast/Gut“ mit
+                    </label>
+                  </div>
                 </div>
                 <div class="ad-wizard-nav">
                   <button type="button" class="btn btn-secondary" id="ad-wiz-back-session">← Setup</button>
@@ -605,6 +610,7 @@
             <span id="ad-fs-next"></span>
             <span id="ad-fs-edges"></span>
             <span id="ad-fs-hold"></span>
+            <span id="ad-fs-hr" style="display:none;"></span>
           </div>
           <span id="ad-fs-voice-status" class="ad-fs-voice-status"></span>
           <button type="button" id="ad-fs-voice" class="btn btn-secondary btn-sm" title="Sprach-Feedback (Mikrofon): „zu schwach / gut / zu stark / fast / jetzt“">🎤</button>
@@ -1117,6 +1123,7 @@
               <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="stim-loop"> Loop</label>
               <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="stim-shuffle"> Shuffle</label>
               <label style="font-size:12px;display:flex;align-items:center;gap:4px;" title="Aktuellen Track wiederholen (auch in Multi-Track-Playlists)"><input type="checkbox" id="stim-repeat-one"> Repeat 1</label>
+              <label style="font-size:12px;display:flex;align-items:center;gap:4px;" title="Musikbänder (Bass/Mid/High) auf Sensations-Frequenzen mappen: Bass→Throb, Mids→Buzz, Highs→Sharp"><input type="checkbox" id="stim-multiband"> Multiband</label>
             </div>
           </div>
 
@@ -1882,6 +1889,23 @@
             </div>
 
           </div> <!-- End Chat Interface -->
+
+          <!-- Story-Modus -->
+          <div class="card" style="flex-shrink: 0; padding: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <div style="font-weight: 600; font-size: 15px;">📖 Story-Modus</div>
+              <button type="button" id="btn-story-narrate" class="btn btn-secondary btn-sm" title="Narrative vorlesen (TTS)">🔊 Erzähler</button>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
+              <select id="story-select" class="select-control" style="flex: 1; min-width: 180px;" aria-label="Story wählen"></select>
+              <button type="button" id="btn-story-start" class="btn btn-sm">Start</button>
+              <button type="button" id="btn-story-stop" class="btn btn-secondary btn-sm">Stop</button>
+              <button type="button" id="btn-story-reset" class="btn btn-secondary btn-sm" title="Fortschritt zurücksetzen">Reset</button>
+            </div>
+            <div id="story-current" style="font-size: 13px; font-weight: 600; margin-bottom: 6px;"></div>
+            <div id="story-narrative" style="font-size: 14px; line-height: 1.55; min-height: 60px; white-space: pre-wrap;"></div>
+            <div id="story-choices" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;"></div>
+          </div>
         </div>
       </section>
 
@@ -2117,19 +2141,62 @@
               </div>
             </div>
 
-            <!-- F5: Funscript Player -->
+            <!-- F11: Abendprogramm -->
             <div class="card">
-              <div class="card-title">Funscript Player</div>
+              <div class="card-title">🌙 Abendprogramm</div>
               <div class="channel-box" style="gap: 10px;">
                 <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
+                  Kuratierte Abfolgen: Warmup-Pattern → Session/Autodrive → sanfter Ausklang.
+                  Läuft eigenständig bis zum Ende.
+                </p>
+                <div class="btn-row" style="flex-wrap: wrap;">
+                  <button type="button" id="btn-program-classic" class="btn btn-sm">Klassisch</button>
+                  <button type="button" id="btn-program-climax_factory" class="btn btn-sm">⚙️ Climax-Fabrik</button>
+                  <button type="button" id="btn-program-hfo_ritual" class="btn btn-sm">🌀 HFO-Ritual</button>
+                  <button type="button" id="btn-program-stop" class="btn btn-danger btn-sm">Stop</button>
+                </div>
+                <div id="program-status" style="font-size: 12px; opacity: 0.75;">Kein Programm aktiv.</div>
+              </div>
+            </div>
+
+            <!-- F5: Funscript Player -->
+            <div class="card">
+              <div class="card-title">Funscript Player</div>              <div class="channel-box" style="gap: 10px;">
+                <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
                   Interaktive Skripte (Position → Intensität, Soft-Limit-gedeckelt). Importe aus der
-                  Funscript-Community (e.g. eroscripts / funscripts.io).
+                  Funscript-Community (e.g. eroscripts / funscripts.io). Externe Player können
+                  Positionen per Remote-Befehl <code>stream_funscript</code> einspeisen.
                 </p>
                 <div class="btn-row">
                   <button type="button" id="btn-funscript-import" class="btn btn-sm">⭱ Funscript importieren</button>
                   <input type="file" id="input-funscript-import" accept=".funscript,.json" style="display:none;">
                 </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:6px; font-size:12px; align-items:center;">
+                  <label style="display:flex; align-items:center; gap:4px;">Speed
+                    <select id="fs-speed" style="flex:1;">
+                      <option value="0.5">0.5×</option>
+                      <option value="0.75">0.75×</option>
+                      <option value="1" selected>1×</option>
+                      <option value="1.25">1.25×</option>
+                      <option value="1.5">1.5×</option>
+                      <option value="2">2×</option>
+                    </select>
+                  </label>
+                  <label style="display:flex; align-items:center; gap:4px;"><input type="checkbox" id="fs-invert"> Invert</label>
+                  <label style="display:flex; align-items:center; gap:4px;"><input type="checkbox" id="fs-loop"> Loop</label>
+                  <label style="display:flex; align-items:center; gap:4px;">Range
+                    <input type="range" id="fs-range" min="0.1" max="1" step="0.05" value="1" style="flex:1;">
+                  </label>
+                  <label style="display:flex; align-items:center; gap:4px;">Offset (ms)
+                    <input type="number" id="fs-offset" value="0" step="100" style="width:90px;">
+                  </label>
+                </div>
                 <input type="range" id="funscript-progress" min="0" max="100" value="0" style="width:100%;" disabled aria-label="Funscript-Fortschritt">
+                <div id="funscript-stream-row" style="display:none; align-items:center; gap:8px; font-size:12px;">
+                  <span id="fs-stream-status" style="opacity:0.7;">Kein externes Streaming</span>
+                  <button type="button" id="fs-stream-start" class="btn btn-secondary btn-sm" style="display:none;">Streaming starten</button>
+                  <button type="button" id="fs-stream-stop" class="btn btn-secondary btn-sm" style="display:none;">Streaming stoppen</button>
+                </div>
                 <div id="funscript-list"></div>
               </div>
             </div>
@@ -2291,7 +2358,41 @@
             </div>
           </div>
 
-          <!-- App Updates + About -->
+            <!-- F12: Biofeedback -->
+            <div class="card">
+              <div class="card-title">❤️ Biofeedback</div>
+              <div class="channel-box" style="gap: 10px;">
+                <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
+                  BLE-Herzfrequenz-Gurt (z.B. Polar H10): Puls-Anstieg → Autodrive meldet
+                  „Fast", Puls-Abfall → „Gut". Optional, Privacy-lokal.
+                </p>
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <button type="button" id="btn-hr-connect" class="btn btn-sm">📡 HR-Gurt verbinden</button>
+                  <span id="hr-status" style="font-size:12px; opacity:0.75;">Getrennt</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- F15: Buttplug.io bridge -->
+            <div class="card">
+              <div class="card-title">🔌 Buttplug.io (experimentell)</div>
+              <div class="channel-box" style="gap: 10px;">
+                <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
+                  Steuere den Coyote aus Buttplug-fähigen Apps (XToys, Funscript-Player,
+                  Milovana-Teasen …): VibrateCmd → Intensität (Soft-Limit-gedeckelt).
+                  Nur localhost. Experimentell.
+                </p>
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <span style="font-size:12px; opacity:0.75;">Port:</span>
+                  <input type="number" id="buttplug-port" value="12345" min="1024" max="65535" style="width:80px;padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:inherit;border-radius:4px;">
+                  <button type="button" id="btn-buttplug-toggle" class="btn btn-sm">▶ Buttplug-Server starten</button>
+                </div>
+                <div id="buttplug-status" style="font-size:12px; opacity:0.75;">Gestoppt</div>
+              </div>
+            </div>
+
+            <!-- App Updates + About -->
+
           <div class="card">
             <div class="card-title">
               <span data-i18n="app_updates_title">App-Updates</span>

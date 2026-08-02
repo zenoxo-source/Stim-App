@@ -68,6 +68,8 @@ export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
   edgeCycleTarget: 0,
   /** Number of climaxes to reach (1–3). >1 enables refractory multi-climax cycles. */
   climaxTarget: 1,
+  /** Heart-rate biofeedback: HR rise → auto "almost", HR drop → "good". */
+  hrAdaptive: false,
 });
 
 const SENSITIVITY_SCALE = Object.freeze({
@@ -401,6 +403,7 @@ export function sanitiseAutodriveConfig(input) {
     const n = Number(raw.climaxTarget);
     if (Number.isFinite(n)) base.climaxTarget = Math.round(clamp(n, 1, 3));
   }
+  if (typeof raw.hrAdaptive === "boolean") base.hrAdaptive = raw.hrAdaptive;
   if (typeof raw.templateId === "string" && AUTODRIVE_TEMPLATES[raw.templateId]) {
     const tpl = AUTODRIVE_TEMPLATES[raw.templateId];
     if (typeof tpl.freqFullBand === "boolean") base.freqFullBand = tpl.freqFullBand;

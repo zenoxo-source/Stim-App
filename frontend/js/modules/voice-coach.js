@@ -6,6 +6,7 @@
 // No audio is recorded — speechSynthesis only.
 
 import { log } from "../state.js";
+import { startBreathSensor, stopBreathSensor } from "./breath-sensor.js";
 
 const CUES = {
   WARMUP: "Lass es aufbauen. Atme ruhig ein und aus.",
@@ -17,6 +18,25 @@ const CUES = {
   AFTERCARE: "Gut gemacht. Atme tief ein… und langsam aus…",
 };
 
+// F9: persona-flavored cue overrides (applied when a persona is selected).
+const CUES_PERSONA = {
+  domina: {
+    EDGE_HOLD: "Halten. Nicht kommen. Noch nicht.",
+    CLIMAX_PUSH: "Komm für mich. Jetzt!",
+    AFTERCARE: "Braves Stück. Atme tief ein… und aus…",
+  },
+  nurse: {
+    EDGE_HOLD: "Gleichgewicht halten… gleich…",
+    CLIMAX_PUSH: "Es ist Zeit. Loslassen!",
+    AFTERCARE: "Sehr gut. Tief atmen, bitte schön.",
+  },
+  master: {
+    EDGE_HOLD: "Du wartest, bis ich es sage.",
+    CLIMAX_PUSH: "Jetzt. Du gehörst mir.",
+    AFTERCARE: "Ausgehalten. Gut gemacht.",
+  },
+};
+
 const BREATH_IN = "Ein";
 const BREATH_OUT = "Aus";
 const BRACE_CUE = "Spann den Beckenboden an. Halten… lösen.";
@@ -24,6 +44,7 @@ const BRACE_CUE = "Spann den Beckenboden an. Halten… lösen.";
 let enabled = false;
 let breathTimer = null;
 let currentVoice = null;
+let persona = "domina";
 
 function supported() {
   return typeof window !== "undefined" && typeof window.speechSynthesis !== "undefined";
@@ -33,7 +54,17 @@ function pickGermanVoice() {
   if (currentVoice) return currentVoice;
   try {
     const voices = window.speechSynthesis.getVoices();
-    currentVoice = voices.find((v) => /^de/i.test(v.lang)) || voices[0] || null;
+    const de = voices.filter((v) => /^de/i.test(v.lang));
+    if (de.length === 0) {
+      currentVoice = voices[0] || null;
+      return currentVoice;
+    }
+    // F9: persona-flavored voices — female for domina/nurse, male for master.
+    const wantFemale = persona !== "master";
+    const nameRe = wantFemale
+      ? /female|weiblich|hedda|katja|petra|anna/i
+      : /male|männlich|stefan|markus/i;
+    currentVoice = de.find((v) => nameRe.test(v.name)) || de[0] || null;
   } catch {
     currentVoice = null;
   }
@@ -62,19 +93,37 @@ function speak(text) {
 
 function startBreathCadence() {
   stopBreathCadence();
-  breathTimer = setInterval(() => {
-    if (!enabled) return;
-    speak(BREATH_IN);
-    setTimeout(() => {
+  // F13: mic-based breathing detection when available (syncs "Ein"/"Aus" to
+  // the user's actual breath); fixed timer otherwise.
+  startBreathSensor(
+    () => {
+      if (enabled) speak(BREATH_IN);
+    },
+    () => {
       if (enabled) speak(BREATH_OUT);
-    }, 3800);
-  }, 8000);
+    }
+  ).then((ok) => {
+    if (ok) return;
+    // Fallback: timed cadence.
+    breathTimer = setInterval(() => {
+      if (!enabled) return;
+      speak(BREATH_IN);
+      setTimeout(() => {
+        if (enabled) speak(BREATH_OUT);
+      }, 3800);
+    }, 8000);
+  });
 }
 
 function stopBreathCadence() {
   if (breathTimer) {
     clearInterval(breathTimer);
     breathTimer = null;
+  }
+  try {
+    stopBreathSensor();
+  } catch {
+    /* ignore */
   }
 }
 
@@ -88,10 +137,56 @@ function setStatus(text, kind) {
   if (btn) btn.classList.toggle("active", kind === "on");
 }
 
+// ---------------------------------------------------------------------------
+// F10: external narration (story mode) — independent of the coach toggle.
+// ---------------------------------------------------------------------------
+
+let narratorEnabled = false;
+
+/** Speak a text through the narrator (persona voice). */
+export function speakExternal(text) {
+  if (!supported() || !text) return;
+  const clean = String(text).slice(0, 400);
+  try {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(clean);
+    const v = pickGermanVoice();
+    if (v) {
+      u.voice = v;
+      u.lang = v.lang;
+    } else {
+      u.lang = "de-DE";
+    }
+    u.rate = 0.95;
+    window.speechSynthesis.speak(u);
+  } catch (err) {
+    console.warn("Narrator TTS failed:", err);
+  }
+}
+
+/** @returns {boolean} */
+export function isNarratorEnabled() {
+  return narratorEnabled;
+}
+
+export function setNarratorEnabled(on) {
+  narratorEnabled = !!on;
+  const btn = document.getElementById("btn-story-narrate");
+  if (btn) btn.classList.toggle("active", narratorEnabled);
+  return narratorEnabled;
+}
+
+function personaText(phase) {
+  const override = CUES_PERSONA[persona];
+  if (override && override[phase]) return override[phase];
+  return CUES[phase] || null;
+}
+
 function onPhaseChange(e) {
   if (!enabled) return;
   const phase = e && e.detail ? e.detail.phase : null;
-  if (CUES[phase]) speak(CUES[phase]);
+  const cue = personaText(phase);
+  if (cue) speak(cue);
   if (phase === "WARMUP" || phase === "AFTERCARE") {
     startBreathCadence();
   } else {
@@ -153,6 +248,18 @@ export function initVoiceCoach() {
   window.addEventListener("stim:autodrive-phase", onPhaseChange);
   window.addEventListener("stim:kill-all", () => stopCoach("panic"));
   window.addEventListener("stim:autodrive-climax", () => speak("Genieß den Moment."));
+  // F9: persona-flavored cues.
+  window.addEventListener("stim:persona-change", (e) => {
+    if (e && e.detail && e.detail.persona) {
+      persona = e.detail.persona;
+      currentVoice = null;
+    }
+  });
+  // F10: story narrator toggle.
+  document.getElementById("btn-story-narrate")?.addEventListener("click", () => {
+    setNarratorEnabled(!isNarratorEnabled());
+    log(isNarratorEnabled() ? "Story-Erzähler aktiviert." : "Story-Erzähler deaktiviert.", "info");
+  });
 }
 
 if (typeof document !== "undefined") {
