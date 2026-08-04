@@ -31,15 +31,13 @@ async function launchApp() {
   }
   const window = await app.firstWindow();
   await window.screenshot({ path: require("os").tmpdir() + "/stim-e2e-seed.png" }).catch(() => {});
-  // Wait until the renderer finished initializing: the initial tab (Autodrive)
-  // is set only after the module graph wired its listeners. Clicking earlier
-  // races the bundle evaluation and silently loses the click.
+  // Wait until the renderer finished initializing: some tab view is active and
+  // the preload bridge is wired. The concrete tab may be the persisted one
+  // (tab-persistence restores the last tab), so don't depend on a specific view.
   await window.waitForFunction(
     () => {
-      const home = document.getElementById("view-autodrive");
       return (
-        home &&
-        home.classList.contains("active") &&
+        document.querySelector(".tab-view.active") !== null &&
         typeof window.electronAPI === "object"
       );
     },

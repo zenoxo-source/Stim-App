@@ -1,5 +1,29 @@
 # Changelog
 
+## 6.0.2 — Microsoft Fluent 2 Design
+
+### Design-Tokens (Dark + Light)
+- **Neutrale Windows-11-Palette** statt „High-Tech-Glassmorphism“: `#1b1b1c`-App-Fläche, dezente Surfaces, weiche zweistufige Elevation
+- **Windows-11-Akzentblau** (`#0a6db5` dunkel / `#0067c0` hell) ersetzt die Neon-Akzente (Cyan/Magenta/Violett) als Primärfarbe; helle Akzentvariante `#60cdfe` für Dark-Links/Fokus
+- **Schrift:** „Segoe UI Variable“-Stack (Windows 11, offline-sicher)
+- **Radien** auf Fluent-2-Maß: 4px Controls · 8px Cards · 12px Flyouts
+
+### Komponenten
+- **Buttons** flach (keine Gradienten, kein Hover-„Schweben“): Primär = Akzentblau mit weißem Text, Sekundär = subtiler transluzenter Fill, Danger/Panic = Fluent-Rot — Panic-Puls bleibt
+- **Slider** im Fluent-2-Stil: 4px-Track, 16px runder Thumb mit Fokusring
+- **Cards**: 8px-Radius, dezente Hover-Elevation statt Cyan-Glow; Blur reduziert
+- **Inputs/Selects**: `--bg-input`-Fix (vorher undefinierte Variable), 4px-Radius
+- **Navigation**: aktiver Tab als flache Akzent-Tönung statt Neon-Gradient
+- Brand-Logo, Intensity-/Freq-Kreise, Output-Dots und „aktiv“-Kennzeichnungen auf Akzentfarben vereinheitlicht (Cyan entfernt)
+
+### Technik
+- `main.js` Start-Hintergrund auf neue Dark-Basis `#1b1b1c` angepasst (kein Farb-Flash)
+- **E2E stabilisiert:** Start-Wait prüft nicht mehr auf den exakten Start-Tab (tab-persistence stellt den zuletzt genutzten Tab wieder her) — 4/4 E2E-Tests grün
+
+### Tests
+- 548 Unit-Tests grün, Lint sauber, 4 E2E-Tests grün
+
+
 ## 6.0.1 — Übersichtlichkeit: Autodrive-Tab entrümpelt, Einstellungen gruppiert
 
 ### Autodrive-Tab (Start)

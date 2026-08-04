@@ -168,7 +168,7 @@ function createWindow() {
     minHeight: 640,
     title: "Stim App",
     // Match app chrome so resize/drag does not flash a different color
-    backgroundColor: "#09090b",
+    backgroundColor: "#1b1b1c",
     show: false,
     webPreferences: {
       // Security defaults — explicit even though most are Electron defaults,
