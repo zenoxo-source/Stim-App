@@ -897,6 +897,10 @@ app.on("will-quit", () => {
 });
 
 app.on("window-all-closed", () => {
-  console.log("All windows closed. Exiting...");
-  app.quit();
+  // Tray app convention: on macOS keep running in the tray when the window is
+  // closed (the dock "activate" handler recreates it); everywhere else quit.
+  if (process.platform !== "darwin") {
+    console.log("All windows closed. Exiting...");
+    app.quit();
+  }
 });

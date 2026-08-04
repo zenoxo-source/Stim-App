@@ -627,9 +627,7 @@ export function setChannelFreq(channel, value, source) {
   if (channel === "A") AppState.frequencyA = wire;
   else AppState.frequencyB = wire;
   onManualFreqChanged(channel);
-  if (channel === "A") syncFreqUI("A");
-  else syncFreqUI("B");
-  // Re-sync peer if link-freq mirrored AppState
+  // Re-sync both channels — link-freq may mirror the change onto the peer.
   syncFreqUI("A");
   syncFreqUI("B");
   if (source !== "silent") {

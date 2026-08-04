@@ -1,5 +1,25 @@
 # Changelog
 
+## 5.1.3 — Mobile-Control-Fix, schlankeres Paket & Hygiene
+
+### Bugfix: Mobile-Control-Seite (F9)
+- **Same-Origin-Handshake:** Die vom Remote-Server ausgelieferte Steuerseite konnte sich nie per WebSocket verbinden — Browser senden immer einen `Origin`-Header (auch same-origin), `verifyClient` lehnte jeden ab. Jetzt wird nur noch **cross-origin** abgelehnt (Origin-Host ≠ Request-Host, z. B. fremde Webseiten); native Clients (wscat/Python) und Token-Auth bleiben unverändert
+- Neuer Unit-Test „accepts a same-origin handshake", Cross-Origin-Test angepasst
+
+### Installer
+- **Schlankeres Paket:** Dev-Bundle (`bundle.js`) und Sourcemap (`bundle.min.js.map`) landen nicht mehr im Installer — nur noch das minifizierte Produktions-Bundle
+
+### Hygiene
+- Stale Root-`.eslintrc.js` entfernt (Legacy-Globals der abgeschafften `window.X`-Architektur; kanonische Config bleibt `backend/.eslintrc.js`)
+- `setChannelFreq` ruft `syncFreqUI` nicht mehr doppelt (Redundanz entfernt)
+- E2E-Spec: BOM/Mojibake bereinigt (UTF-8)
+- `playwright.config.js` ergänzt (`workers: 1`, `timeout: 120 s`, `testDir`) — keine parallelen Electron-Instanzen mehr, kältere 30-s-Defaults ersetzt
+- macOS: `window-all-closed` quittet nicht mehr sofort — Tray-App läuft weiter, Dock-`activate` öffnet das Fenster neu
+
+### Tests
+- 700 Unit-Tests grün (1 neuer), Lint sauber
+
+
 ## 5.1.2 — Autodrive-Fixes: Pause-Zeit, Feedback-Loop, Vibrato & Coyote-Tuning
 
 ### Bugfixes (Autodrive)

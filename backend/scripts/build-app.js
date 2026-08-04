@@ -62,6 +62,15 @@ function prepareFrontend() {
   }
   fs.cpSync(srcFrontend, destFrontend, { recursive: true });
   switchToProductionBundle(destFrontend);
+  // Ship only the minified bundle: the readable dev bundle and the linked
+  // sourcemap are debugging artifacts that only bloat the installer.
+  for (const artifact of ["bundle.js", "bundle.min.js.map"]) {
+    const p = path.join(destFrontend, "dist", artifact);
+    if (fs.existsSync(p)) {
+      fs.rmSync(p, { force: true });
+      console.log(`Removed ${artifact} from production package.`);
+    }
+  }
   console.log('Frontend assets prepared for production.');
 }
 

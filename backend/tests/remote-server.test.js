@@ -142,11 +142,25 @@ describe("remote-server — auth", () => {
     forwarded = [];
   });
 
-  test("rejects a handshake carrying an Origin header (browser page)", async () => {
+  test("rejects a handshake carrying a cross-origin header (random web page)", async () => {
     const ws = new WebSocket(`ws://127.0.0.1:${port}?token=${token}`, {
       origin: "https://evil.example",
     });
     await assert.rejects(waitOpen(ws), /401|unexpected server response/i);
+  });
+
+  test("accepts a same-origin handshake (bundled mobile control page)", async () => {
+    // Browsers always send an Origin header — even same-origin. The control
+    // page served at GET / connects with Origin == its own host, which must
+    // pass verifyClient; the token still authenticates the commands.
+    const ws = new WebSocket(`ws://127.0.0.1:${port}?token=${token}`, {
+      origin: `http://127.0.0.1:${port}`,
+    });
+    await waitOpen(ws);
+    ws.send(JSON.stringify({ id: 9, type: "get_state" }));
+    const cmd = await waitForward();
+    assert.equal(cmd.type, "get_state");
+    ws.close();
   });
 
   test("a wrong token cannot issue commands", async () => {

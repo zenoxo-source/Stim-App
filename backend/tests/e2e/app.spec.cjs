@@ -1,7 +1,7 @@
-﻿// e2e/app.spec.cjs â€” Electron end-to-end smoke tests.
+// e2e/app.spec.cjs — Electron end-to-end smoke tests.
 //
 // Launches the packaged app entry (backend/) with Playwright's Electron
-// support and verifies the core UI renders and responds. No device needed â€”
+// support and verifies the core UI renders and responds. No device needed —
 // all assertions are DOM-level.
 //
 // Run: npm run test:e2e   (builds the frontend bundle first)
@@ -16,7 +16,7 @@ const CWD = require("path").resolve(__dirname, "..", ".."); // backend/
 async function launchApp() {
   const app = await _electron.launch({ args: [".", "--no-sandbox"], cwd: CWD, env: E2E_ENV });
   // Force rendering: with background throttling enabled, an occluded Electron
-  // window stops compositing and Playwright's bounding boxes collapse to 0Ã—0
+  // window stops compositing and Playwright's bounding boxes collapse to 0×0
   // (making toBeVisible unreliable). Show + unthrottle + paint the window.
   try {
     await app.evaluate(({ BrowserWindow }) => {
@@ -104,7 +104,7 @@ test("autodrive wizard navigates panels and exposes share-code actions", async (
     await window.locator('.nav-item[data-tab="autodrive"]').click();
     await expect(window.locator("#view-autodrive")).toHaveClass(/active/);
 
-    // Wizard: step 1 Setup (layout grid) â†’ step 2 Session â†’ step 3 Optionen â†’ start.
+    // Wizard: step 1 Setup (layout grid) → step 2 Session → step 3 Optionen → start.
     await expect(window.locator("#ad-layout-grid")).toBeAttached();
     await window.locator("#ad-wiz-next-setup").click();
     await expect(window.locator("#autodrive-template-grid")).toBeAttached();
@@ -134,4 +134,3 @@ test("master slider round-trips in the deck", async () => {
     await app.close();
   }
 });
-

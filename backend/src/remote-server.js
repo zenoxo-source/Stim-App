@@ -6,8 +6,10 @@
 //
 // Hardening:
 // - Binds to 127.0.0.1 only (no remote exposure)
-// - Rejects any handshake carrying an Origin header (browsers always send one;
-//   native clients do not) so a random web page cannot reach the device
+// - Rejects cross-origin handshakes: browsers always send an Origin header
+//   (even same-origin), so only a matching Origin (the bundled mobile control
+//   page, which is served from this same server) may connect. A random web
+//   page cannot reach the device.
 // - Constant-time token comparison
 // - Token required within AUTH_TIMEOUT_MS of connection, else dropped
 // - Max MAX_CLIENTS concurrent connections
@@ -213,15 +215,30 @@ function startRemoteServer(mainWindow, port, opts = {}) {
         server: httpServer,
         // Reject clients sending oversized frames immediately at protocol level.
         maxPayload: MAX_MESSAGE_BYTES,
-        // Browsers always send Origin; wscat/websockets/python clients do not.
-        // WebSockets are exempt from the same-origin policy, so this is the only
-        // thing standing between a visited web page and the handshake.
-        verifyClient: ({ origin }) => {
-          if (origin) {
-            log(`rejecting handshake with Origin: ${origin}`);
+        // Browsers always send Origin — even same-origin. Allow the handshake
+        // only when the Origin host matches the request's Host header: that is
+        // exactly the bundled mobile control page (served from this server).
+        // Any other web page (evil.example, localhost from another app, …) is
+        // rejected. Native clients (wscat/websockets/python) send no Origin and
+        // still pass — the token remains the gate.
+        // NOTE: keep this a ONE-parameter sync function — ws treats a
+        // verifyClient with 2+ params as async and waits for a callback.
+        verifyClient: ({ origin, req }) => {
+          if (!origin) return true;
+          try {
+            const o = new URL(origin);
+            const host = req.headers?.host || "";
+            const sameOrigin =
+              o.host === host && (o.protocol === "http:" || o.protocol === "https:");
+            if (!sameOrigin) {
+              log(`rejecting cross-origin handshake: ${origin} (host ${host})`);
+              return false;
+            }
+            return true;
+          } catch {
+            log(`rejecting malformed Origin: ${origin}`);
             return false;
           }
-          return true;
         },
       });
 
