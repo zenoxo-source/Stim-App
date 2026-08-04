@@ -1,6 +1,6 @@
 // keyboard-bindings.js - Register the app's default hotkey actions.
 //
-// Wires global shortcuts (tabs 1-9, audio P, intensity arrows, etc.)
+// Wires global shortcuts (tabs 1-5, audio P, intensity arrows, etc.)
 // through the hotkeys.js customization system. Panic shortcuts
 // (Ctrl+Space, ESC long-press) stay in safety.js — life-critical,
 // not user-rebindable.
@@ -14,37 +14,15 @@ import { stopAutodrive } from "./autodrive.js";
 import { toggleStimPlayback } from "./audio.js";
 
 const TAB_MAP = {
-  1: "home",
-  2: "autodrive",
-  3: "deck",
-  4: "stim",
-  5: "games",
-  6: "editor",
-  7: "remote",
-  8: "ai",
-  9: "settings",
+  1: "autodrive",
+  2: "deck",
+  3: "stim",
+  4: "editor",
+  5: "settings",
 };
-
-/**
- * Decide whether any mini-game currently owns the keyboard (so global hotkeys
- * should be suppressed). Mirrors the logic that used to live inline in
- * safety.js.
- */
-function gameBlocksKeys() {
-  return (
-    AppState.edgeState === "RUNNING" ||
-    AppState.potatoState === "LIVE" ||
-    AppState.potatoState === "BOOM" ||
-    AppState.survivalState === "RUNNING" ||
-    AppState.rhythmState === "PLAYING" ||
-    AppState.reflexState === "WAITING" ||
-    AppState.reflexState === "TRIGGERED"
-  );
-}
 
 /** Click the nav-item for the given tab name. */
 function clickTab(tabName) {
-  if (gameBlocksKeys()) return;
   document.querySelector(`.nav-item[data-tab="${tabName}"]`)?.click();
 }
 
@@ -54,16 +32,12 @@ function clickTab(tabName) {
  * id).
  */
 export function registerDefaultHotkeys() {
-  // Tabs 1-9 (v4.0 IA: Home…Settings)
+  // Tabs 1-5 (v6.0: Autodrive…Einstellungen)
   const TAB_LABELS = {
-    home: "Home",
     autodrive: "Autodrive",
     deck: "Manual",
     stim: "STIM",
-    games: "Play",
     editor: "Library",
-    remote: "Connect",
-    ai: "AI",
     settings: "Einstellungen",
   };
   Object.entries(TAB_MAP).forEach(([digit, tabName]) => {
@@ -81,7 +55,6 @@ export function registerDefaultHotkeys() {
     label: "Audio Play/Pause (nur STIM-Tab)",
     defaultCombo: "P",
     handler: () => {
-      if (gameBlocksKeys()) return;
       const stimView = document.getElementById("view-stim");
       if (!stimView?.classList.contains("active")) return;
       DOM["btn-play-audio"]?.click();
@@ -93,37 +66,25 @@ export function registerDefaultHotkeys() {
     id: "intensity-a-up",
     label: "Kanal A +5",
     defaultCombo: "ArrowUp",
-    handler: () => {
-      if (gameBlocksKeys()) return;
-      updateSlidersA(Math.min(AppState.softLimitA, AppState.strengthA + 5));
-    },
+    handler: () => updateSlidersA(Math.min(AppState.softLimitA, AppState.strengthA + 5)),
   });
   registerHotkey({
     id: "intensity-a-down",
     label: "Kanal A −5",
     defaultCombo: "ArrowDown",
-    handler: () => {
-      if (gameBlocksKeys()) return;
-      updateSlidersA(Math.max(CONSTANTS.MIN_INTENSITY, AppState.strengthA - 5));
-    },
+    handler: () => updateSlidersA(Math.max(CONSTANTS.MIN_INTENSITY, AppState.strengthA - 5)),
   });
   registerHotkey({
     id: "intensity-b-up",
     label: "Kanal B +5",
     defaultCombo: "ArrowRight",
-    handler: () => {
-      if (gameBlocksKeys()) return;
-      updateSlidersB(Math.min(AppState.softLimitB, AppState.strengthB + 5));
-    },
+    handler: () => updateSlidersB(Math.min(AppState.softLimitB, AppState.strengthB + 5)),
   });
   registerHotkey({
     id: "intensity-b-down",
     label: "Kanal B −5",
     defaultCombo: "ArrowLeft",
-    handler: () => {
-      if (gameBlocksKeys()) return;
-      updateSlidersB(Math.max(CONSTANTS.MIN_INTENSITY, AppState.strengthB - 5));
-    },
+    handler: () => updateSlidersB(Math.max(CONSTANTS.MIN_INTENSITY, AppState.strengthB - 5)),
   });
 
   // Stop pattern
@@ -148,7 +109,6 @@ export function registerDefaultHotkeys() {
     label: "Session Pause/Resume",
     defaultCombo: "Mod+Shift+P",
     handler: () => {
-      if (gameBlocksKeys()) return;
       if (SESSION_STATE.sessionPaused) SESSION_STATE.resume();
       else SESSION_STATE.pause();
     },
@@ -159,10 +119,7 @@ export function registerDefaultHotkeys() {
     id: "shock-burst",
     label: "Shock-Burst",
     defaultCombo: "Mod+Shift+X",
-    handler: () => {
-      if (gameBlocksKeys()) return;
-      fireShock();
-    },
+    handler: () => fireShock(),
   });
 
   // Autodrive stop (life-safe; also available while hidden via tray/hotkey).
@@ -170,10 +127,7 @@ export function registerDefaultHotkeys() {
     id: "autodrive-stop",
     label: "Autodrive stoppen",
     defaultCombo: "Mod+Shift+A",
-    handler: () => {
-      if (gameBlocksKeys()) return;
-      stopAutodrive("hotkey");
-    },
+    handler: () => stopAutodrive("hotkey"),
   });
 
   // STIM play/pause from any tab.
@@ -181,10 +135,7 @@ export function registerDefaultHotkeys() {
     id: "stim-toggle",
     label: "STIM Play/Pause (global)",
     defaultCombo: "Mod+Shift+M",
-    handler: () => {
-      if (gameBlocksKeys()) return;
-      toggleStimPlayback();
-    },
+    handler: () => toggleStimPlayback(),
   });
 }
 

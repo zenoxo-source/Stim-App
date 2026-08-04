@@ -5,7 +5,7 @@ import { isAutodriveActive } from "./autodrive.js";
 import { AppState } from "../state.js";
 import { getOutputOwner } from "./output-owner.js";
 
-const MORE_TABS = new Set(["games", "editor", "remote", "ai", "settings"]);
+const MORE_TABS = new Set(["editor", "settings"]);
 const CONTROL_TABS = new Set(["deck", "stim"]);
 const MORE_STORAGE = "stim_app_nav_more_open_v1";
 const ADV_STORAGE = "stim_app_settings_adv_open_v1";

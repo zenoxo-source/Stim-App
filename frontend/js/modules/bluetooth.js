@@ -2,12 +2,11 @@
 // Based on DG-Kit reference implementation (github.com/0xNullAI/DG-Kit)
 import { AppState, DOM, log, CONSTANTS, initDOMCache } from "../state.js";
 import * as ProtocolUtils from "../lib/protocol-utils.js";
-import { updateAIDashboard, startWaveLoop, stopWaveLoop } from "../control-deck.js";
+import { startWaveLoop, stopWaveLoop, updateSlidersA, updateSlidersB } from "../control-deck.js";
 import { updateOutputStatus } from "./status-ui.js";
 import { trackStat, recordBatterySample } from "./stats.js";
 import { maybeAutoLoadAssignedProfile } from "./profiles.js";
 import { syncExternalDevices } from "./buttplug.js";
-import { unlockAchievement } from "./fun.js";
 import {
   blockDuringPanicCooldown,
   isPanicCooldownActive,
@@ -130,6 +129,33 @@ export function sendV3Init() {
     `V3 BF gesendet (Limits ${limitA}/${limitB}, FreqBal ${fbA}/${fbB}, WaveBal ${wbA}/${wbB})`,
     "info"
   );
+}
+
+/**
+ * V3 needs channel strength > 0 for wave amps to be felt. Raise strength
+ * gently to a minimum if the user left the sliders at 0 (used by STIM /
+ * pattern editor before starting an output).
+ */
+export function ensureGameStrength(minLevel) {
+  const min = Math.max(10, Math.min(80, Number(minLevel) || 40));
+  const targetA = Math.min(AppState.softLimitA, Math.max(AppState.strengthA || 0, min));
+  const targetB = Math.min(AppState.softLimitB, Math.max(AppState.strengthB || 0, min));
+  let raised = false;
+  if ((AppState.strengthA || 0) < min) {
+    updateSlidersA(targetA);
+    raised = true;
+  }
+  if ((AppState.strengthB || 0) < min) {
+    updateSlidersB(targetB);
+    raised = true;
+  }
+  if (raised) {
+    sendStrengthCommand(AppState.strengthA, AppState.strengthB);
+    log(
+      `Basisstärke ${min} gesetzt (Soft-Limits: ${AppState.softLimitA}/${AppState.softLimitB}).`,
+      "info"
+    );
+  }
 }
 
 function getDeviceStrength(val, softLimit) {
@@ -577,7 +603,6 @@ export function processB1Notification(data) {
   if (DOM["slider-intensity-b"]) DOM["slider-intensity-b"].value = logicalB;
   if (DOM["intensity-circle-b"]) DOM["intensity-circle-b"].textContent = logicalB;
   if (DOM["label-intensity-b"]) DOM["label-intensity-b"].textContent = logicalB;
-  updateAIDashboard();
   updateOutputStatus();
 }
 
@@ -1007,7 +1032,6 @@ function wireConnectButton() {
       });
       trackStat("connection");
       log("Erfolgreich mit Coyote 3.0 verbunden!", "success");
-      unlockAchievement("first_connect");
       // F3: auto-load the assigned profile on connect.
       try {
         maybeAutoLoadAssignedProfile();

@@ -1,5 +1,4 @@
-// ai-state.js - Mutable state shared between llm-service.js (chat driver)
-// and safety.js (panic abort). Kept separate to avoid circular imports.
+// ai-state.js - Mutable state shared by Webcam-Vision (abort controller).
 
 export const AIChatState = {
   /** @type {AbortController | null} */

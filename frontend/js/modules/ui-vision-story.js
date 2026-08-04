@@ -1,9 +1,7 @@
-// ui-vision-story.js - DOM glue for webcam vision + story mode.
-// 1. Webcam-Vision enable/disable + consent dialog
-// 2. Story-Modus selection + scene display
+// ui-vision-story.js - DOM glue for webcam vision.
+// (The AI Story-Modus UI was removed in v6.0.)
 
 import { log } from "../state.js";
-import { speakExternal, isNarratorEnabled } from "./voice-coach.js";
 import {
   enable as enableWebcam,
   disable as disableWebcam,
@@ -12,15 +10,6 @@ import {
   setConsent,
   providerSupportsVision,
 } from "./webcam-vision.js";
-import {
-  listStories,
-  startStory,
-  stopStory,
-  makeChoice,
-  onSceneChange,
-  resetProgress,
-  loadProgress,
-} from "./story-mode.js";
 
 // ---------------------------------------------------------------------------
 // Webcam-Vision UI
@@ -113,108 +102,7 @@ function updateWebcamButton() {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Story-Modus UI
-// ---------------------------------------------------------------------------
-
-function renderStoryList() {
-  const sel = document.getElementById("story-select");
-  if (!sel) return;
-  const stories = listStories();
-  const progress = loadProgress();
-  sel.innerHTML = stories
-    .map(
-      (s) => `<option value="${s.id}">${escapeHtml(s.title)}${progress[s.id] ? " ⏵" : ""}</option>`
-    )
-    .join("");
-}
-
-function bindStoryControls() {
-  const btnStart = document.getElementById("btn-story-start");
-  const btnStop = document.getElementById("btn-story-stop");
-  const btnReset = document.getElementById("btn-story-reset");
-
-  btnStart?.addEventListener("click", () => {
-    const sel = document.getElementById("story-select");
-    if (!sel?.value) return;
-    const r = startStory(sel.value);
-    if (!r.ok) {
-      log(`Story: ${r.error}`, "error");
-      return;
-    }
-    log(`Story gestartet.`, "success");
-  });
-
-  btnStop?.addEventListener("click", () => stopStory("user"));
-
-  btnReset?.addEventListener("click", () => {
-    if (confirm("Story-Fortschritt zurücksetzen?")) {
-      resetProgress();
-      renderStoryList();
-      log("Story-Fortschritt zurückgesetzt.", "info");
-    }
-  });
-
-  // Wire scene-change callback
-  onSceneChange((state) => {
-    const narrative = document.getElementById("story-narrative");
-    const choices = document.getElementById("story-choices");
-    const title = document.getElementById("story-current");
-    if (!state) {
-      if (narrative) narrative.textContent = "Keine Story aktiv.";
-      if (choices) choices.innerHTML = "";
-      if (title) title.textContent = "";
-      return;
-    }
-    if (title) title.textContent = state.story.title;
-    if (narrative) narrative.textContent = state.scene.narrative;
-    // F10: read the scene aloud when the narrator is on.
-    if (isNarratorEnabled() && state.scene.narrative) {
-      try {
-        speakExternal(state.scene.narrative);
-      } catch {
-        /* narrator optional */
-      }
-    }
-    if (choices) {
-      if (state.isEnd) {
-        choices.innerHTML = `<p style="color:var(--text-muted);">— Ende —</p>`;
-      } else {
-        choices.innerHTML = state.choices
-          .map(
-            (c, i) =>
-              `<button type="button" class="btn btn-secondary btn-sm" data-choice="${i}">${escapeHtml(
-                c.label
-              )}</button>`
-          )
-          .join(" ");
-        choices.querySelectorAll("[data-choice]").forEach((b) => {
-          b.onclick = () => {
-            const idx = parseInt(b.getAttribute("data-choice"), 10);
-            const r = makeChoice(idx);
-            if (!r.ok) log(`Story-Choice: ${r.error}`, "warning");
-          };
-        });
-      }
-    }
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Misc
-// ---------------------------------------------------------------------------
-
-function escapeHtml(s) {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   bindWebcamControls();
   updateWebcamButton();
-  renderStoryList();
-  bindStoryControls();
 });

@@ -2,7 +2,6 @@
 // 1. Dice toggle (uses active button label)
 // 2. Music-Sync toggle
 // 3. Trigger manager UI
-// 4. AI-Memory viewer
 
 import { log } from "../state.js";
 import {
@@ -14,14 +13,6 @@ import {
 } from "./dice.js";
 import { startMusicSync, stopMusicSync, isMusicSyncActive } from "./music-sync.js";
 import { loadTriggers, addTrigger, updateTrigger, removeTrigger, armTriggers } from "./triggers.js";
-import {
-  loadMemory,
-  addMemory,
-  forgetMemory,
-  forgetUnpinned,
-  clearMemory,
-  getMemoryCount,
-} from "./ai-memory.js";
 
 // ---------------------------------------------------------------------------
 // Dice
@@ -161,75 +152,6 @@ function bindTriggerForm() {
 }
 
 // ---------------------------------------------------------------------------
-// AI-Memory UI
-// ---------------------------------------------------------------------------
-
-function renderMemoryList() {
-  const list = document.getElementById("ai-memory-list");
-  const countEl = document.getElementById("ai-memory-count");
-  if (countEl) countEl.textContent = getMemoryCount();
-  if (!list) return;
-  const memory = loadMemory();
-  if (memory.length === 0) {
-    list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">Noch keine Erinnerungen.</p>`;
-    return;
-  }
-  list.innerHTML = memory
-    .slice(-25)
-    .reverse()
-    .map(
-      (m) => `
-      <div class="hotkey-row" data-id="${m.id}">
-        <span class="hotkey-label">
-          <strong>${escapeHtml(m.category)}</strong>${m.pinned ? " 📌" : ""}
-          <span style="margin-left: 8px;">${escapeHtml(m.content)}</span>
-        </span>
-        <span class="hotkey-combo">
-          <button type="button" class="btn btn-secondary btn-sm" data-mem-del="${m.id}">🗑</button>
-        </span>
-      </div>`
-    )
-    .join("");
-  list.querySelectorAll("[data-mem-del]").forEach((b) => {
-    b.onclick = () => {
-      forgetMemory(b.getAttribute("data-mem-del"));
-      renderMemoryList();
-    };
-  });
-}
-
-function bindMemoryForm() {
-  const btnAdd = document.getElementById("btn-memory-add");
-  if (!btnAdd) return;
-  btnAdd.onclick = () => {
-    const cat = document.getElementById("memory-category")?.value || "preference";
-    const content = document.getElementById("memory-content")?.value?.trim();
-    if (!content) {
-      log("Inhalt fehlt.", "warning");
-      return;
-    }
-    const r = addMemory(cat, content);
-    if (!r.ok) {
-      log(`Speichern fehlgeschlagen: ${r.error}`, "warning");
-      return;
-    }
-    document.getElementById("memory-content").value = "";
-    renderMemoryList();
-  };
-  document.getElementById("btn-memory-clear-unpinned")?.addEventListener("click", () => {
-    const n = forgetUnpinned();
-    log(`${n} unpinned Einträge gelöscht.`, "info");
-    renderMemoryList();
-  });
-  document.getElementById("btn-memory-clear-all")?.addEventListener("click", () => {
-    if (confirm("Wirklich alle Erinnerungen löschen?")) {
-      clearMemory();
-      renderMemoryList();
-    }
-  });
-}
-
-// ---------------------------------------------------------------------------
 // Helpers + DOMContentLoaded
 // ---------------------------------------------------------------------------
 
@@ -273,8 +195,4 @@ document.addEventListener("DOMContentLoaded", () => {
   // Triggers
   renderTriggerList();
   bindTriggerForm();
-
-  // AI-Memory
-  renderMemoryList();
-  bindMemoryForm();
 });

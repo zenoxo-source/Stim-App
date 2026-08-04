@@ -66,10 +66,10 @@ npm run version:major    # Bump major version (3.0.0 → 4.0.0)
 - `frontend/js/lib/llm-proxy.js` — Renderer-side LLM wrapper (main-process proxy + browser fallback)
 - `frontend/js/modules/bluetooth.js` — BLE connection + V3 protocol implementation
 - `frontend/js/control-deck.js` — Wave loop + pattern engine + slider handlers
-- `frontend/js/modules/ai-state.js` — Shared mutable chat state (AbortController/streaming bubble) consumed by `llm-service.js` + `safety.js`
-- `frontend/js/modules/remote.js` — WebSocket remote command handler
+- `frontend/js/modules/ai-state.js` — Shared mutable state for Webcam-Vision (AbortController)
+- `frontend/js/modules/webcam-vision.js` — Multimodal webcam analysis (consent-gated; uses `lib/llm-proxy.js`)
 - `frontend/js/modules/recorder.js` — Session recording & replay
-- `backend/src/llm-proxy.js` — Main-process LLM proxy (endpoint allowlist, safeStorage key, SSE forwarding; tested)
+- `backend/src/llm-proxy.js` — Main-process LLM proxy (endpoint allowlist, safeStorage key, SSE forwarding; used by Webcam-Vision; tested)
 - `backend/scripts/build-frontend.js` — esbuild bundler (dev + prod output)
 - `backend/scripts/bump-version.js` — Version bump across package.json/README/CHANGELOG
 - `backend/tests/helpers/dom-mock.js` — Browser-API shims for Node test runner

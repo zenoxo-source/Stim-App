@@ -9,11 +9,6 @@ export function isOutputActive() {
   if (getOutputOwner() !== "none") return true;
   if (AppState.activePattern) return true;
   if (AppState.isAudioPlaying) return true;
-  if (AppState.reflexState === "SHOCKING") return true;
-  if (AppState.rhythmState && AppState.rhythmState !== "IDLE") return true;
-  if (AppState.edgeState === "RUNNING") return true;
-  if (AppState.potatoState === "LIVE" || AppState.potatoState === "BOOM") return true;
-  if (AppState.survivalState === "RUNNING") return true;
   if ((AppState.strengthA || 0) > 0 || (AppState.strengthB || 0) > 0) return true;
   if ((AppState.lastWaveAmpA || 0) > 0 || (AppState.lastWaveAmpB || 0) > 0) {
     if (AppState.activePattern || AppState.isAudioPlaying) return true;
@@ -36,11 +31,6 @@ function activeOutputModeLabel() {
   }
   if (AppState.activePattern) return String(AppState.activePattern);
   if (AppState.isAudioPlaying) return "STIM";
-  if (AppState.edgeState === "RUNNING") return "Edge";
-  if (AppState.potatoState === "LIVE" || AppState.potatoState === "BOOM") return "Potato";
-  if (AppState.survivalState === "RUNNING") return "Survival";
-  if (AppState.reflexState === "SHOCKING" || AppState.reflexState === "WAITING") return "Reflex";
-  if (AppState.rhythmState && AppState.rhythmState !== "IDLE") return "Rhythm";
   return "Direkt";
 }
 

@@ -2,14 +2,10 @@
 import { AppState, DOM, log, CONSTANTS } from "./state.js";
 import * as ProtocolUtils from "./lib/protocol-utils.js";
 import { SESSION_STATE, updateSessionUI } from "./modules/sessions.js";
-import { GAME_CONFIG } from "./modules/game-config.js";
 import { RECORDER } from "./modules/recorder.js";
 import { PATTERN_EDITOR2, startEditorVisualizers } from "./modules/pattern-editor-v2.js";
 import { trackStat } from "./modules/stats.js";
-import { ensureGameStrength } from "./modules/games-extra.js";
 import { applyAudioMasterLink, initCanvasVisualizers } from "./modules/audio.js";
-import { updateEditorRemoteUI } from "./modules/remote.js";
-import { renderAIVisualizer } from "./modules/ai-bridge.js";
 import { blockDuringPanicCooldown, clampStrengthWithCeiling } from "./modules/safety-extras.js";
 import { saveActiveTab } from "./modules/tab-persistence.js";
 import { blockIfLocked as blockIfPinLocked } from "./modules/session-pin.js";
@@ -131,11 +127,6 @@ import {
 export function startWaveLoop() {
   if (AppState.waveLoopInterval) clearTimeout(AppState.waveLoopInterval);
 
-  if (!AppState.aiVisRunning) {
-    AppState.aiVisRunning = true;
-    renderAIVisualizer();
-  }
-
   // v5.1: let the fast path take over immediately when enabled.
   syncFastWire();
 
@@ -146,12 +137,6 @@ export function startWaveLoop() {
     return (
       AppState.activePattern ||
       AppState.isAudioPlaying ||
-      AppState.reflexState === "SHOCKING" ||
-      (AppState.rhythmState && AppState.rhythmState !== "IDLE") ||
-      AppState.edgeState === "RUNNING" ||
-      AppState.potatoState === "LIVE" ||
-      AppState.potatoState === "BOOM" ||
-      AppState.survivalState === "RUNNING" ||
       isAutodriveActive() ||
       AppState.strengthA > 0 ||
       AppState.strengthB > 0 ||
@@ -473,23 +458,6 @@ export function startWaveLoop() {
       } catch {
         /* ignore */
       }
-    } else if (AppState.reflexState === "SHOCKING") {
-      const shockFreq = GAME_CONFIG.data.shockFreq;
-      await sendWaveformCommand(
-        shockFreq,
-        AppState.reflexShockVal,
-        shockFreq,
-        AppState.reflexShockVal,
-        { writer: "wave-loop" }
-      );
-    } else if (
-      AppState.rhythmState !== "IDLE" ||
-      AppState.edgeState === "RUNNING" ||
-      AppState.potatoState === "LIVE" ||
-      AppState.potatoState === "BOOM" ||
-      AppState.survivalState === "RUNNING"
-    ) {
-      // Mini-games own their waveform output
     } else {
       // Idle: constant output at user frequency (owner none).
       await routeWave(
@@ -530,23 +498,6 @@ export function stopWaveLoop() {
 }
 
 // ==========================================
-// AI DASHBOARD UPDATE
-// ==========================================
-
-export function updateAIDashboard() {
-  if (DOM["ai-dash-int-a"]) DOM["ai-dash-int-a"].textContent = AppState.strengthA;
-  if (DOM["ai-dash-int-b"]) DOM["ai-dash-int-b"].textContent = AppState.strengthB;
-  if (DOM["ai-dash-pattern"]) {
-    DOM["ai-dash-pattern"].textContent = AppState.activePattern
-      ? AppState.activePattern.charAt(0).toUpperCase() + AppState.activePattern.slice(1)
-      : "Keines";
-  }
-  if (DOM["ai-dash-visualizer"]) {
-    DOM["ai-dash-visualizer"].classList.toggle("playing", !!AppState.activePattern);
-  }
-}
-
-// ==========================================
 // SLIDER & CONTROL HANDLERS
 // ==========================================
 
@@ -563,7 +514,6 @@ export function updateSlidersA(val) {
   ) {
     log(`Kanal A am Soft-Limit (${AppState.softLimitA}).`, "warning");
   }
-  updateAIDashboard();
   sendStrengthCommand(AppState.strengthA, AppState.strengthB, { writer: "manual" });
   updateOutputStatus();
 }
@@ -581,7 +531,6 @@ export function updateSlidersB(val) {
   ) {
     log(`Kanal B am Soft-Limit (${AppState.softLimitB}).`, "warning");
   }
-  updateAIDashboard();
   sendStrengthCommand(AppState.strengthA, AppState.strengthB, { writer: "manual" });
   updateOutputStatus();
 }
@@ -732,21 +681,9 @@ document.addEventListener("DOMContentLoaded", () => {
           i18nText("nav_stim", "STIM Player"),
           i18nText("view_stim_subtitle", "XToys Audio-Pattern · Strength/Freq-Mapping"),
         ],
-        games: [
-          i18nText("nav_games", "Play"),
-          i18nText("view_stim_title_alt", "Interaktives Feedback-Training"),
-        ],
         editor: [
           i18nText("nav_editor", "Library"),
           i18nText("view_editor_subtitle", "Patterns · Sessions · Recordings"),
-        ],
-        remote: [
-          i18nText("nav_remote", "Connect"),
-          i18nText("view_remote_subtitle", "WebSocket-Steuerung & API"),
-        ],
-        ai: [
-          i18nText("view_ai_title", "AI"),
-          i18nText("view_ai_subtitle", "Chat · Director · Overlay"),
         ],
         settings: [
           i18nText("nav_settings", "Einstellungen"),
@@ -762,9 +699,6 @@ document.addEventListener("DOMContentLoaded", () => {
             PATTERN_EDITOR2.renderSavedList();
           }, 100);
         }
-      }
-      if (tabName === "remote") {
-        updateEditorRemoteUI();
       }
 
       if (titles[tabName]) {
@@ -912,9 +846,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         AppState.activePattern = id;
         card.classList.add("active");
-        ensureGameStrength(40);
       }
-      updateAIDashboard();
       if (AppState.activePattern) {
         trackStat("pattern_used", AppState.activePattern);
       }
@@ -934,7 +866,6 @@ document.addEventListener("DOMContentLoaded", () => {
     updateSlidersA(0);
     updateSlidersB(0);
     sendSoftStop({ keepStrength: false, zeroUiStrength: true });
-    updateAIDashboard();
     log("Muster gestoppt.", "info");
   });
 
@@ -951,7 +882,6 @@ document.addEventListener("DOMContentLoaded", () => {
         log(`Session-Claim fehlgeschlagen: ${claim.error}`, "error");
         return;
       }
-      ensureGameStrength(40);
       SESSION_STATE.start(sessionId);
     });
   });

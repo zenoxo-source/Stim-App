@@ -1,9 +1,13 @@
 // audio.js - STIM Audio extraction player with playlist (XToys-inspired mapping)
 import { AppState, DOM, CONSTANTS, log } from "../state.js";
 import * as ProtocolUtils from "../lib/protocol-utils.js";
-import { sendSoftStop, sendStrengthCommand, sendWaveformCommand } from "./bluetooth.js";
+import {
+  sendSoftStop,
+  sendStrengthCommand,
+  sendWaveformCommand,
+  ensureGameStrength,
+} from "./bluetooth.js";
 import { updateOutputStatus } from "./status-ui.js";
-import { ensureGameStrength } from "./games-extra.js";
 import { claimOutput, releaseOutput, registerOwnerStop } from "./output-owner.js";
 import {
   loadStimConfig,

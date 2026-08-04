@@ -47,8 +47,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getGithubToken: () => ipcRenderer.invoke("secrets:getGithubToken"),
   setGithubToken: (token) => ipcRenderer.invoke("secrets:setGithubToken", token),
   exportLog: (content) => ipcRenderer.invoke("diagnostics:exportLog", content),
-  // LLM proxy: requests run in the main process so the API key never reaches
-  // the renderer. Streaming chunks are delivered via onLLMChunk/onLLMDone.
+  // LLM proxy (Webcam-Vision): requests run in the main process so the API key
+  // never reaches the renderer. Streaming chunks via onLLMChunk/onLLMDone.
   chatLLM: (payload) => ipcRenderer.invoke("llm:chat", payload),
   abortLLM: (reqId) => ipcRenderer.send("llm:abort", reqId),
   onLLMChunk: (callback) => {
@@ -69,18 +69,4 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("update-status", handler);
     return () => ipcRenderer.removeListener("update-status", handler);
   },
-  // WebSocket remote server
-  startRemote: (port) => ipcRenderer.invoke("remote:start", port),
-  stopRemote: () => ipcRenderer.invoke("remote:stop"),
-  getRemoteStatus: () => ipcRenderer.invoke("remote:status"),
-  onRemoteCommand: (callback) => {
-    const handler = (_event, payload) => callback(payload);
-    ipcRenderer.on("remote-command", handler);
-    return () => ipcRenderer.removeListener("remote-command", handler);
-  },
-  /** Reply to a forwarded remote command (__reqId comes from the command). */
-  sendRemoteResponse: (reqId, result) =>
-    ipcRenderer.send("remote:response", { __reqId: reqId, result }),
-  /** Push a state snapshot to all connected remote clients. */
-  broadcastRemoteState: (state) => ipcRenderer.send("remote:broadcast", state),
 });

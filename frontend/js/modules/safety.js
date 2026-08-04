@@ -1,10 +1,7 @@
 // safety.js - Global safety layer: panic handler, close handler, kill switch
 import { AppState, DOM, log } from "../state.js";
-import { AIChatState } from "./ai-state.js";
-import { updateAIDashboard } from "../control-deck.js";
 import { updateOutputStatus } from "./status-ui.js";
 import { sendV3EmergencyStop } from "./bluetooth.js";
-import { stopAllMiniGames } from "./games-extra.js";
 import { stopSafetyTimer } from "./presets.js";
 import { armPanicCooldown, clearPatternCeiling } from "./safety-extras.js";
 import { stopRamp } from "./ramp.js";
@@ -30,12 +27,6 @@ document.addEventListener("DOMContentLoaded", () => {
         setTimeout(() => window.electronAPI.confirmClose(), 300);
       } else if (
         AppState.isAudioPlaying ||
-        AppState.reflexState !== "IDLE" ||
-        AppState.rhythmState !== "IDLE" ||
-        AppState.edgeState === "RUNNING" ||
-        AppState.potatoState === "LIVE" ||
-        AppState.potatoState === "BOOM" ||
-        AppState.survivalState === "RUNNING" ||
         AppState.activePattern ||
         (SESSION_STATE && SESSION_STATE.activeSession)
       ) {
@@ -119,21 +110,6 @@ export function killAllOutput(opts = {}) {
       /* optional */
     }
 
-    // Abort any in-flight AI chat request
-    if (AIChatState.currentController !== null) {
-      AIChatState.currentController.abort();
-      AIChatState.currentController = null;
-      AIChatState.isProcessing = false;
-      const statusText = document.getElementById("ai-status-text");
-      const btnSend = document.getElementById("btn-ai-send");
-      if (statusText) statusText.textContent = "Bereit.";
-      if (btnSend) btnSend.disabled = false;
-      if (AIChatState.streamingBubbleEl) {
-        AIChatState.streamingBubbleEl.remove();
-        AIChatState.streamingBubbleEl = null;
-      }
-    }
-
     // Cancel any active strength ramp
     try {
       stopRamp("panic");
@@ -166,8 +142,6 @@ export function killAllOutput(opts = {}) {
     if (DOM["btn-play-audio"]) DOM["btn-play-audio"].textContent = "▶️ Play";
     if (AppState.audioTimer) clearInterval(AppState.audioTimer);
 
-    // Stop games
-    stopAllMiniGames();
     stopSafetyTimer(false);
 
     // Zero sliders
@@ -183,7 +157,6 @@ export function killAllOutput(opts = {}) {
     // Update pattern UI
     document.querySelectorAll(".pattern-card").forEach((c) => c.classList.remove("active"));
 
-    updateAIDashboard();
     sendV3EmergencyStop();
     updateOutputStatus({ panic: true });
 

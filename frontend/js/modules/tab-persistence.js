@@ -56,21 +56,10 @@ export function restoreActiveTab() {
   return saved;
 }
 
-const NAV_HOME_ONCE_KEY = "stim_app_newnav_home_once_v1";
-
 document.addEventListener("DOMContentLoaded", () => {
   // Defer slightly so other DOMContentLoaded handlers can register first.
   setTimeout(() => {
     try {
-      // Once-force Home on first enable of new nav (K20)
-      if (!localStorage.getItem(NAV_HOME_ONCE_KEY)) {
-        localStorage.setItem(NAV_HOME_ONCE_KEY, "1");
-        const home = document.querySelector('.nav-item[data-tab="home"]');
-        if (home) {
-          home.click();
-          return;
-        }
-      }
       restoreActiveTab();
     } catch (err) {
       console.warn("Failed to restore tab:", err);

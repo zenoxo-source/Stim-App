@@ -3,9 +3,7 @@
 
 import { AppState, CONSTANTS, log } from "../state.js";
 import * as ProtocolUtils from "../lib/protocol-utils.js";
-import { sendSoftStop } from "./bluetooth.js";
-import { updateAIDashboard } from "../control-deck.js";
-import { ensureGameStrength } from "./games-extra.js";
+import { sendSoftStop, ensureGameStrength } from "./bluetooth.js";
 
 export const PATTERN_EDITOR2 = {
   steps: 16,
@@ -377,13 +375,11 @@ export const PATTERN_EDITOR2 = {
     });
     ensureGameStrength(40);
     log("Custom Pattern wird abgespielt.", "success");
-    updateAIDashboard();
     this.startLivePreview();
   },
 
   stopPattern() {
     AppState.activePattern = null;
-    updateAIDashboard();
     sendSoftStop({ keepStrength: true });
     this.stopLivePreview();
     log("Pattern gestoppt.", "info");

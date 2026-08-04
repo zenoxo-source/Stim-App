@@ -1,8 +1,6 @@
 // sessions.js - Multi-phase session engines for DG-LAB Coyote 3.0
 import { AppState, log } from "../state.js";
-import { ensureGameStrength } from "./games-extra.js";
-import { updateAIDashboard } from "../control-deck.js";
-import { sendSoftStop } from "./bluetooth.js";
+import { sendSoftStop, ensureGameStrength } from "./bluetooth.js";
 import { trackStat } from "./stats.js";
 import { startAutoRecording, stopAutoRecording } from "./recorder.js";
 
@@ -440,7 +438,6 @@ const SESSION_STATE = {
     this.sessionPaused = false;
     AppState.activePattern = "session";
     ensureGameStrength(40);
-    updateAIDashboard();
     updateSessionUI();
     log(`Session "${session.name}" gestartet (${session.durationSec}s)`, "success");
     // F5: auto-record the session when enabled.
@@ -458,7 +455,6 @@ const SESSION_STATE = {
     this.sessionPaused = false;
     AppState.activePattern = null;
     sendSoftStop({ keepStrength: true });
-    updateAIDashboard();
     updateSessionUI();
     trackStat("session_completed");
     log(`Session "${name}" beendet.`, "info");

@@ -3,23 +3,20 @@
 Electron-Desktop-App zur Bluetooth-Steuerung eines DG-LAB Coyote 3.0.
 
 **Repository:** [github.com/zenoxo-source/Stim-App](https://github.com/zenoxo-source/Stim-App)  
-**Version:** 5.1.3
+**Version:** 6.0.0
 
 ## Features
 
-- **🏠 Home** – Connect, Soft-Limits-Kurzinfo, Autodrive-CTA  
-- **🚀 Autodrive** – Offline adaptive Session (ohne LLM): Templates, Phasen, Feedback-Buttons, Soft-Limit-relative Intensität — *keine Climax-Garantie*, hohe Erfolgsrate durch Adaptation  
-- **Manual (Control Deck)** – Kanal A/B, Soft-Limits, Master-Scale, Patterns, Sessions, Presets, Roulette  
+- **🚀 Autodrive (Start-Tab)** – Offline adaptive Session (ohne LLM): Schnellstart, Templates, Phasen, Feedback-Buttons, Soft-Limit-relative Intensität — *keine Climax-Garantie*, hohe Erfolgsrate durch Adaptation  
+- **Manual (Control Deck)** – Kanal A/B, Soft-Limits, Master-Scale, Patterns, Sessions, Presets, Roulette, Dice, Music-Sync, Trigger  
 - **STIM Player** – Playlist, Echtzeit-Amplituden → Stim  
-- **Play / Mini-Spiele** – Reflex, Rhythm, Edge, Potato, Survival, Tages-Challenge, Quick Play  
-- **Library** – Pattern Editor, Sessions, Recordings  
-- **Erfolge & Stats** – lokale Achievements, Highscores, Tagesziele  
-- **AI Chat** – Ollama / OpenRouter, Tool-Calling, Persona-Wahl (Mistress / Nurse Joy / The Master)  
-- **🎬 AI Director** – optionaler LLM-Regisseur (nicht nötig für Autodrive)  
-- **👁️ Webcam-Vision** – multimodale AI analysiert Webcam-Frames (Privacy-by-Design, Consent-gated)  
-- **📖 Story-Modus** – verzweigte Narrative mit Stim-Integration, AI-Szenen-Generator  
+- **Library** – Pattern Editor, Sessions, Recordings, Funscript, Abend-Programme  
+- **Session-UX** – Readiness-Check, Partner-Panel, Shock, Session-Stories, Export/Import  
 - **Safety** – Panic/STOPP, Soft-Limits, Output-Ownership, Safety-Timer, Close-Handler, Panic-Cooldown, Signal-Loss-Watchdog  
+- **Biofeedback** – Herzfrequenz-Gurt (BLE), Webcam-Vision (multimodal, Consent-gated), MIDI-Controller, Buttplug.io  
 - **Updates** – electron-updater über öffentliche GitHub Releases  
+
+> v6.0: AI-Chat, AI-Director, Story-Modus, Mini-Spiele und WebSocket-Remote wurden entfernt — die App fokussiert auf Autodrive und einfache Bedienung.
 
 ## Setup
 
@@ -47,21 +44,20 @@ Artefakte: `backend/dist-app/StimApp-<version>-win-x64.exe`
 3. Coyote (Prefix `47L121`) auswählen  
 4. Bei Verbindungsverlust: automatischer Reconnect (Status in der Sidebar)  
 
-## AI
+## Vision (Webcam)
 
-- **Ollama** lokal oder **OpenRouter** mit API-Key (safeStorage)  
-- Tools: Intensität, Patterns, Sessions, Stop  
+- **Ollama** lokal oder **OpenRouter** mit API-Key (safeStorage) — Einstellungen → „Webcam-Vision · LLM“  
+- Webcam-Frames werden nur zur Analyse verwendet (Privacy-by-Design, Consent-gated)
 
 ## Tastatur
 
 | Taste | Aktion |
 |-------|--------|
-| `1`–`5` | Tabs |
+| `1`–`5` | Tabs (Autodrive, Manual, STIM, Library, Einstellungen) |
 | `P` | STIM Play/Pause |
-| `↑`/`↓` `←`/`→` | Intensität A/B (außer in Spielen) |
-| `Leertaste` | Rhythm-Tap / Edge halten |
-| `A`/`B` | Hot Potato |
-| `Q` | Survival aufgeben |
+| `↑`/`↓` `←`/`→` | Intensität A/B |
+| `Strg`+`Umschalt`+`X` | Shock-Burst |
+| `Strg`+`Umschalt`+`A` | Autodrive stoppen |
 | `ESC` lang / `Strg`+`Leertaste` / STOPP | Panic |
 
 ## Sicherheit

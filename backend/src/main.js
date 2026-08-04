@@ -14,13 +14,6 @@ const {
 const path = require("path");
 const fs = require("fs");
 const { autoUpdater } = require("electron-updater");
-const {
-  startRemoteServer,
-  stopRemoteServer,
-  getRemoteStatus,
-  handleRendererResponse,
-  broadcastState,
-} = require("./remote-server");
 const { runLLMRequest, abortLLM } = require("./llm-proxy");
 const { startButtplugServer, stopButtplugServer, getButtplugStatus } = require("./buttplug-server");
 const {
@@ -713,14 +706,14 @@ function registerIpc() {
 
   ipcMain.handle("updater:hasToken", () => Boolean(getGithubUpdateToken()));
 
+  // LLM/vision API key (Webcam-Vision): stored via safeStorage, raw key never
+  // crosses the IPC boundary.
   ipcMain.handle("secrets:keyStatus", () => {
     const key = readSecretFile(API_KEY_FILENAME);
     const hasKey = Boolean(key);
-    // Only a masked hint — the raw key never crosses the IPC boundary.
     return { hasKey, hint: hasKey ? `••••${key.slice(-4)}` : "" };
   });
   ipcMain.handle("secrets:setApiKey", (event, apiKey) => {
-    // Validate input type and length to defuse any path-traversal / memory-bomb attempts.
     if (typeof apiKey !== "string") return false;
     if (apiKey.length > 4096) return false;
     return writeSecretFile(API_KEY_FILENAME, apiKey);
@@ -761,35 +754,8 @@ function registerIpc() {
     }
   });
 
-  // WebSocket remote server (+ mobile control page, optional LAN bind)
-  ipcMain.handle("remote:start", async (_event, port, lan) => {
-    if (!mainWindow || mainWindow.isDestroyed()) {
-      return { ok: false, error: "window not ready" };
-    }
-    // Validate port range (avoid privileged ports and out-of-range values)
-    const p = Number(port);
-    if (!Number.isInteger(p) || p < 1024 || p > 65535) {
-      return { ok: false, error: "port must be an integer in 1024–65535" };
-    }
-    return startRemoteServer(mainWindow, p, { lan: lan === true });
-  });
-  ipcMain.handle("remote:stop", () => stopRemoteServer());
-  ipcMain.handle("remote:status", () => getRemoteStatus());
-
-  // Renderer answers a forwarded remote command — route it back to the socket.
-  ipcMain.on("remote:response", (_event, payload) => {
-    if (!payload || typeof payload !== "object") return;
-    handleRendererResponse(payload);
-  });
-
-  // Renderer pushes state changes to all connected remote clients.
-  ipcMain.on("remote:broadcast", (_event, state) => {
-    if (!state || typeof state !== "object") return;
-    broadcastState(state);
-  });
-
-  // LLM proxy (see llm-proxy.js): the OpenRouter key stays in the main
-  // process; streaming chunks are routed back via webContents.send.
+  // LLM proxy (see llm-proxy.js): used by Webcam-Vision. The API key stays in
+  // the main process; streaming chunks are routed back via webContents.send.
   ipcMain.handle("llm:chat", async (event, payload) => {
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
       return { ok: false, error: "payload fehlt oder ist ungültig." };

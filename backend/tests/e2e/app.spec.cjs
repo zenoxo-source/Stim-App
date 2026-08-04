@@ -31,12 +31,12 @@ async function launchApp() {
   }
   const window = await app.firstWindow();
   await window.screenshot({ path: require("os").tmpdir() + "/stim-e2e-seed.png" }).catch(() => {});
-  // Wait until the renderer finished initializing: the initial tab is set only
-  // after the module graph wired its listeners. Clicking earlier races the
-  // bundle evaluation and silently loses the click.
+  // Wait until the renderer finished initializing: the initial tab (Autodrive)
+  // is set only after the module graph wired its listeners. Clicking earlier
+  // races the bundle evaluation and silently loses the click.
   await window.waitForFunction(
     () => {
-      const home = document.getElementById("view-home");
+      const home = document.getElementById("view-autodrive");
       return (
         home &&
         home.classList.contains("active") &&

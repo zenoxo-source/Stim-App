@@ -21,21 +21,11 @@ import "./modules/bluetooth.js";
 // Audio engine
 import "./modules/audio.js";
 
-// Achievements & highscores (used by games)
-import "./modules/highscores.js";
-
-// Mini-games (split across two files for size)
-import "./modules/games.js";
-import "./modules/games-extra.js";
-
-// Fun side features (roulette, daily challenge, quick play)
+// Fun side helpers (toasts, achievements, SFX)
 import "./modules/fun.js";
 
 // Intensity presets
 import "./modules/presets.js";
-
-// AI bridge (tool calls from chat to hardware)
-import "./modules/ai-bridge.js";
 
 // Settings panel
 import "./modules/settings.js";
@@ -55,9 +45,6 @@ import "./modules/sessions.js";
 // Auto-updater UI
 import "./modules/updater-ui.js";
 
-// WebSocket remote control
-import "./modules/remote.js";
-
 // Session recorder (record/replay)
 import "./modules/recorder.js";
 
@@ -72,9 +59,6 @@ import "./modules/stats.js";
 
 // Pattern editor v2 (current)
 import "./modules/pattern-editor-v2.js";
-
-// Game config panel (tunable parameters)
-import "./modules/game-config.js";
 
 // PR1 / v3.1.0 safety extras
 import "./modules/safety-extras.js";
@@ -95,11 +79,10 @@ import "./modules/scheduler.js";
 import "./modules/recording-editor.js";
 import "./modules/ui-library-tools.js";
 
-// PR4 / v3.4.0 fun + AI
+// PR4 / v3.4.0 automation (dice, music-sync, triggers)
 import "./modules/dice.js";
 import "./modules/music-sync.js";
 import "./modules/triggers.js";
-import "./modules/ai-memory.js";
 import "./modules/ui-automation.js";
 
 // PR5 / v3.5.0 hardware + lock
@@ -107,13 +90,9 @@ import "./modules/midi-controller.js";
 import "./modules/session-pin.js";
 import "./modules/ui-midi-pin.js";
 
-// PR6 / v3.6.0 vision + story
+// PR6 / v3.6.0 vision (AI Story-Modus removed in v6.0)
 import "./modules/webcam-vision.js";
-import "./modules/story-mode.js";
 import "./modules/ui-vision-story.js";
-
-// AI Director (autonomous conductor: LLM + ai-bridge + safety)
-import "./modules/ai-director.js";
 
 // Autodrive (offline adaptive climax engine) + UI
 import "./modules/autodrive.js";
@@ -134,7 +113,7 @@ import "./modules/buttplug.js";
 // v5.1: 25 ms fast wire path (pulse shapes, dither, detune, beat sequencer)
 import "./modules/fast-wire.js";
 
-// Session UX: readiness, chrome, stories, partner, shock, export
+// Session UX: readiness, chrome, partner, shock, export
 import "./modules/session-readiness.js";
 import "./modules/session-chrome.js";
 import "./modules/session-stories.js";
@@ -151,9 +130,6 @@ import "./modules/nav-shell.js";
 
 // Manual Player (XToys Coyote-block: link channels, freq-follow-intensity)
 import "./modules/manual-player.js";
-
-// LLM service (chat completion + tool dispatch)
-import "./llm-service.js";
 
 // DOM cache is registered early in state.js (first import). Re-run here as a
 // safety net once the full module graph has loaded (handles late-added IDs).

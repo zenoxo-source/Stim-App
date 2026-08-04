@@ -64,7 +64,7 @@ function paintPartnerStatus() {
   if (!stEl) return;
 
   if (!isAutodriveActive()) {
-    stEl.textContent = "Autodrive aus — Start, Story oder Remote";
+    stEl.textContent = "Autodrive aus — Start oder Story";
     if (bar) bar.style.width = "0%";
     if (card) card.dataset.phase = "IDLE";
     return;

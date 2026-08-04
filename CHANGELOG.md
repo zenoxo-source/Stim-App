@@ -1,5 +1,35 @@
 # Changelog
 
+## 6.0.0 — Autodrive-first: überarbeitete App, LLM-Chat/Spiele/Remote entfernt
+
+### Neu: Autodrive-first-Navigation
+- **5 Tabs statt 9:** Autodrive (Start-Tab), Manual, STIM, Library, Einstellungen — Home, Play, Connect und AI entfallen
+- Der ehemalige **Home-Tab** (Connect-CTA, Readiness, Partner, Shock, Stories, Export, Autodrive-Mini) ist jetzt der Kopf des **Autodrive-Tabs** — Verbinden und Loslegen an einem Ort
+- Tastatur-Tabs `1`–`5` neu belegt; gespeicherter letzter Tab wird weiterhin wiederhergestellt
+
+### Entfernt (LLM-Features)
+- **AI-Tab + AI-Chat** (`llm-service.js`, `ai-bridge.js`, `ai-memory.js`, `ai-director.js`) — Tool-Calling-Chat, Personas, Memory-Viewer entfernt
+- **AI-Story-Modus** (`story-mode.js`, Story-UI in `ui-vision-story.js`) — verzweigte Narrative mit AI-Szenen-Generator entfernt
+- AI-Custom-Patterns via LLM entfernt; der **Custom-Pattern-Player der Library bleibt** (funktioniert ohne LLM)
+
+### Entfernt (Play + Connect)
+- **Mini-Spiele** (`games.js`, `games-extra.js`, `game-config.js`, `highscores.js`) — Reflex, Rhythm, Edge, Potato, Survival, Tages-Challenge, Quick Play, Pattern-Roulette, Chance-Pulse
+- **WebSocket-Remote** (`remote.js`, `remote-server.js`) — Connect-Tab, Mobile-Steuerseite, Remote-IPC/API
+- `fun.js` auf Helfer reduziert (SFX/Toasts/Achievements für Sessions bleiben)
+
+### Behalten
+- **Webcam-Vision** (multimodal, Consent-gated) — jetzt mit eigener Settings-Karte + Toggle (war zuvor UI-los); nutzt weiterhin den Main-Prozess-LLM-Proxy + safeStorage-Key
+- **Voice-Coach** (TTS) + **Voice-Feedback** (Web-Speech), Herzfrequenz, MIDI, Buttplug, Dice/Music-Sync/Trigger, Sessions/Stories, Pattern-Editor
+
+### Technik
+- `ensureGameStrength` nach `bluetooth.js` verschoben (ohne `GAME_CONFIG`), STIM/Pattern-Editor/Sessions nutzen sie weiter
+- Wave-Loop, Status-UI, Safety und Hotkeys um Games-/AI-Pfade bereinigt
+- Bundle deutlich kleiner (minified 437 KB)
+
+### Tests
+- 548 Unit-Tests grün (AI-/Remote-/Games-Suites entfernt), Lint sauber, E2E-Start-Tab auf Autodrive
+
+
 ## 5.1.3 — Mobile-Control-Fix, schlankeres Paket & Hygiene
 
 ### Bugfix: Mobile-Control-Seite (F9)
