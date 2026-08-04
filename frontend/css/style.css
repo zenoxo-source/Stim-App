@@ -330,6 +330,44 @@ body {
 }
 .settings-core { margin-bottom: 4px; }
 .settings-footer { margin-top: 16px; }
+/* v6.0: grouped advanced settings with section headings */
+.settings-advanced-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 4px;
+}
+.settings-group-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+.settings-group-title strong {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+.settings-group-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+/* v6.0: collapsible Autodrive quick-start panels */
+.ad-home-details {
+  margin-top: 14px;
+}
+.ad-home-summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 0;
+  user-select: none;
+}
+.ad-home-summary::-webkit-details-marker { display: none; }
+.ad-home-summary::before { content: "▸ "; }
+.ad-home-details[open] > .ad-home-summary::before { content: "▾ "; }
 
 /* Home CTA polish */
 .home-cta-row {

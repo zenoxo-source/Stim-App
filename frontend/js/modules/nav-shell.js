@@ -149,6 +149,24 @@ export function reorganizeSettingsLayout(layoutEl = null) {
   if (!allCards.length) return;
   layout.dataset.v4 = "1";
 
+  // Group classification: explicit data-settings-group on each card, with the
+  // legacy title heuristics for core/footer (kept so tests + older markup work).
+  const ADV_GROUPS = [
+    { id: "profil", label: "Profil & Steuerung", hint: "Profile · Tastatur-Shortcuts" },
+    {
+      id: "session",
+      label: "Session & Library",
+      hint: "Recorder · Scheduler · Abendprogramm · Funscript · Statistik",
+    },
+    { id: "automation", label: "Automation", hint: "Trigger-System" },
+    {
+      id: "hardware",
+      label: "Hardware & Biofeedback",
+      hint: "MIDI · PIN · Herzfrequenz · Buttplug · Shaping",
+    },
+    { id: "vision", label: "Vision", hint: "Webcam-Vision · LLM-Anbieter" },
+    { id: "system", label: "System", hint: "Diagnose-Logs" },
+  ];
   const isCoreTitle = (raw) =>
     raw.startsWith("Sicherheit") ||
     raw.startsWith("Wellenform") ||
@@ -157,10 +175,15 @@ export function reorganizeSettingsLayout(layoutEl = null) {
     raw === "App";
   const isFooterTitle = (raw) => raw.startsWith("App-Updates") || raw.startsWith("Über Stim");
 
-  const core = [];
-  const advanced = [];
-  const footer = [];
+  const groupFor = (card, raw) => {
+    const explicit = card.dataset?.settingsGroup;
+    if (explicit && ADV_GROUPS.some((g) => g.id === explicit)) return explicit;
+    if (isCoreTitle(raw)) return "core";
+    if (isFooterTitle(raw)) return "footer";
+    return "weiteres";
+  };
 
+  const byGroup = new Map();
   for (const card of allCards) {
     const titleEl =
       [...(card.children || [])].find((c) => {
@@ -168,16 +191,15 @@ export function reorganizeSettingsLayout(layoutEl = null) {
         return cn === "card-title" || (typeof cn === "string" && cn.includes("card-title"));
       }) || card.querySelector?.(".card-title");
     const raw = (titleEl?.textContent || "").replace(/\s+/g, " ").trim();
-    // Footer before core so "App-Updates" is not swallowed by "App"
-    if (isFooterTitle(raw)) footer.push(card);
-    else if (isCoreTitle(raw)) core.push(card);
-    else advanced.push(card);
+    const g = groupFor(card, raw);
+    if (!byGroup.has(g)) byGroup.set(g, []);
+    byGroup.get(g).push(card);
   }
 
   // Rebuild layout
   const coreGrid = document.createElement("div");
   coreGrid.className = "grid-2 settings-core";
-  core.forEach((c) => coreGrid.appendChild(c));
+  (byGroup.get("core") || []).forEach((c) => coreGrid.appendChild(c));
 
   const details = document.createElement("details");
   details.className = "settings-advanced";
@@ -198,23 +220,47 @@ export function reorganizeSettingsLayout(layoutEl = null) {
   const summary = document.createElement("summary");
   summary.className = "settings-advanced-summary";
   summary.innerHTML = `<strong>Erweitert</strong>
-    <span class="settings-advanced-hint">Profile · Hotkeys · Recorder · Scheduler · Trigger · MIDI · PIN · AI · Stats · Diagnose</span>`;
+    <span class="settings-advanced-hint">Profile · Recorder · Trigger · MIDI · Vision · Diagnose</span>`;
   details.appendChild(summary);
 
   const advGrid = document.createElement("div");
-  advGrid.className = "grid-2 settings-advanced-grid";
-  advanced.forEach((c) => advGrid.appendChild(c));
+  advGrid.className = "settings-advanced-groups";
+  for (const g of ADV_GROUPS) {
+    const cards = byGroup.get(g.id) || [];
+    if (!cards.length) continue;
+    const wrap = document.createElement("div");
+    wrap.className = "settings-group";
+    const title = document.createElement("div");
+    title.className = "settings-group-title";
+    title.innerHTML = `<strong>${g.label}</strong><span class="settings-group-hint">${g.hint}</span>`;
+    const grid = document.createElement("div");
+    grid.className = "grid-2";
+    cards.forEach((c) => grid.appendChild(c));
+    wrap.appendChild(title);
+    wrap.appendChild(grid);
+    advGrid.appendChild(wrap);
+  }
+  const rest = byGroup.get("weiteres") || [];
+  if (rest.length) {
+    const wrap = document.createElement("div");
+    wrap.className = "settings-group";
+    const grid = document.createElement("div");
+    grid.className = "grid-2";
+    rest.forEach((c) => grid.appendChild(c));
+    wrap.appendChild(grid);
+    advGrid.appendChild(wrap);
+  }
   details.appendChild(advGrid);
 
   const footerWrap = document.createElement("div");
   footerWrap.className = "grid-2 settings-footer";
-  footer.forEach((c) => footerWrap.appendChild(c));
+  (byGroup.get("footer") || []).forEach((c) => footerWrap.appendChild(c));
 
   // Clear old structure (grid + loose cards)
   while (layout.firstChild) layout.removeChild(layout.firstChild);
   layout.appendChild(coreGrid);
   layout.appendChild(details);
-  if (footer.length) layout.appendChild(footerWrap);
+  if (footerWrap.children.length) layout.appendChild(footerWrap);
 }
 
 export function initNavShell() {

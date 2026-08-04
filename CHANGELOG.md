@@ -1,5 +1,25 @@
 # Changelog
 
+## 6.0.1 — Übersichtlichkeit: Autodrive-Tab entrümpelt, Einstellungen gruppiert
+
+### Autodrive-Tab (Start)
+- „Willkommen“ → **Schnellstart**: kürzerer Text, Connect/1-Tap-Klassisch/CTA-Reihe bleiben prominent
+- **Session-Verlauf & Metriken** (Stats, History) in einklappbares Panel verschoben
+- **Session-Stories & Export** als einklappbares Panel; die „Autodrive läuft“-Anzeige bleibt direkt sichtbar
+- Wizard-Hero-Text gekürzt
+
+### Einstellungen
+- „Erweitert“ ist jetzt **in Gruppen mit Überschriften** gegliedert: Profil & Steuerung · Session & Library · Automation · Hardware & Biofeedback · Vision · System — statt einer ungeordneten Kartenliste
+- Karten tragen explizite `data-settings-group`-Marker (Fallback per Titel-Heuristik bleibt für Tests)
+- Zusammenfassung aktualisiert („AI“ entfernt)
+
+### Technik
+- `nav-shell.js` `reorganizeSettingsLayout` gruppiert per `data-settings-group`; neue CSS-Klassen für Gruppen-Titel und Quick-Start-Panels
+
+### Tests
+- 548 Unit-Tests grün (nav-shell-Suite unverändert grün), Lint sauber, Build ok
+
+
 ## 6.0.0 — Autodrive-first: überarbeitete App, LLM-Chat/Spiele/Remote entfernt
 
 ### Neu: Autodrive-first-Navigation

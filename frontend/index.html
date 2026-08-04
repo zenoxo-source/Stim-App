@@ -192,9 +192,9 @@
       <section id="view-autodrive" class="tab-view active">
         <div class="grid-2 ad-home-panel">
           <div class="card">
-            <div class="card-title">Willkommen</div>
+            <div class="card-title">Schnellstart</div>
             <p style="margin: 0 0 12px; color: var(--text-muted, #9aa); line-height: 1.5;">
-              Verbinde dein Coyote, prüfe Soft-Limits und starte — Autodrive oder STIM.
+              Verbinde dein Coyote und starte direkt — der Rest läuft adaptiv.
             </p>
             <div class="card-title" style="font-size:14px;">Session bereit</div>
             <div id="home-readiness" class="home-readiness"></div>
@@ -214,13 +214,14 @@
             <p class="home-disclaimer">
               Keine Garantie — Soft-Limits, Consent, Panic (STOPP) jederzeit.
             </p>
-            <div id="home-ad-stats" class="home-ad-stats"></div>
-            <div id="home-metrics-detail" class="home-ad-stats home-metrics-detail"></div>
-            <div id="ad-history" class="ad-history" style="margin-top:14px;"></div>
+            <details class="ad-home-details">
+              <summary class="ad-home-summary">Session-Verlauf &amp; Metriken</summary>
+              <div id="home-ad-stats" class="home-ad-stats"></div>
+              <div id="home-metrics-detail" class="home-ad-stats home-metrics-detail"></div>
+              <div id="ad-history" class="ad-history" style="margin-top:14px;"></div>
+            </details>
           </div>
           <div class="card">
-            <div class="card-title">Session-Stories</div>
-            <div id="home-stories" class="home-stories"></div>
             <div id="home-autodrive-mini" class="home-autodrive-mini" style="display: none;">
               <div class="home-ad-mini-title">Autodrive läuft</div>
               <div>Phase: <span id="home-ad-phase">—</span></div>
@@ -229,11 +230,15 @@
               </div>
               <button type="button" id="home-btn-fullscreen" class="btn home-btn-fs">⛶ Session Fullscreen</button>
             </div>
-            <div class="home-export-row">
-              <button type="button" id="btn-session-export" class="btn btn-secondary btn-sm">Export Session JSON</button>
-              <button type="button" id="btn-session-import" class="btn btn-secondary btn-sm">Import JSON</button>
-              <input type="file" id="input-session-import" accept="application/json,.json" style="display:none;">
-            </div>
+            <details class="ad-home-details">
+              <summary class="ad-home-summary">Session-Stories &amp; Export</summary>
+              <div id="home-stories" class="home-stories"></div>
+              <div class="home-export-row">
+                <button type="button" id="btn-session-export" class="btn btn-secondary btn-sm">Export Session JSON</button>
+                <button type="button" id="btn-session-import" class="btn btn-secondary btn-sm">Import JSON</button>
+                <input type="file" id="input-session-import" accept="application/json,.json" style="display:none;">
+              </div>
+            </details>
           </div>
         </div>
 
@@ -242,8 +247,8 @@
             <div class="ad-shell-hero-text">
               <h2 class="ad-shell-title">Autodrive</h2>
               <p class="ad-shell-sub">
-                In 3 Schritten starten: <strong>Setup → Session → Start</strong>.
-                Soft-Limit-relativ · Feedback steuert die Adaptation · keine Climax-Garantie.
+                In 3 Schritten starten: <strong>Setup → Session → Start</strong> ·
+                Soft-Limit-relativ · keine Climax-Garantie.
               </p>
             </div>
             <div class="ad-shell-actions">
@@ -1467,7 +1472,7 @@
             </div>
 
             <!-- PR2 / v3.2.0 Profile Manager -->
-            <div class="card">
+            <div class="card" data-settings-group="profil">
               <div class="card-title" data-i18n="profiles_title">Profile</div>
               <div class="channel-box" style="gap: 12px;">
                 <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 8px 0;">
@@ -1498,7 +1503,7 @@
             </div>
 
             <!-- PR2 / v3.2.0 Customizable Hotkeys -->
-            <div class="card">
+            <div class="card" data-settings-group="profil">
               <div class="card-title" data-i18n="hotkeys_title">Tastatur-Shortcuts</div>
               <div class="channel-box" style="padding: 0;">
                 <p style="font-size: 13px; color: var(--text-muted); margin: 8px 12px;">
@@ -1512,7 +1517,7 @@
             </div>
 
             <!-- Session Recorder -->
-            <div class="card">
+            <div class="card" data-settings-group="session">
               <div class="card-title">Session Recorder</div>
               <div class="channel-box" style="gap: 12px; font-size: 14px;">
                 <p style="font-size: 13px; opacity: 0.75; margin: 0;">
@@ -1558,7 +1563,7 @@
             </div>
 
             <!-- PR3 / v3.3.0 Session Scheduler -->
-            <div class="card">
+            <div class="card" data-settings-group="session">
               <div class="card-title" data-i18n="sched_title">Session-Scheduler</div>
               <div class="channel-box" style="gap: 10px;">
                 <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
@@ -1577,7 +1582,7 @@
             </div>
 
             <!-- F11: Abendprogramm -->
-            <div class="card">
+            <div class="card" data-settings-group="session">
               <div class="card-title">🌙 Abendprogramm</div>
               <div class="channel-box" style="gap: 10px;">
                 <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
@@ -1595,7 +1600,7 @@
             </div>
 
             <!-- F5: Funscript Player -->
-            <div class="card">
+            <div class="card" data-settings-group="session">
               <div class="card-title">Funscript Player</div>              <div class="channel-box" style="gap: 10px;">
                 <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
                   Interaktive Skripte (Position → Intensität, Soft-Limit-gedeckelt). Importe aus der
@@ -1637,7 +1642,7 @@
             </div>
 
             <!-- PR4 / v3.4.0 Trigger System -->
-            <div class="card">
+            <div class="card" data-settings-group="automation">
               <div class="card-title" data-i18n="trig_title">Trigger-System</div>
               <div class="channel-box" style="gap: 10px;">
                 <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
@@ -1670,7 +1675,7 @@
             </div>
 
             <!-- PR5 / v3.5.0 MIDI Controller -->
-            <div class="card">
+            <div class="card" data-settings-group="hardware">
               <div class="card-title" data-i18n="midi_title">MIDI-Controller</div>
               <div class="channel-box" style="gap: 10px;">
                 <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
@@ -1716,7 +1721,7 @@
             </div>
 
             <!-- PR5 / v3.5.0 Session-PIN -->
-            <div class="card">
+            <div class="card" data-settings-group="hardware">
               <div class="card-title">Session-PIN 🔒</div>
               <div class="channel-box" style="gap: 10px;">
                 <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
@@ -1733,7 +1738,7 @@
             </div>
 
             <!-- Vision / LLM provider (Webcam-Vision) -->
-            <div class="card" style="grid-column: 1 / -1;">
+            <div class="card" data-settings-group="vision" style="grid-column: 1 / -1;">
               <div class="card-title">Webcam-Vision · LLM</div>
               <div class="channel-box ai-settings-grid">
                 <div class="control-row stacked">
@@ -1763,7 +1768,7 @@
             </div>
 
             <!-- Webcam-Vision (consent-gated) -->
-            <div class="card" style="grid-column: 1 / -1;">
+            <div class="card" data-settings-group="vision" style="grid-column: 1 / -1;">
               <div class="card-title">👁️ Webcam-Vision</div>
               <div class="channel-box" style="gap: 10px;">
                 <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
@@ -1779,7 +1784,7 @@
           </div>
 
             <!-- F12: Biofeedback -->
-            <div class="card">
+            <div class="card" data-settings-group="hardware">
               <div class="card-title">❤️ Biofeedback</div>
               <div class="channel-box" style="gap: 10px;">
                 <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
@@ -1794,7 +1799,7 @@
             </div>
 
             <!-- v5.1: Signal & Gefühl (Wellenform-Shaping 2.0) -->
-            <div class="card">
+            <div class="card" data-settings-group="hardware">
               <div class="card-title">🎛️ Signal &amp; Gefühl (Shaping 2.0)</div>
               <div class="channel-box" style="gap:10px; flex-direction:column; align-items:stretch;">
                 <p style="font-size:12px; color: var(--text-muted); margin:0;">
@@ -1894,7 +1899,7 @@
             </div>
 
             <!-- F15: Buttplug.io bridge -->
-            <div class="card">
+            <div class="card" data-settings-group="hardware">
               <div class="card-title">🔌 Buttplug.io (experimentell)</div>
               <div class="channel-box" style="gap: 10px;">
                 <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
@@ -1942,7 +1947,7 @@
           </div>
 
             <!-- Statistics -->
-            <div class="card" style="grid-column: 1 / -1;">
+            <div class="card" data-settings-group="session" style="grid-column: 1 / -1;">
               <div class="card-title">
                 <span data-i18n="settings_stats">Statistiken</span>
                 <button type="button" id="btn-reset-stats" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" data-i18n="game_reset">Zurücksetzen</button>
@@ -1964,7 +1969,7 @@
           </div>
 
           <!-- Diagnostic Logs -->
-          <div class="card">
+          <div class="card" data-settings-group="system">
             <div class="card-title">
               <span data-i18n="settings_diag_title">Diagnose & Konsolen-Protokoll</span>
               <div style="display:flex; gap:6px; align-items:center;">
