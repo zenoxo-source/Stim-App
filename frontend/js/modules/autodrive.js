@@ -21,6 +21,7 @@ import { sendSoftStop, sendStrengthCommand, sendWaveformCommand } from "./blueto
 import { trackStat } from "./stats.js";
 import { startAutoRecording, stopAutoRecording } from "./recorder.js";
 import { isFlagEnabled } from "./feature-flags.js";
+import { isBreathSensorActive, getBreathState } from "./breath-sensor.js";
 
 export {
   AUTODRIVE_TEMPLATES,
@@ -341,7 +342,18 @@ export function startAutodrive(patch = {}) {
 
   const now = Date.now();
   const learn = loadLearning();
-  engineState = createInitialState(cfg, now, learn);
+  // v6.3 (#2): enrich the seed with per-template time-to-climax + the wireFreq
+  // the user climaxed at last time, so the engine can personalise the push.
+  const tplLearn = getTemplateLearning(cfg.templateId || "custom") || {};
+  const learningSeed = {
+    preferredBias: learn.preferredBias,
+    lastPeakRel: learn.lastPeakRel,
+    preferredPlacement: learn.preferredPlacement,
+    preferredPatternFamily: learn.preferredPatternFamily,
+    preferredWireFreq: learn.preferredWireFreq,
+    avgTimeToClimaxMs: tplLearn.avgTimeToClimaxMs || 0,
+  };
+  engineState = createInitialState(cfg, now, learningSeed);
   engineState.softA = AppState.softLimitA;
   engineState.softB = AppState.softLimitB;
   // F19: fresh replay timeline per session.
@@ -474,6 +486,7 @@ export function stopAutodrive(reason = "manuell") {
         peakRel: engineState.peakRel,
         placement: engineState.config?.placement,
         lastPattern: engineState.lastPatternId,
+        wireFreq: engineState.wireFreq,
         config: { ...engineState.config },
         tooWeak: engineState.sessionTooWeakCount || 0,
         tooStrong: engineState.sessionTooStrongCount || 0,
@@ -569,6 +582,12 @@ export function stopAutodrive(reason = "manuell") {
           ? snap.placement || learn.preferredPlacement
           : learn.preferredPlacement,
         preferredPatternFamily: snap.lastPattern || learn.preferredPatternFamily,
+        // v6.3 (#2): remember the wireFreq band the user climaxed at, so the
+        // next session seeds the sensation plane toward it.
+        preferredWireFreq:
+          snap.marked && typeof snap.wireFreq === "number"
+            ? Math.round(snap.wireFreq)
+            : learn.preferredWireFreq,
         lastPhase: snap.phase,
         lastTooWeak: snap.tooWeak,
         softLimitCoachPending:
@@ -1048,14 +1067,32 @@ export function injectFeedback(feedback) {
  * Does NOT mutate strength directly — the engine uses it for the silent-commit
  * + opt-in auto-climax heuristics (see autodrive-engine.js BIO_FEEDBACK).
  * Called by heart-rate.js / breath-sensor.js when hrAdaptive is on.
- * @param {number} hrDelta bpm over baseline (positive = arousal)
+ *
+ * v6.3: accepts EITHER a bare number (hrDelta, legacy) OR a richer object
+ * `{ hrDelta, motion, breathHeldMs, breathRate }` from webcam-vision.js +
+ * breath-sensor.js, so the fused arousal estimator has all channels.
+ * @param {number|object} sample
  */
-export function injectBioFeedback(hrDelta) {
+export function injectBioFeedback(sample) {
   if (!isAutodriveActive() || engineState.phase === "PAUSED") return;
-  if (typeof hrDelta !== "number" || !Number.isFinite(hrDelta)) return;
+  const payload =
+    typeof sample === "number"
+      ? { hrDelta: sample }
+      : sample && typeof sample === "object"
+        ? sample
+        : null;
+  if (!payload) return;
+  if (
+    !Number.isFinite(Number(payload.hrDelta)) &&
+    !Number.isFinite(Number(payload.motion)) &&
+    !Number.isFinite(Number(payload.breathHeldMs)) &&
+    !Number.isFinite(Number(payload.breathRate))
+  ) {
+    return;
+  }
   engineState = reduceAutodrive(engineState, {
     type: "BIO_FEEDBACK",
-    hrDelta,
+    ...payload,
     nowMs: Date.now(),
     softA: AppState.softLimitA,
     softB: AppState.softLimitB,
@@ -1103,6 +1140,26 @@ function engineTick() {
   }
 
   const now = Date.now();
+  // v6.3 (#4): feed mic-based breath signal (held-breath + rate) into the
+  // engine on the same tick. Cheap, always-local, no extra hardware. Best
+  // effort — the sensor is only active when the user (or coach) started it.
+  if (isBreathSensorActive && isBreathSensorActive()) {
+    try {
+      const bs = getBreathState ? getBreathState() : null;
+      if (bs && (bs.breathHeldMs > 0 || bs.breathRate > 0)) {
+        engineState = reduceAutodrive(engineState, {
+          type: "BIO_FEEDBACK",
+          breathHeldMs: bs.breathHeldMs,
+          breathRate: bs.breathRate,
+          nowMs: now,
+          softA: AppState.softLimitA,
+          softB: AppState.softLimitB,
+        });
+      }
+    } catch {
+      /* breath integration is best-effort */
+    }
+  }
   const before = engineState.phase;
   engineState = reduceAutodrive(engineState, {
     type: "TICK",

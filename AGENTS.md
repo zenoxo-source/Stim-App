@@ -63,7 +63,8 @@ npm run version:major    # Bump major version (3.0.0 → 4.0.0)
 - `frontend/js/constants.js` — All constants (BLE UUIDs, limits, intervals)
 - `frontend/js/lib/protocol-utils.js` — Pure protocol helpers (tested)
 - `frontend/js/lib/autodrive-data.js` — Static Autodrive templates + placement profiles (split from the engine)
-- `frontend/js/lib/climax-protocol.js` — Multi-wave climax tables + push-retry + silent-commit/auto-climax heuristics (v6.1/v6.2, pure + tested)
+- `frontend/js/lib/climax-protocol.js` — Multi-wave climax tables + push-retry + silent-commit/auto-climax heuristics (v6.1/v6.2/v6.3, pure + tested)
+- `frontend/js/lib/arousal-estimator.js` — Fused arousal estimate (0..1) + closed-loop controller from HR+motion+breath+edgeScore (v6.3, pure + tested)
 - `frontend/js/modules/bluetooth.js` — BLE connection + V3 protocol implementation
 - `frontend/js/control-deck.js` — Wave loop + pattern engine + slider handlers
 - `frontend/js/modules/webcam-vision.js` — Local-only webcam motion-energy biofeedback (consent-gated; feeds Autodrive via `injectBioFeedback`; no LLM since v6.2)

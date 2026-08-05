@@ -435,7 +435,22 @@ function paintDashboard(st) {
     // push the user over the edge. Only relevant during a finish push.
     const commitNote = st.commitMode ? " · ⚡ Commit" : "";
     const autoNote = st.autoClimaxMarked ? " · Auto" : "";
-    trust.textContent = buildTrustLine(st) + retryNote + commitNote + autoNote;
+    // v6.3: arousal meter + active-mode chips (closed-loop / passive / breath).
+    const arousalPct = Math.round((st.arousal || 0) * 100);
+    const arousalNote =
+      arousalPct > 0 && st.phase !== "IDLE" && st.phase !== "PAUSED"
+        ? ` · Arousal ${arousalPct}%`
+        : "";
+    const modeChips = [
+      st.closedLoop ? "CL" : "",
+      st.passiveMode ? "Passiv" : "",
+      st.lastBreathRate > 0 ? "Atem" : "",
+    ]
+      .filter(Boolean)
+      .join("·");
+    const modeNote = modeChips ? ` · [${modeChips}]` : "";
+    trust.textContent =
+      buildTrustLine(st) + retryNote + commitNote + autoNote + arousalNote + modeNote;
   }
 
   paintTimeline(st);
@@ -1649,6 +1664,33 @@ document.addEventListener("DOMContentLoaded", () => {
           acBox.checked
             ? "Auto-Climax aktiviert (opt-in): bei anhaltendem Peak + HR-Spike wird der Höhepunkt automatisch markiert."
             : "Auto-Climax deaktiviert.",
+          "info"
+        );
+      });
+    }
+    // v6.3: closed-loop + passive mode (opt-in). Need biofeedback to be useful.
+    const clBox = document.getElementById("autodrive-closedloop");
+    if (clBox) {
+      clBox.checked = cfg.closedLoop === true;
+      clBox.addEventListener("change", () => {
+        saveAutodriveConfig({ closedLoop: clBox.checked });
+        log(
+          clBox.checked
+            ? "Closed-Loop aktiviert: Intensität regelt aus dem Arousal-Schätzer."
+            : "Closed-Loop deaktiviert (feste Kurve).",
+          "info"
+        );
+      });
+    }
+    const pmBox = document.getElementById("autodrive-passive");
+    if (pmBox) {
+      pmBox.checked = cfg.passiveMode === true;
+      pmBox.addEventListener("change", () => {
+        saveAutodriveConfig({ passiveMode: pmBox.checked });
+        log(
+          pmBox.checked
+            ? "Passive Mode aktiviert: Session läuft aus Biofeedback, ohne Button-Druck."
+            : "Passive Mode deaktiviert.",
           "info"
         );
       });

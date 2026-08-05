@@ -438,6 +438,48 @@ describe("autodrive-engine", () => {
     assert.ok(s.feedbackBias > 0.05);
   });
 
+  it("v6.3: learning seed stores pushDurationHint + preferredPatternFamily", () => {
+    const s = createInitialState(classicCfg(), t0, {
+      preferredBias: 0,
+      avgTimeToClimaxMs: 90000,
+      preferredPatternFamily: "strobe",
+      preferredWireFreq: 140,
+    });
+    assert.equal(s.pushDurationHintMs, 90000);
+    assert.equal(s.preferredPatternFamily, "strobe");
+    assert.ok(s.wireFreq > 40, `learned freq should bias wireFreq up: ${s.wireFreq}`);
+  });
+
+  it("v6.3: pushDurationHint lengthens the push toward the learned climax time", () => {
+    const cfg = { templateId: "loops_rush", skipCalibration: true };
+    const enterPushDuration = (learning) => {
+      let s = createInitialState(sanitiseAutodriveConfig(cfg), t0, learning);
+      s = {
+        ...s,
+        phase: "SURGE",
+        phaseStartedAt: t0,
+        phaseDeadlineAt: t0 - 1,
+        relStrength: 0.7,
+      };
+      s = reduceAutodrive(s, { type: "PHASE_TIMEOUT", nowMs: t0 });
+      return (s.phaseDeadlineAt || 0) - (s.phaseStartedAt || 0);
+    };
+    const base = enterPushDuration({});
+    const withHint = enterPushDuration({ avgTimeToClimaxMs: 150000 });
+    assert.ok(base < 180000, `base must be below cap for a meaningful test: ${base}`);
+    assert.ok(withHint > base, `learned hint must lengthen push: ${base} vs ${withHint}`);
+  });
+
+  it("v6.3: malformed learning values are ignored safely", () => {
+    const s = createInitialState(classicCfg(), t0, {
+      avgTimeToClimaxMs: "nope",
+      preferredWireFreq: 9999,
+      preferredPatternFamily: 42,
+    });
+    assert.equal(s.pushDurationHintMs, 0);
+    assert.equal(s.preferredPatternFamily, null);
+  });
+
   it("deny template can re-enter hold after first push timeout", () => {
     let s = createInitialState(
       sanitiseAutodriveConfig({ templateId: "deny", skipCalibration: true }),

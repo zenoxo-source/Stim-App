@@ -112,6 +112,16 @@ export const COMMIT_HR_SUSTAINED_MS = 8000;
 /** HR delta (bpm over baseline) that counts as a strong arousal spike. */
 export const COMMIT_HR_SPIKE_DELTA = 14;
 
+// v6.3 closed-loop thresholds (arousal estimator 0..1).
+/** Arousal level that counts as "on the edge". */
+export const COMMIT_AROUSAL_THRESHOLD = 0.82;
+/** Estimator confidence floor for arousal-based decisions (cold-start safety). */
+export const COMMIT_AROUSAL_CONFIDENCE = 0.4;
+/** How long high arousal must be sustained before it triggers commit (ms). */
+export const COMMIT_AROUSAL_SUSTAINED_MS = 6000;
+/** Arousal + confidence + sustained high → opt-in auto climax. */
+export const AUTO_CLIMAX_AROUSAL_THRESHOLD = 0.94;
+
 /**
  * Silent-commit decision: should the engine switch the multi-wave push to a
  * single sustained peak hold (no drops)?
@@ -209,4 +219,72 @@ export function adaptivePushExtensionMs({ almostWithoutClimax, retries } = {}) {
   const perAlmost = Math.min(a, 5) * 18000;
   const perRetry = Math.min(r, PUSH_RETRY.maxRetries) * 12000;
   return perAlmost + perRetry;
+}
+
+// ---------------------------------------------------------------------------
+// v6.3 closed-loop arousal predicates. Complement the manual/biofeedback
+// paths with a continuous-arousal decision (see lib/arousal-estimator.js).
+// ---------------------------------------------------------------------------
+
+/**
+ * Silent-commit from continuous arousal: if the fused arousal estimate has
+ * been high and trustworthy for a while on a finish path, switch to the
+ * sustained peak hold — independent of manual "almost" presses.
+ *
+ * @param {object} ctx
+ * @param {number} [ctx.arousal] 0..1 fused arousal
+ * @param {number} [ctx.confidence] 0..1 estimator confidence
+ * @param {number} [ctx.sustainedMs] how long arousal stayed high
+ * @param {boolean} [ctx.climaxPriority]
+ * @param {boolean} [ctx.tooStrongRecent]
+ * @returns {boolean}
+ */
+export function commitFromArousal({
+  arousal,
+  confidence,
+  sustainedMs,
+  climaxPriority,
+  tooStrongRecent,
+}) {
+  if (!climaxPriority) return false;
+  if (tooStrongRecent) return false;
+  const a = Number(arousal) || 0;
+  const c = Number(confidence) || 0;
+  const ms = Number(sustainedMs) || 0;
+  if (a < COMMIT_AROUSAL_THRESHOLD) return false;
+  if (c < COMMIT_AROUSAL_CONFIDENCE) return false;
+  return ms >= COMMIT_AROUSAL_SUSTAINED_MS;
+}
+
+/**
+ * Opt-in auto-climax from sustained peak arousal. Requires explicit consent
+ * (autoClimaxEnabled), active commit, and a long, confident high-arousal
+ * plateau. This is the path that finally marks the climax without the user
+ * pressing the button — the silent majority's friend.
+ *
+ * @param {object} ctx
+ * @param {boolean} ctx.autoClimaxEnabled
+ * @param {boolean} [ctx.commitActive]
+ * @param {number} [ctx.arousal]
+ * @param {number} [ctx.confidence]
+ * @param {number} [ctx.sustainedMs]
+ * @returns {boolean}
+ */
+export function autoClimaxFromArousal({
+  autoClimaxEnabled,
+  commitActive,
+  arousal,
+  confidence,
+  sustainedMs,
+}) {
+  if (!autoClimaxEnabled) return false;
+  if (!commitActive) return false;
+  const a = Number(arousal) || 0;
+  const c = Number(confidence) || 0;
+  const ms = Number(sustainedMs) || 0;
+  if (a < AUTO_CLIMAX_AROUSAL_THRESHOLD) return false;
+  if (c < COMMIT_AROUSAL_CONFIDENCE) return false;
+  // Auto-climax needs a slightly longer plateau than commit to avoid false
+  // positives — orgasm is the point of no return.
+  return ms >= COMMIT_AROUSAL_SUSTAINED_MS + 2000;
 }

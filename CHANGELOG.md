@@ -1,5 +1,38 @@
 # Changelog
 
+## 6.3.0 – Closed-Loop Autodrive: Arousal-Regelung, Passive Mode, Atem-Sensor
+
+### Closed-Loop Arousal Controller (#1, Flagship)
+- **Neu `lib/arousal-estimator.js`** (pure + getestet): fused 0–1 Erregungsschätzer aus HR + Webcam-Motion + Atem (Frequenz + Atem-anhalten) + Edge-Score, mit Confidence-Metrik. Dazu ein PID-artiger Controller (`arousalControllerStep`), asymmetrisch (schneller zurück als hoch — kein Überschwingen / „Zu stark")
+- **`closedLoop` Config (opt-in)**: Statt der festen Phasen-Kurve regelt `applyAdaptiveEnvelope` die Intensität auf einen Arousal-Sollwert pro Phase (BUILD 0,62 → CLIMAX_PUSH 0,94). Nutzt den previous-tick Arousal-Wert; kalter Start fällt auf sanften Open-Loop-Klimm zurück
+- **`applyPassiveDecisions`**: wenn `passiveMode` an und die Signale vertrauenswürdig sind (Confidence ≥ 0,4), gehen EDGE_HOLD/CLIMAX_PUSH aus Biofeedback allein — **ohne Button-Druck**. Schließt die „stille Mehrheit" ab
+
+### Atem-Sensor → Engine (#4)
+- **`breath-sensor.js`** erweitert: Held-Breath-Detektor (flat-niedriger Mic-RMS > 1,2 s) + Atemfrequenz aus Inhallations-Intervallen. `getBreathState()` speist `injectBioFeedback` im selben TICK
+- Atem-anhalten ist ein starker Pre-Orgasmus-Marker und **jeder** Nutzer hat ein Mikro — funktioniert ohne HR-Gurt. Treibt den Commit + Auto-Climax
+
+### Lern-Daten aktiviert (#2)
+- **`avgTimeToClimaxMs`** (per-Template) → seed für `pushDurationMs` (verlängert den Push Richtung historischer Climax-Zeit, nie kürzer als die Basis)
+- **`preferredWireFreq`**: bei Climax gemerkte wireFreq → seed für die Sensation-Plane (nächste Session startet in der bewährten Frequenz)
+- **`preferredPatternFamily`** wird jetzt in `patternForPhase` genutzt (~50 % der Zeit im SURGE/PUSH, wenn erlaubt) — war vorher tote Daten
+- `injectBioFeedback` akzeptiert jetzt ein reichhaltiges Payload `{ hrDelta, motion, breathHeldMs, breathRate }` (bare number bleibt kompatibel)
+
+### Arousal-basierte Heuristiken (#1 + #3)
+- **`commitFromArousal`**: sustainer hoch verschmolzener Arousal (≥ 0,82, Confidence ≥ 0,4, ≥ 6 s) triggert den Silent-Commit — unabhängig von manuellem „Fast" oder HR allein
+- **`autoClimaxFromArousal`** (opt-in): bei aktivem Commit + längerem Plateau (≥ 0,94 Arousal, +2 s länger als Commit) wird der Höhepunkt automatisch markiert
+
+### Observability & UI
+- Trust-Line zeigt **Arousal %** + aktive Modus-Chips `[CL·Passiv·Atem]`
+- Neue Settings-Checkboxen: Closed-Loop, Passive Mode (beide opt-in, default off); Auto-Climax bleibt opt-in
+- Neue Stats: `autodrive_commit_used`, `autodrive_autoclimax` (v6.2); Arousal-Verlauf im Replay
+
+### Tests
+- **+34 neue Tests** (585 gesamt): `arousal-estimator.test.js` (17), `breath-sensor.test.js` (2), Closed-Loop/Passive/Arousal-Commit/Auto-Climam Engine-Integration (11), Lern-Seed + Push-Hint + Pattern-Bias (4). Lint sauber, Build ok
+
+### Sicherheit / Consent
+- Alle neuen Modi sind **opt-in, default off** (closedLoop, passiveMode, autoClimax). Ohne Consent/Flag verhält sich die Engine exakt wie v6.2 — keine Regression der 551 Bestandstests
+
+
 ## 6.2.0 – Smarter Autodrive + Webcam lokal (ohne LLM)
 
 ### Autodrive Engine — „Smarter Abspritzgarantie"

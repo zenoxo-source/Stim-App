@@ -9,6 +9,10 @@ import {
   COMMIT_EDGE_SCORE_MIN,
   COMMIT_HR_SUSTAINED_MS,
   COMMIT_HR_SPIKE_DELTA,
+  COMMIT_AROUSAL_THRESHOLD,
+  COMMIT_AROUSAL_CONFIDENCE,
+  COMMIT_AROUSAL_SUSTAINED_MS,
+  AUTO_CLIMAX_AROUSAL_THRESHOLD,
   climaxWaveTable,
   pushRetryBudget,
   pushBoostForRetry,
@@ -17,6 +21,8 @@ import {
   commitFromBiofeedback,
   autoClimaxSignal,
   adaptivePushExtensionMs,
+  commitFromArousal,
+  autoClimaxFromArousal,
 } from "../../frontend/js/lib/climax-protocol.js";
 import {
   createInitialState,
@@ -329,6 +335,111 @@ describe("climax-protocol v6.2 — silent commit + biofeedback", () => {
   });
 });
 
+describe("climax-protocol v6.3 — closed-loop arousal predicates", () => {
+  it("commitFromArousal fires on sustained high arousal + confidence on finish", () => {
+    assert.equal(
+      commitFromArousal({
+        arousal: COMMIT_AROUSAL_THRESHOLD,
+        confidence: COMMIT_AROUSAL_CONFIDENCE,
+        sustainedMs: COMMIT_AROUSAL_SUSTAINED_MS,
+        climaxPriority: true,
+        tooStrongRecent: false,
+      }),
+      true
+    );
+    // non-finish → never
+    assert.equal(
+      commitFromArousal({
+        arousal: 1,
+        confidence: 1,
+        sustainedMs: 60000,
+        climaxPriority: false,
+        tooStrongRecent: false,
+      }),
+      false
+    );
+    // recent too_strong → never
+    assert.equal(
+      commitFromArousal({
+        arousal: 1,
+        confidence: 1,
+        sustainedMs: 60000,
+        climaxPriority: true,
+        tooStrongRecent: true,
+      }),
+      false
+    );
+    // not sustained long enough
+    assert.equal(
+      commitFromArousal({
+        arousal: COMMIT_AROUSAL_THRESHOLD,
+        confidence: COMMIT_AROUSAL_CONFIDENCE,
+        sustainedMs: COMMIT_AROUSAL_SUSTAINED_MS - 1,
+        climaxPriority: true,
+        tooStrongRecent: false,
+      }),
+      false
+    );
+    // low confidence → no (cold-start safety)
+    assert.equal(
+      commitFromArousal({
+        arousal: 1,
+        confidence: COMMIT_AROUSAL_CONFIDENCE - 0.1,
+        sustainedMs: 60000,
+        climaxPriority: true,
+        tooStrongRecent: false,
+      }),
+      false
+    );
+  });
+
+  it("autoClimaxFromArousal needs opt-in + commit + longer sustained plateau", () => {
+    assert.equal(
+      autoClimaxFromArousal({
+        autoClimaxEnabled: true,
+        commitActive: true,
+        arousal: AUTO_CLIMAX_AROUSAL_THRESHOLD,
+        confidence: COMMIT_AROUSAL_CONFIDENCE,
+        sustainedMs: COMMIT_AROUSAL_SUSTAINED_MS + 2000,
+      }),
+      true
+    );
+    // consent gate
+    assert.equal(
+      autoClimaxFromArousal({
+        autoClimaxEnabled: false,
+        commitActive: true,
+        arousal: 1,
+        confidence: 1,
+        sustainedMs: 60000,
+      }),
+      false
+    );
+    // needs longer plateau than commit (the +2000 ms)
+    assert.equal(
+      autoClimaxFromArousal({
+        autoClimaxEnabled: true,
+        commitActive: true,
+        arousal: AUTO_CLIMAX_AROUSAL_THRESHOLD,
+        confidence: COMMIT_AROUSAL_CONFIDENCE,
+        sustainedMs: COMMIT_AROUSAL_SUSTAINED_MS,
+      }),
+      false
+    );
+    // not in commit
+    assert.equal(
+      autoClimaxFromArousal({
+        autoClimaxEnabled: true,
+        commitActive: false,
+        arousal: 1,
+        confidence: 1,
+        sustainedMs: 60000,
+      }),
+      false
+    );
+  });
+});
+
 describe("autodrive engine v6.2 — silent commit + biofeedback integration", () => {
   const COMMIT_ALMOST = COMMIT_ALMOST_THRESHOLD;
 
@@ -447,5 +558,195 @@ describe("autodrive engine v6.2 — silent commit + biofeedback integration", ()
     }
     assert.equal(s.phase, "CLIMAX_PUSH", "session must not auto-end without opt-in");
     assert.equal(s.userMarkedClimax, false);
+  });
+});
+
+describe("autodrive engine v6.3 — closed-loop + passive + arousal", () => {
+  function buildState(cfgPatch, now = t0) {
+    let s = createInitialState(sanitiseAutodriveConfig({ ...cfgPatch, skipCalibration: true }), now);
+    return s;
+  }
+
+  it("closed-loop backs off when arousal is high (BUILD setpoint 0.62)", () => {
+    let s = buildState({ templateId: "finish_loops", closedLoop: true });
+    s = {
+      ...s,
+      phase: "BUILD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 600000,
+      relStrength: 0.7,
+      arousal: 0.9, // well above the BUILD setpoint
+      arousalConfidence: 0.9,
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.ok(s.relStrength < 0.7, `high arousal should back off: ${s.relStrength}`);
+  });
+
+  it("closed-loop climbs when arousal is low", () => {
+    let s = buildState({ templateId: "finish_loops", closedLoop: true });
+    s = {
+      ...s,
+      phase: "BUILD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 600000,
+      relStrength: 0.5,
+      arousal: 0.25, // below setpoint
+      arousalConfidence: 0.9,
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.ok(s.relStrength > 0.5, `low arousal should climb: ${s.relStrength}`);
+  });
+
+  it("closed-loop falls back to gentle climb when confidence is low", () => {
+    let s = buildState({ templateId: "finish_loops", closedLoop: true });
+    s = {
+      ...s,
+      phase: "BUILD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 600000,
+      relStrength: 0.5,
+      arousal: 0.9,
+      arousalConfidence: 0.1, // untrusted → no aggressive steering
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.ok(s.relStrength > 0.5 && s.relStrength < 0.56, "fallback tiny climb");
+  });
+
+  it("closed-loop steering is off by default (envelope, not controller)", () => {
+    let s = buildState({ templateId: "finish_loops" });
+    assert.equal(s.config.closedLoop, false);
+    // At the BUILD baseline with very high arousal: the closed-loop controller
+    // would crash relStrength (back off hard); with it OFF the envelope just
+    // holds near baseline. So relStrength must NOT drop far.
+    s = {
+      ...s,
+      phase: "BUILD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 600000,
+      relStrength: 0.3,
+      arousal: 0.95,
+      arousalConfidence: 0.9,
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.ok(s.relStrength > 0.2, `envelope held near baseline: ${s.relStrength}`);
+  });
+
+  it("passive mode enters EDGE_HOLD from sustained high arousal", () => {
+    let s = buildState({ templateId: "finish_loops", passiveMode: true });
+    s = {
+      ...s,
+      phase: "BUILD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 600000,
+      edgeCountTarget: 1,
+      edgeCountDone: 0,
+      // Strong, trustworthy bio signal → high fused arousal.
+      lastHrDelta: 22,
+      lastMotion: 0.1,
+      lastBreathRate: 22,
+      edgeScore: 90,
+      arousal: 0.9, // seed so estimator smoothing keeps it high this tick
+      arousalHighSince: t0 - 5000, // sustained long enough
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.equal(s.phase, "EDGE_HOLD", "passive mode should enter edge hold");
+  });
+
+  it("passive mode starts the push when edges are done + very high arousal", () => {
+    let s = buildState({ templateId: "finish_loops", passiveMode: true });
+    s = {
+      ...s,
+      phase: "TEASE",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 600000,
+      edgeCountTarget: 1,
+      edgeCountDone: 1,
+      lastHrDelta: 24,
+      lastMotion: 0.11,
+      lastBreathHeldMs: 4000,
+      edgeScore: 92,
+      arousal: 0.94, // held-breath floor keeps fused ≥ 0.95; seed preserves it
+      arousalHighSince: t0 - 6000,
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.equal(s.phase, "CLIMAX_PUSH", "passive mode should start the push");
+  });
+
+  it("passive mode does NOT act with low confidence (never guess)", () => {
+    let s = buildState({ templateId: "finish_loops", passiveMode: true });
+    s = {
+      ...s,
+      phase: "BUILD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 600000,
+      edgeCountTarget: 1,
+      edgeCountDone: 0,
+      // No bio signal at all → confidence low → must not transition. Keep
+      // edgeScore below the manual edge-score guard (72) so only passive mode
+      // could be responsible for a transition here.
+      lastHrDelta: 0,
+      lastMotion: 0,
+      edgeScore: 60,
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.equal(s.phase, "BUILD");
+  });
+
+  it("arousal-based commit fires on sustained high fused arousal", () => {
+    let s = buildState({ templateId: "finish_loops", silentCommit: true });
+    s = {
+      ...s,
+      phase: "CLIMAX_PUSH",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 120000,
+      relStrength: 0.9,
+      edgeScore: 88,
+      lastHrDelta: 22, // + edge → confidence ≥ 0.4 so the estimator trusts it
+      lastMotion: 0.1,
+      arousal: 0.9,
+      arousalConfidence: 0.7,
+      arousalHighSince: t0 - (COMMIT_AROUSAL_SUSTAINED_MS + 500),
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.equal(s.commitMode, true, "sustained arousal should trigger commit");
+  });
+
+  it("opt-in auto-climax from sustained peak arousal marks the climax", () => {
+    let s = buildState({ templateId: "finish_loops", autoClimax: true });
+    s = {
+      ...s,
+      phase: "CLIMAX_PUSH",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 120000,
+      relStrength: 0.95,
+      edgeScore: 95,
+      lastHrDelta: 24,
+      lastMotion: 0.11,
+      lastBreathHeldMs: 4000,
+      commitMode: true,
+      arousal: AUTO_CLIMAX_AROUSAL_THRESHOLD,
+      arousalConfidence: 0.9,
+      arousalHighSince: t0 - (COMMIT_AROUSAL_SUSTAINED_MS + 3000),
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.equal(s.phase, "AFTERCARE");
+    assert.equal(s.userMarkedClimax, true);
+    assert.equal(s.autoClimaxMarked, true);
+  });
+
+  it("BIO_FEEDBACK accepts a rich payload (motion + breath)", () => {
+    let s = buildState({ templateId: "finish_loops" });
+    s = reduceAutodrive(s, {
+      type: "BIO_FEEDBACK",
+      hrDelta: 15,
+      motion: 0.08,
+      breathHeldMs: 3000,
+      breathRate: 20,
+      nowMs: t0 + 100,
+    });
+    assert.equal(s.lastHrDelta, 15);
+    assert.equal(s.lastMotion, 0.08);
+    assert.equal(s.lastBreathHeldMs, 3000);
+    assert.equal(s.lastBreathRate, 20);
   });
 });

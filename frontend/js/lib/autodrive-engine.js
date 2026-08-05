@@ -15,9 +15,13 @@ import {
   pushFloorRel,
   commitThreshold,
   commitFromBiofeedback,
+  commitFromArousal,
   autoClimaxSignal,
+  autoClimaxFromArousal,
   adaptivePushExtensionMs,
 } from "./climax-protocol.js";
+// v6.3: continuous arousal fusion + closed-loop controller.
+import { fuseArousal, arousalControllerStep } from "./arousal-estimator.js";
 
 // Re-exported for modules/tests that import them from the engine (kept in sync
 // with climax-protocol.js).
@@ -106,6 +110,12 @@ export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
    *  a sustained HR spike + max edge score occur, mark the climax without the
    *  user pressing the button. Only enable with an explicit opt-in. */
   autoClimax: false,
+  /** v6.3 closed-loop: steer relStrength from the fused arousal estimate
+   *  instead of the fixed phase envelope. Default off (additive opt-in). */
+  closedLoop: false,
+  /** v6.3 passive mode: enter EDGE_HOLD / CLIMAX_PUSH from biofeedback alone,
+   *  without manual button presses. Consent-gated, default off. */
+  passiveMode: false,
 });
 
 const SENSITIVITY_SCALE = Object.freeze({
@@ -434,6 +444,8 @@ export function sanitiseAutodriveConfig(input) {
   if (typeof raw.pushRetry === "boolean") base.pushRetry = raw.pushRetry;
   if (typeof raw.silentCommit === "boolean") base.silentCommit = raw.silentCommit;
   if (typeof raw.autoClimax === "boolean") base.autoClimax = raw.autoClimax;
+  if (typeof raw.closedLoop === "boolean") base.closedLoop = raw.closedLoop;
+  if (typeof raw.passiveMode === "boolean") base.passiveMode = raw.passiveMode;
   if (typeof raw.templateId === "string" && AUTODRIVE_TEMPLATES[raw.templateId]) {
     const tpl = AUTODRIVE_TEMPLATES[raw.templateId];
     if (typeof tpl.freqFullBand === "boolean") base.freqFullBand = tpl.freqFullBand;
@@ -449,6 +461,8 @@ export function sanitiseAutodriveConfig(input) {
     if (typeof tpl.pushRetry === "boolean") base.pushRetry = tpl.pushRetry;
     if (typeof tpl.silentCommit === "boolean") base.silentCommit = tpl.silentCommit;
     if (typeof tpl.autoClimax === "boolean") base.autoClimax = tpl.autoClimax;
+    if (typeof tpl.closedLoop === "boolean") base.closedLoop = tpl.closedLoop;
+    if (typeof tpl.passiveMode === "boolean") base.passiveMode = tpl.passiveMode;
   }
 
   const kinds = new Set(["loops", "pads", "mixed", "insertable"]);
@@ -502,7 +516,7 @@ export function sanitiseAutodriveConfig(input) {
 /**
  * @param {ReturnType<typeof sanitiseAutodriveConfig>} config
  * @param {number} nowMs
- * @param {{ preferredBias?: number, lastPeakRel?: number, preferredPlacement?: string }=} learning
+ * @param {{ preferredBias?: number, lastPeakRel?: number, preferredPlacement?: string, preferredPatternFamily?: string, avgTimeToClimaxMs?: number, preferredWireFreq?: number }=} learning
  */
 export function createInitialState(config, nowMs, learning = {}) {
   const cfg = sanitiseAutodriveConfig(config);
@@ -516,6 +530,18 @@ export function createInitialState(config, nowMs, learning = {}) {
   const peakHint = clamp(Number(learning.lastPeakRel) || 0.55, 0.35, 0.85);
   const baseRel = skip ? Math.max(0.14, peakHint * 0.35) : 0.08;
   const place = PLACEMENT_PROFILES[cfg.placement] || PLACEMENT_PROFILES.soft_external;
+
+  // v6.3 (#2): activate learned data. After a few sessions we know roughly how
+  // long the user needs to climax and which wireFreq / pattern did it. Seed
+  // the session with these so the push adapts to the individual.
+  const rawHint = Number(learning.avgTimeToClimaxMs);
+  const pushDurationHintMs =
+    Number.isFinite(rawHint) && rawHint > 20000 ? clamp(rawHint, 30000, 180000) : 0;
+  const rawFreq = Number(learning.preferredWireFreq);
+  const learnedFreqBias =
+    Number.isFinite(rawFreq) && rawFreq >= 10 && rawFreq <= 240
+      ? Math.round(rawFreq) - 40 - (place.freqBias || 0)
+      : 0;
 
   return {
     phase: /** @type {AutodrivePhase} */ (phase),
@@ -562,16 +588,20 @@ export function createInitialState(config, nowMs, learning = {}) {
     phaseHistory: [phase],
     // Edge score 0–100
     edgeScore: 0,
-    // Sensation plane
-    wireFreq: 40 + (place.freqBias || 0),
-    wireFreqTarget: 40 + (place.freqBias || 0),
+    // Sensation plane (v6.3: seed with learned wireFreq if the user climaxed
+    // at a specific band before).
+    wireFreq: clamp(40 + (place.freqBias || 0) + learnedFreqBias, 10, 240),
+    wireFreqTarget: clamp(40 + (place.freqBias || 0) + learnedFreqBias, 10, 240),
     dutyCycle: 0.6,
     channelMode: resolvePlacementChannelMode(cfg.placement, "both"),
     burstMs: 0,
     softResetUntil: 0,
     nextHabituationAt: nowMs + randRange(HABITUATION_MS_MIN, HABITUATION_MS_MAX),
     lastPatternId: "gentle",
-    preferredPatternFamily: learning.preferredPatternFamily || null,
+    preferredPatternFamily:
+      typeof learning.preferredPatternFamily === "string" ? learning.preferredPatternFamily : null,
+    // v6.3 (#2): learned push duration (ms, 0 = unknown) biases pushDurationMs.
+    pushDurationHintMs,
     // Climax multi-wave
     climaxWaveIndex: 0,
     climaxWaveStartedAt: 0,
@@ -601,6 +631,13 @@ export function createInitialState(config, nowMs, learning = {}) {
     lastHrDelta: 0,
     hrSustainedSince: 0,
     sustainedPeakSince: 0,
+    // v6.3 closed-loop: fused arousal estimate + raw bio signal buffer.
+    lastMotion: 0,
+    lastBreathHeldMs: 0,
+    lastBreathRate: 0,
+    arousal: 0,
+    arousalConfidence: 0,
+    arousalHighSince: 0,
     // Session quality counters (for coach / debrief)
     sessionTooWeakCount: 0,
     sessionTooStrongCount: 0,
@@ -713,6 +750,7 @@ export function reduceAutodrive(state, event) {
     s = applyEdgeCadence(s, now);
     s = applyAdaptiveEnvelope(s, now);
     s = applyEdgeScoreTick(s, now);
+    s = applyArousalEstimator(s, now);
     s = applySensationPlane(s, now);
     s = applyHabituation(s, now);
     s = applyCommitDecision(s, now);
@@ -720,6 +758,7 @@ export function reduceAutodrive(state, event) {
     s = applyMicroMod(s, now);
     s = applyTimePressure(s, now);
     s = applyFeedbackPrompts(s, now);
+    s = applyPassiveDecisions(s, now);
     if (s.phaseDeadlineAt && now >= s.phaseDeadlineAt) {
       s = applyPhaseTimeout(s, now);
     } else {
@@ -777,12 +816,23 @@ export function reduceAutodrive(state, event) {
   // v6.2: biofeedback sample (HR strap / breath sensor). Does NOT mutate
   // strength directly — only feeds the commit/auto-climax heuristics. The
   // actual decision is applied on the next TICK via applyCommitDecision.
+  // v6.3: accepts a richer payload { hrDelta, motion, breathHeldMs, breathRate }
+  // (from webcam-vision.js + breath-sensor.js); a bare hrDelta still works.
   if (event.type === "BIO_FEEDBACK") {
     const delta = Number(event.hrDelta);
     const next = {
       ...s,
       lastHrDelta: Number.isFinite(delta) ? delta : s.lastHrDelta || 0,
     };
+    if (Number.isFinite(Number(event.motion))) next.lastMotion = Number(event.motion);
+    if (Number.isFinite(Number(event.breathHeldMs)) && Number(event.breathHeldMs) > 0) {
+      next.lastBreathHeldMs = Number(event.breathHeldMs);
+    } else if (!Number.isFinite(Number(event.breathHeldMs))) {
+      next.lastBreathHeldMs = 0; // no held-breath signal this sample → decay
+    }
+    if (Number.isFinite(Number(event.breathRate)) && Number(event.breathRate) > 0) {
+      next.lastBreathRate = Number(event.breathRate);
+    }
     // Track how long a strong arousal spike has been sustained.
     const spiking = (next.lastHrDelta || 0) >= 12;
     if (spiking) {
@@ -943,6 +993,13 @@ export function computeAutodriveOutput(state, nowMs) {
     silentCommitEnabled: !!state.config?.silentCommit,
     autoClimaxMarked: !!state.autoClimaxMarked,
     lastHrDelta: state.lastHrDelta || 0,
+    // v6.3 closed-loop + passive mode
+    arousal: state.arousal || 0,
+    arousalConfidence: state.arousalConfidence || 0,
+    closedLoop: !!state.config?.closedLoop,
+    passiveMode: !!state.config?.passiveMode,
+    lastMotion: state.lastMotion || 0,
+    lastBreathRate: state.lastBreathRate || 0,
   };
 }
 
@@ -1087,10 +1144,15 @@ function pushDurationMs(state) {
   const aggro = state.config.aggression ?? 1;
   const priority = state.config.climaxPriority ? 1.4 : 1;
   const minPush = waves + (state.config.climaxPriority ? 28000 : 8000);
-  return Math.min(
+  const base = Math.min(
     180000,
     Math.max(minPush, Math.round(0.22 * state.targetDurationMs * aggro * priority))
   );
+  // v6.3 (#2): the learned push hint can only LENGTHEN the push toward the
+  // user's historical time-to-climax (never shorten below the computed base).
+  const hint = state.pushDurationHintMs || 0;
+  if (hint > base) return Math.min(180000, hint);
+  return base;
 }
 
 function dropDepth(state) {
@@ -1350,6 +1412,28 @@ function applyAdaptiveEnvelope(s, now) {
   // envelope stays out of the way so the adjustment lands on the skin.
   const cur = s.relStrength || baseline;
   const freshFeedback = s.lastFeedbackAt != null && now - s.lastFeedbackAt < 2000;
+
+  // v6.3 closed-loop: steer relStrength from the fused arousal estimate toward
+  // a phase-dependent setpoint, instead of following the fixed envelope. Only
+  // when enabled, with trustworthy signal, and not right after a manual
+  // feedback (so the user's button press still lands on the skin).
+  if (
+    s.config.closedLoop &&
+    !freshFeedback &&
+    s.phase !== "AFTERCARE" &&
+    s.phase !== "COOLDOWN" &&
+    s.phase !== "CALIBRATING"
+  ) {
+    const setpoint = CLOSED_LOOP_SETPOINT[s.phase] ?? 0.7;
+    const { relStrength: cl } = arousalControllerStep({
+      arousal: s.arousal || 0,
+      setpoint,
+      prevRel: cur,
+      confidence: s.arousalConfidence || 0,
+    });
+    target = clamp(cl, s.comfortFloor || 0.08, s.comfortCeiling || 0.95);
+  }
+
   const alpha = freshFeedback
     ? 0.02
     : s.phase === "CLIMAX_PUSH"
@@ -1361,6 +1445,16 @@ function applyAdaptiveEnvelope(s, now) {
 
   return { ...s, relStrength: clamp(next, 0, 1) };
 }
+
+/** v6.3 arousal setpoints per phase (target arousal the controller holds). */
+const CLOSED_LOOP_SETPOINT = Object.freeze({
+  WARMUP: 0.42,
+  BUILD: 0.62,
+  TEASE: 0.74,
+  EDGE_HOLD: 0.82,
+  SURGE: 0.88,
+  CLIMAX_PUSH: 0.94,
+});
 
 function applyEdgeScoreTick(s, now) {
   if (s.phase === "AFTERCARE" || s.phase === "COOLDOWN" || s.phase === "CALIBRATING") {
@@ -1376,6 +1470,37 @@ function applyEdgeScoreTick(s, now) {
   // Near end of hold, boost
   if (s.phase === "EDGE_HOLD") score += 0.15;
   return { ...s, edgeScore: clamp(score, 0, 100) };
+}
+
+/**
+ * v6.3 closed-loop foundation: fuse every available biofeedback signal + the
+ * engine's own edge score into a continuous arousal estimate (0..1) with a
+ * confidence value. Runs every TICK after the edge score was updated. The
+ * fused value feeds the closed-loop envelope, the silent-commit decision and
+ * the opt-in auto-climax. Pure fusion lives in lib/arousal-estimator.js.
+ */
+function applyArousalEstimator(s, now) {
+  if (s.phase === "AFTERCARE" || s.phase === "COOLDOWN" || s.phase === "IDLE") {
+    return { ...s, arousal: 0, arousalConfidence: 0, arousalHighSince: 0 };
+  }
+  const fused = fuseArousal({
+    hrDelta: s.lastHrDelta || 0,
+    motion: s.lastMotion || 0,
+    breathHeldMs: s.lastBreathHeldMs || 0,
+    breathRate: s.lastBreathRate || 0,
+    edgeScore: s.edgeScore || 0,
+    recentAlmost: s.consecutiveAlmost || 0,
+  });
+  let arousalHighSince = s.arousalHighSince || 0;
+  if (fused.arousal >= 0.82 && fused.confidence >= 0.4) {
+    if (!arousalHighSince) arousalHighSince = now;
+  } else {
+    arousalHighSince = 0;
+  }
+  // Smooth the estimate a little so a single sample can't jerk the controller.
+  const prev = s.arousal || 0;
+  const arousal = prev * 0.4 + fused.arousal * 0.6;
+  return { ...s, arousal, arousalConfidence: fused.confidence, arousalHighSince };
 }
 
 function applySensationPlane(s, now) {
@@ -1674,16 +1799,25 @@ function applyCommitDecision(s, now) {
     // Already committing — check opt-in auto-climax (the only path that marks
     // a climax without the user pressing the button).
     if (s.config.autoClimax) {
-      const sustainedMs = s.sustainedPeakSince ? now - s.sustainedPeakSince : 0;
-      if (
+      const sustainedPeakMs = s.sustainedPeakSince ? now - s.sustainedPeakSince : 0;
+      const arousalSustainedMs = s.arousalHighSince ? now - s.arousalHighSince : 0;
+      // v6.2: HR-spike + max edge score path; v6.3 adds the fused-arousal path.
+      const fired =
         autoClimaxSignal({
           autoClimaxEnabled: true,
           commitActive: true,
           edgeScore: s.edgeScore || 0,
           hrDelta: s.lastHrDelta || 0,
-          sustainedPeakMs: sustainedMs,
-        })
-      ) {
+          sustainedPeakMs,
+        }) ||
+        autoClimaxFromArousal({
+          autoClimaxEnabled: true,
+          commitActive: true,
+          arousal: s.arousal || 0,
+          confidence: s.arousalConfidence || 0,
+          sustainedMs: arousalSustainedMs,
+        });
+      if (fired) {
         return enterAftercare(
           {
             ...s,
@@ -1719,7 +1853,17 @@ function applyCommitDecision(s, now) {
     tooStrongRecent,
   });
 
-  if (fromAlmost || fromBio) {
+  // v6.3 closed-loop path: sustained high fused arousal (HR + motion + breath).
+  const arousalSustainedMs = s.arousalHighSince ? now - s.arousalHighSince : 0;
+  const fromArousal = commitFromArousal({
+    arousal: s.arousal || 0,
+    confidence: s.arousalConfidence || 0,
+    sustainedMs: arousalSustainedMs,
+    climaxPriority,
+    tooStrongRecent,
+  });
+
+  if (fromAlmost || fromBio || fromArousal) {
     return {
       ...s,
       commitMode: true,
@@ -1732,6 +1876,57 @@ function applyCommitDecision(s, now) {
       // Seed sustainedPeakSince so the auto-climax timer can start counting.
       sustainedPeakSince: (s.edgeScore || 0) >= 88 ? s.sustainedPeakSince || now : 0,
     };
+  }
+  return s;
+}
+
+/**
+ * v6.3 passive mode: drive EDGE_HOLD / CLIMAX_PUSH transitions from biofeedback
+ * alone, so a session can proceed without manual button presses. Only active
+ * when config.passiveMode is on (consent). Conservative thresholds + respects
+ * the same goal/edge-count rules as the manual path.
+ */
+function applyPassiveDecisions(s, now) {
+  if (!s.config?.passiveMode) return s;
+  if (
+    s.phase === "IDLE" ||
+    s.phase === "PAUSED" ||
+    s.phase === "AFTERCARE" ||
+    s.phase === "COOLDOWN"
+  ) {
+    return s;
+  }
+  const arousal = s.arousal || 0;
+  const confidence = s.arousalConfidence || 0;
+  // Need trustworthy signal to act passively — never guess.
+  if (confidence < 0.4) return s;
+
+  // High sustained arousal in BUILD/TEASE → enter an edge hold (no manual
+  // "almost" needed). Respects the edge budget.
+  const needsEdges = NEEDS_EDGES.has(s.config.goal);
+  const sustainedHighMs = s.arousalHighSince ? now - s.arousalHighSince : 0;
+  if (
+    needsEdges &&
+    (s.phase === "BUILD" || s.phase === "TEASE") &&
+    (s.edgeCountDone || 0) < (s.edgeCountTarget || 0) &&
+    arousal >= 0.85 &&
+    sustainedHighMs >= 4000
+  ) {
+    return enterHold(s, now);
+  }
+
+  // Very high sustained arousal in TEASE/EDGE_HOLD/SURGE (edges done, or direct
+  // goal) → start the push passively.
+  const edgesDone = (s.edgeCountDone || 0) >= (s.edgeCountTarget || 0);
+  if (
+    ((s.phase === "TEASE" || s.phase === "EDGE_HOLD" || s.phase === "SURGE") &&
+      edgesDone &&
+      arousal >= 0.92 &&
+      sustainedHighMs >= 5000 &&
+      !s.lastTooStrongAt) ||
+    (s.lastTooStrongAt && now - s.lastTooStrongAt > 15000)
+  ) {
+    return enterPush({ ...s, relStrength: clamp(Math.max(s.relStrength, 0.85), 0.8, 1) }, now);
   }
   return s;
 }
@@ -2147,6 +2342,16 @@ function patternForPhase(state, nowMs) {
     return list[Math.floor(t / 20) % list.length];
   };
 
+  // v6.3 (#2): bias toward the pattern family the user climaxed with before.
+  // ~half the time in the climax-critical phases we replay the learned pattern
+  // (when it's allowed for this phase), the rest varies for anti-habituation.
+  const preferred = state.preferredPatternFamily;
+  const prefersLearned =
+    preferred &&
+    allowClimax &&
+    (phase === "CLIMAX_PUSH" || phase === "SURGE") &&
+    Math.floor(t / 20) % 2 === 0;
+
   switch (phase) {
     case "CALIBRATING":
       patternId = t % 30 < 18 ? "gentle" : "heartbeat";
@@ -2179,7 +2384,7 @@ function patternForPhase(state, nowMs) {
       break;
     case "CLIMAX_PUSH":
       if (allowClimax) {
-        patternId = pick(["climax", "strobe", "flutter", "duet"]);
+        patternId = prefersLearned ? preferred : pick(["climax", "strobe", "flutter", "duet"]);
         ampScale = 0.95 + 0.05 * pp;
       } else {
         patternId = pick(["escalate", "strobe", "rhythm", "duet"]);
