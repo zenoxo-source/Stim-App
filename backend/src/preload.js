@@ -42,25 +42,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   platform: process.platform,
   getVersion: () => ipcRenderer.invoke("app:getVersion"),
   isPackaged: () => ipcRenderer.invoke("app:isPackaged"),
-  getApiKeyStatus: () => ipcRenderer.invoke("secrets:keyStatus"),
-  setApiKey: (key) => ipcRenderer.invoke("secrets:setApiKey", key),
   getGithubToken: () => ipcRenderer.invoke("secrets:getGithubToken"),
   setGithubToken: (token) => ipcRenderer.invoke("secrets:setGithubToken", token),
   exportLog: (content) => ipcRenderer.invoke("diagnostics:exportLog", content),
-  // LLM proxy (Webcam-Vision): requests run in the main process so the API key
-  // never reaches the renderer. Streaming chunks via onLLMChunk/onLLMDone.
-  chatLLM: (payload) => ipcRenderer.invoke("llm:chat", payload),
-  abortLLM: (reqId) => ipcRenderer.send("llm:abort", reqId),
-  onLLMChunk: (callback) => {
-    const handler = (_event, payload) => callback(payload);
-    ipcRenderer.on("llm:chunk", handler);
-    return () => ipcRenderer.removeListener("llm:chunk", handler);
-  },
-  onLLMDone: (callback) => {
-    const handler = (_event, payload) => callback(payload);
-    ipcRenderer.on("llm:done", handler);
-    return () => ipcRenderer.removeListener("llm:done", handler);
-  },
   checkForUpdates: () => ipcRenderer.invoke("updater:check"),
   installUpdate: () => ipcRenderer.invoke("updater:install"),
   hasUpdateToken: () => ipcRenderer.invoke("updater:hasToken"),

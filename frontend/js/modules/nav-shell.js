@@ -164,7 +164,7 @@ export function reorganizeSettingsLayout(layoutEl = null) {
       label: "Hardware & Biofeedback",
       hint: "MIDI · PIN · Herzfrequenz · Buttplug · Shaping",
     },
-    { id: "vision", label: "Vision", hint: "Webcam-Vision · LLM-Anbieter" },
+    { id: "vision", label: "Webcam", hint: "Webcam-Motion (lokal)" },
     { id: "system", label: "System", hint: "Diagnose-Logs" },
   ];
   const isCoreTitle = (raw) =>

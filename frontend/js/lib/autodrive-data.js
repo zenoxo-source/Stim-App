@@ -334,6 +334,24 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     // v6.1: kurze Kurve + Push-Retry für den schnellen Finish-Pfad
     climaxCurve: "kurz",
     pushRetry: true,
+    silentCommit: true,
+  },
+  // v6.2: long edge ladder for endurance — 5 edges, alternating A/B roles.
+  loops_marathon: {
+    id: "loops_marathon",
+    label: "Loops A+B · Marathon",
+    description: "28 Min · 5 Edges · wechselnde A/B-Rollen · Ausdauer",
+    targetDurationMin: 28,
+    goal: "edge_ladder",
+    sensitivity: "gentle",
+    edgeCount: 5,
+    maxSessionIntensityFactor: 0.88,
+    allowClimaxPatterns: true,
+    aggression: 0.8,
+    placement: "loops_ab_penis",
+    abRole: "aRhythm_bSteady",
+    channelFocus: "both",
+    group: "loops",
   },
   /** Climax-first: 1 edge → long multi-wave push, both channels full */
   finish_loops: {
@@ -355,6 +373,7 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     // v6.1: accelerating climax curve + push-retry (unmarked push → re-push)
     climaxCurve: "standard",
     pushRetry: true,
+    silentCommit: true,
   },
   finish_glans: {
     id: "finish_glans",
@@ -374,6 +393,7 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     climaxPriority: true,
     climaxCurve: "standard",
     pushRetry: true,
+    silentCommit: true,
   },
   finish_pads: {
     id: "finish_pads",
@@ -393,6 +413,49 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     climaxPriority: true,
     climaxCurve: "standard",
     pushRetry: true,
+    silentCommit: true,
+  },
+  // v6.2: hard direct push for experienced users — no edge, intense drive.
+  finish_intense: {
+    id: "finish_intense",
+    label: "★ Abspritzen · Intensiv",
+    description: "8 Min · direkter Hard-Push · kein Edge · hohes Cap",
+    targetDurationMin: 8,
+    goal: "direct",
+    sensitivity: "intense",
+    edgeCount: 0,
+    maxSessionIntensityFactor: 0.97,
+    allowClimaxPatterns: true,
+    aggression: 1.35,
+    placement: "loops_ab_penis",
+    abRole: "sync",
+    channelFocus: "both",
+    group: "finish",
+    climaxPriority: true,
+    climaxCurve: "kurz",
+    pushRetry: true,
+    silentCommit: true,
+  },
+  // v6.2: prostate / internal placement — conservative cap, slow verzoegert build.
+  finish_internal: {
+    id: "finish_internal",
+    label: "★ Abspritzen · Intern",
+    description: "16 Min · Prostata/Insertable · langsamer Aufbau · schonendes Cap",
+    targetDurationMin: 16,
+    goal: "edge_then_release",
+    sensitivity: "gentle",
+    edgeCount: 1,
+    maxSessionIntensityFactor: 0.82,
+    allowClimaxPatterns: true,
+    aggression: 0.95,
+    placement: "insertable",
+    abRole: "sync",
+    channelFocus: "A",
+    group: "finish",
+    climaxPriority: true,
+    climaxCurve: "verzoegert",
+    pushRetry: true,
+    silentCommit: true,
   },
   /** Two loops on one Coyote channel (base ↔ glans) */
   loops_single: {
@@ -433,6 +496,7 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     climaxPriority: true,
     climaxCurve: "standard",
     pushRetry: true,
+    silentCommit: true,
   },
   // F1: Climax-Fabrik — programmed edging loops, full frequency band.
   climax_factory: {
@@ -454,6 +518,7 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     group: "climax",
     climaxCurve: "standard",
     pushRetry: true,
+    silentCommit: true,
   },
   // F1: HFO — hands-free orgasm program (long slow build, full band, gentle finish).
   hfo: {
@@ -475,5 +540,6 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     group: "climax",
     climaxCurve: "verzoegert",
     pushRetry: true,
+    silentCommit: true,
   },
 });

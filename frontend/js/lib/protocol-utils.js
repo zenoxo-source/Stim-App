@@ -213,11 +213,9 @@ export function isCoyoteDeviceName(name) {
 /**
  * Build a portable settings object (no secrets).
  * @param {object} state partial AppState-like fields
- * @param {object} aiFields provider/endpoint/model/prompt
  */
-export function buildSettingsExport(state, aiFields) {
+export function buildSettingsExport(state) {
   const s = state || {};
-  const ai = aiFields || {};
   return {
     format: "stim-app-settings",
     version: 1,
@@ -236,10 +234,6 @@ export function buildSettingsExport(state, aiFields) {
       waveBalanceB: clampInt(s.waveBalanceB, 0, 255, 0),
       swapChannels: !!s.swapChannels,
       audioHearSound: s.audioHearSound !== false,
-      aiProvider: ai.aiProvider || "ollama",
-      aiEndpoint: ai.aiEndpoint || "http://localhost:11434/v1/chat/completions",
-      aiModel: ai.aiModel || "qwen2.5",
-      aiSystemPrompt: ai.aiSystemPrompt || "",
     },
   };
 }
@@ -249,8 +243,12 @@ export function parseSettingsImport(raw) {
   if (!data || typeof data !== "object") throw new Error("Ungültige Datei");
   const settings = data.settings || data;
   if (typeof settings !== "object") throw new Error("Keine settings gefunden");
-  // Strip secrets if present
+  // Strip legacy/secret fields if present (LLM fields removed in v6.2).
   delete settings.aiApiKey;
+  delete settings.aiProvider;
+  delete settings.aiEndpoint;
+  delete settings.aiModel;
+  delete settings.aiSystemPrompt;
   delete settings.githubToken;
   delete settings.ghToken;
   return {
@@ -267,10 +265,6 @@ export function parseSettingsImport(raw) {
     waveBalanceB: clampInt(settings.waveBalanceB, 0, 255, 0),
     swapChannels: !!settings.swapChannels,
     audioHearSound: settings.audioHearSound !== false,
-    aiProvider: String(settings.aiProvider || "ollama"),
-    aiEndpoint: String(settings.aiEndpoint || "http://localhost:11434/v1/chat/completions"),
-    aiModel: String(settings.aiModel || "qwen2.5"),
-    aiSystemPrompt: String(settings.aiSystemPrompt || ""),
   };
 }
 

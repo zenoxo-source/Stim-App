@@ -483,6 +483,9 @@ export function stopAutodrive(reason = "manuell") {
         durationMs: engineState.effectiveElapsedMs || 0,
         holdCycleIdx: engineState.holdCycleIdx || 0,
         pushRetriesUsed: engineState.pushRetriesUsed || 0,
+        // v6.2: silent-commit + auto-climax observability
+        commitUsed: engineState.commitMode || false,
+        autoClimaxMarked: engineState.autoClimaxMarked || false,
         reason,
       }
     : null;
@@ -543,6 +546,8 @@ export function stopAutodrive(reason = "manuell") {
     try {
       trackStat("autodrive_stops");
       if (snap.marked) trackStat("autodrive_success");
+      if (snap.commitUsed) trackStat("autodrive_commit_used");
+      if (snap.autoClimaxMarked) trackStat("autodrive_autoclimax");
       const learn = loadLearning();
       const sessions = (learn.sessions || 0) + 1;
       const climaxHits = (learn.climaxHits || 0) + (snap.marked ? 1 : 0);
@@ -1034,6 +1039,31 @@ export function injectFeedback(feedback) {
     } catch {
       /* optional */
     }
+  }
+  notifyUi();
+}
+
+/**
+ * v6.2: Feed a biofeedback sample (HR delta over baseline) into the engine.
+ * Does NOT mutate strength directly — the engine uses it for the silent-commit
+ * + opt-in auto-climax heuristics (see autodrive-engine.js BIO_FEEDBACK).
+ * Called by heart-rate.js / breath-sensor.js when hrAdaptive is on.
+ * @param {number} hrDelta bpm over baseline (positive = arousal)
+ */
+export function injectBioFeedback(hrDelta) {
+  if (!isAutodriveActive() || engineState.phase === "PAUSED") return;
+  if (typeof hrDelta !== "number" || !Number.isFinite(hrDelta)) return;
+  engineState = reduceAutodrive(engineState, {
+    type: "BIO_FEEDBACK",
+    hrDelta,
+    nowMs: Date.now(),
+    softA: AppState.softLimitA,
+    softB: AppState.softLimitB,
+  });
+  // Auto-climax path may have ended the push → enter aftercare UI flow.
+  if (engineState.phase === "IDLE") {
+    stopAutodrive("session-end");
+    return;
   }
   notifyUi();
 }

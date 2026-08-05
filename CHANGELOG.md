@@ -1,5 +1,27 @@
 # Changelog
 
+## 6.2.0 – Smarter Autodrive + Webcam lokal (ohne LLM)
+
+### Autodrive Engine — „Smarter Abspritzgarantie"
+- **Silent-Commit-Modus**: Bei wiederholtem „Fast" ohne „Zu stark" im Finish-Push wechselt die Engine auf `CLIMAX_WAVES_COMMIT` — ein einzelner langer Dauer-Peak ohne Drops (Duty ~0,95, scharfe Frequenz), um den Nutzer über die Schwelle zu helfen. Markiert *keinen* Climax, nur ein konstanter Drive. `too_strong` blockiert immer (Safety-first)
+- **Adaptive Push-Dauer**: Jedes „Fast" und jeder Push-Retry verlängert den Push datengetrieben (statt fix), begrenzt
+- **Biofeedback-Commit**: HR-Gurt streamt `BIO_FEEDBACK{hrDelta}` an die Engine; ein sustainierter Puls-Spike (≥8 s, ≥14 bpm) triggert den Commit-Modus auch ohne manuelles „Fast"
+- **Auto-Climax (opt-in, Consent)**: Wenn `silentCommit` aktiv + max. Edge-Score + sustainierter HR-Spike → Höhepunkt wird automatisch markiert. Default **off**, expliziter Opt-in (Checkbox im Wizard). Nur aktiv mit HR-Biofeedback
+- **3 neue Templates**: `★ Abspritzen · Intensiv` (Hard-Push), `★ Abspritzen · Intern` (Prostata/Insertable, verzoegert), `Loops A+B · Marathon` (28 Min, 5 Edges) — jetzt 22 Templates
+
+### Webcam — jetzt rein lokal (kein LLM mehr)
+- **Webcam-Vision vollständig auf lokale Bewegungs-Erkennung umgestellt**: 64×48-Graustufen-Frames → Motion-Energy (0–100 %) → Biofeedback für Autodrive (gleicher Pfad wie HR-Gurt). **Kein LLM, kein Netzwerk, kein Modell** — Bilder verlassen nie das Gerät
+- **LLM komplett entfernt**: `lib/llm-proxy.js`, `modules/ai-state.js`, `backend/src/llm-proxy.js` sowie die Tests gelöscht; IPC-Handler `llm:chat`/`llm:abort`/`secrets:keyStatus`/`secrets:setApiKey`, Preload-Exposures (`chatLLM`/`abortLLM`/`onLLMChunk`/`onLLMDone`) und die gesamte AI-Provider/Endpoint/Model/ApiKey-Settings-Logik (inkl. safeStorage-Migration) entfernt
+- Consent-Dialog, Settings-Karte und README auf „lokal" umtextiert; AI-Felder aus Settings-/Profile-/Export-Import entfernt (alte Settings-Dateien bleiben kompatibel)
+
+### Observability
+- Trust-Line zeigt `⚡ Commit` und `Auto`; Session-History bekommt Commit/Auto-Badges
+- Neue Stats: `autodrive_commit_used`, `autodrive_autoclimax`
+
+### Tests
+- 16 neue Tests für Climax-Protocol/Engine (Commit, BIO_FEEDBACK, Auto-Climax, adaptive Push-Dauer); Webcam-Tests neu für lokale Motion-Math; LLM-Proxy-Tests entfernt — **551 Tests grün**, Lint sauber, Build ok
+
+
 ## 6.1.0 — Abspritzgarantie: Push-Retry, Climax-Kurven, Finish-Templates
 
 ### Autodrive Engine („Abspritzgarantie“)

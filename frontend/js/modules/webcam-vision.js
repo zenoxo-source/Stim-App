@@ -1,39 +1,46 @@
-// webcam-vision.js - Periodic webcam-frame analysis via multimodal LLM.
+// webcam-vision.js - Local-only webcam motion-energy biofeedback.
 //
-// PRIVACY-BY-DESIGN rules enforced in code:
+// PRIVACY-BY-DESIGN (stricter than before: no longer needs any LLM):
 //   1. NEVER auto-enable. User must call enable() explicitly.
-//   2. NEVER persist frames. They're analyzed in-memory and discarded.
-//   3. NEVER log frame data (only analysis text).
-//   4. Display a clear "WEBCAM ACTIVE" indicator while running.
-//   5. Allow disable() at any time — immediately stops capture + releases cam.
-//   6. Only works with providers that support vision (Ollama + OpenRouter).
-//   7. Frames are JPEG 512×512 (~30 KB base64) to limit memory + bandwidth.
+//   2. Frames are analysed IN-MEMORY and discarded immediately. Nothing ever
+//      leaves the renderer — no model, no network, no logging of pixels.
+//   3. Display a clear "WEBCAM ACTIVE" indicator while running.
+//   4. Allow disable() at any time — immediately stops capture + releases cam.
+//   5. The only derived signal is a scalar "motion energy" 0..1 that feeds the
+//      Autodrive engine via injectBioFeedback (same path as the HR strap).
 //
-// API follows OpenAI vision format. Ollama supports this since llava;
-// OpenRouter supports it via GPT-4V / Claude / Gemini Vision etc.
+// What it does: every `intervalMs`, a small grayscale downscaled frame is
+// captured and compared (sum of absolute pixel differences) against the
+// previous frame. The normalised difference = motion energy. A moving average
+// smooths jitter; sustained high motion (rhythmic movement / arousal) becomes
+// a positive biofeedback delta, stillness becomes a gentle negative delta.
 
 import { DOM, log } from "../state.js";
-import { AIChatState } from "./ai-state.js";
-import { chatLLM } from "../lib/llm-proxy.js";
+import { injectBioFeedback } from "./autodrive.js";
 
-const WEBCAM_KEY = "stim_app_webcam_vision_v1";
+const WEBCAM_KEY = "stim_app_webcam_motion_v1";
 
-const DEFAULTS = {
+const DEFAULTS = Object.freeze({
   enabled: false, // false on first install; must be explicitly enabled
-  intervalMs: 10_000, // capture every 10s
-  maxWidth: 512,
-  maxHeight: 512,
-  jpegQuality: 0.7,
-  visionModel: "", // empty = use main AI model
-  systemPrompt:
-    "Du siehst ein Standbild aus der Webcam des Users. Beschreibe in 1-2 Sätzen non-judgmental, was du sieht (Körperhaltung, Mimik). gib dann einen Stim-Vorschlag im Tool-Call-Format.",
-};
+  intervalMs: 1000, // sample every 1s (local is cheap, unlike LLM calls)
+  sampleWidth: 64, // tiny grayscale grid — enough for motion, max privacy
+  sampleHeight: 48,
+  // Tuning: map normalised motion energy [0..1] to a HR-delta-equivalent
+  // signal for the engine (bpm over baseline). Sustained motion pushes commit.
+  motionFloor: 0.012, // below this = "still"
+  motionCeil: 0.12, // at/above this = "strong arousal"
+  deltaFloor: -6, // stillness → small negative delta (relax)
+  deltaCeil: 22, // strong motion → strong positive delta (arousal)
+  smoothing: 0.3, // EMA factor for the motion moving average
+});
 
 let stream = null;
 let videoEl = null;
+let canvasEl = null;
 let intervalHandle = null;
-let lastAnalysisText = "";
-let lastAnalysisAt = 0;
+let prevPixels = null;
+let motionAvg = 0;
+let lastDeltaSentAt = 0;
 let consentState = "not-asked"; // not-asked | granted | denied
 
 /**
@@ -64,8 +71,8 @@ export function saveConfig(patch) {
 }
 
 /**
- * Get consent state. UI calls setConsent('granted') after explicit checkbox
- * + warning dialog confirmation.
+ * Consent state. UI calls setConsent('granted') after explicit checkbox +
+ * warning dialog confirmation.
  * @returns {"not-asked"|"granted"|"denied"}
  */
 export function getConsent() {
@@ -73,7 +80,6 @@ export function getConsent() {
 }
 
 /**
- * Set consent state.
  * @param {"not-asked"|"granted"|"denied"} state
  */
 export function setConsent(state) {
@@ -82,122 +88,103 @@ export function setConsent(state) {
 }
 
 /**
- * Check whether a given AI provider supports vision input.
- * @param {"ollama"|"openrouter"|string} provider
- * @returns {boolean}
- */
-export function providerSupportsVision(provider) {
-  if (!provider) return false;
-  const p = String(provider).toLowerCase();
-  // Ollama: supports llava, llama3.2-vision, moondream etc. — model-dependent.
-  // OpenRouter: many models support vision (gpt-4o, claude-3.5-sonnet, etc.)
-  // We assume the user picks a vision-capable model.
-  return p === "ollama" || p === "openrouter";
-}
-
-/**
- * Capture a single frame from the active webcam stream as base64 JPEG.
- * Pure-ish helper (depends on canvas API); exposed for testing the format.
+ * Draw the current video frame to a tiny grayscale pixel buffer.
+ * Pure-ish helper (depends on canvas API); exposed for testing the math.
  *
  * @param {HTMLVideoElement} video
- * @param {number} maxWidth
- * @param {number} maxHeight
- * @param {number} quality 0..1
- * @returns {{ dataUrl: string, base64: string, width: number, height: number } | null}
+ * @param {number} width
+ * @param {number} height
+ * @param {CanvasRenderingContext2D} [ctx]  injectable for tests
+ * @param {HTMLCanvasElement} [canvas]
+ * @returns {{ width: number, height: number, gray: Uint8ClampedArray } | null}
  */
-export function captureFrameToBase64(video, maxWidth, maxHeight, quality) {
+export function captureGrayscale(video, width, height, ctx, canvas) {
   if (!video || !video.videoWidth || !video.videoHeight) return null;
-  const vw = video.videoWidth;
-  const vh = video.videoHeight;
-  const scale = Math.min(1, Math.min(maxWidth / vw, maxHeight / vh));
-  const w = Math.max(1, Math.round(vw * scale));
-  const h = Math.max(1, Math.round(vh * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const c = canvas.getContext("2d");
-  c.drawImage(video, 0, 0, w, h);
-  const dataUrl = canvas.toDataURL("image/jpeg", Math.max(0.1, Math.min(1, quality)));
-  const base64 = dataUrl.split(",")[1] || "";
-  return { dataUrl, base64, width: w, height: h };
+  const w = Math.max(1, Math.round(width));
+  const h = Math.max(1, Math.round(height));
+  const cv = canvas || document.createElement("canvas");
+  cv.width = w;
+  cv.height = h;
+  const c = ctx || cv.getContext("2d");
+  if (!c) return null;
+  try {
+    c.drawImage(video, 0, 0, w, h);
+  } catch {
+    return null;
+  }
+  const img = c.getImageData(0, 0, w, h).data;
+  const gray = new Uint8ClampedArray(w * h);
+  // luminance = 0.299R + 0.587G + 0.114B
+  for (let i = 0, j = 0; i < img.length; i += 4, j += 1) {
+    gray[j] = (img[i] * 299 + img[i + 1] * 587 + img[i + 2] * 114) / 1000;
+  }
+  return { width: w, height: h, gray };
 }
 
 /**
- * Build the OpenAI-compatible vision message body.
- * Pure helper — for testing the request format.
- *
- * @param {string} model
- * @param {string} systemPrompt
- * @param {string} imageBase64
- * @param {string} [userText=""]
- * @returns {{ model: string, messages: Array, stream: boolean }}
+ * Normalised mean absolute difference between two grayscale buffers.
+ * Returns 0 for identical / mismatched lengths. Pure.
+ * @param {Uint8ClampedArray} a
+ * @param {Uint8ClampedArray} b
+ * @returns {number} 0..1
  */
-export function buildVisionRequestBody(model, systemPrompt, imageBase64, userText = "") {
-  return {
-    model,
-    stream: false,
-    messages: [
-      { role: "system", content: systemPrompt },
-      {
-        role: "user",
-        content: [
-          { type: "text", text: userText || "Beschreibe dieses Bild." },
-          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
-        ],
-      },
-    ],
-  };
+export function motionEnergy(a, b) {
+  if (!a || !b || a.length !== b.length || a.length === 0) return 0;
+  let sum = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    sum += Math.abs(a[i] - b[i]);
+  }
+  return sum / (a.length * 255);
 }
 
 /**
- * @returns {boolean}
+ * Map a smoothed motion value [0..1] to a biofeedback delta
+ * (bpm-over-baseline equivalent for the engine). Pure.
+ * @param {number} motion  smoothed motion energy
+ * @param {object} cfg
+ * @returns {number}
  */
+export function motionToDelta(motion, cfg) {
+  const c = cfg || DEFAULTS;
+  const floor = Number(c.motionFloor) || 0;
+  const ceil = Number(c.motionCeil) || 1;
+  const span = Math.max(0.0001, ceil - floor);
+  const t = Math.min(1, Math.max(0, (motion - floor) / span));
+  return Math.round(
+    (Number(c.deltaFloor) || 0) + t * ((Number(c.deltaCeil) || 0) - (Number(c.deltaFloor) || 0))
+  );
+}
+
+/** @returns {boolean} */
 export function isActive() {
   return intervalHandle !== null;
 }
 
 /**
- * Active webcam capture + periodic analysis.
+ * Active webcam capture + periodic LOCAL motion analysis.
  *
- * Pre-conditions enforced:
- *   - consent === "granted"
- *   - provider supports vision
- *   - AI endpoint + model configured
+ * Pre-conditions: consent === "granted" (no provider/endpoint/model anymore).
  *
  * @param {Partial<typeof DEFAULTS>} [patch]
  * @returns {Promise<{ ok: boolean, error?: string }>}
  */
 export async function enable(patch) {
-  if (isActive()) return { ok: false, error: "Webcam-Vision läuft bereits." };
+  if (isActive()) return { ok: false, error: "Webcam-Motion läuft bereits." };
   if (consentState !== "granted") {
     return { ok: false, error: "Consent fehlt — bitte zuerst zustimmen." };
   }
   if (patch) saveConfig(patch);
   const cfg = loadConfig();
 
-  // Provider check
-  const provider = (document.getElementById("ai-provider")?.value || "").toLowerCase();
-  if (!providerSupportsVision(provider)) {
-    return { ok: false, error: `Provider „${provider}" unterstützt keine Vision-API.` };
-  }
-  const endpoint = document.getElementById("ai-endpoint")?.value;
-  const mainModel = document.getElementById("ai-model")?.value;
-  const model = cfg.visionModel || mainModel;
-  if (!endpoint || !model) {
-    return { ok: false, error: "AI-Endpoint oder Model fehlt." };
-  }
-
-  // Get camera
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: cfg.maxWidth }, height: { ideal: cfg.maxHeight } },
+      video: { width: { ideal: cfg.sampleWidth * 8 }, height: { ideal: cfg.sampleHeight * 8 } },
       audio: false,
     });
   } catch (err) {
     return { ok: false, error: `Kamerazugriff verweigert: ${err.message}` };
   }
 
-  // Build hidden video element
   videoEl = document.createElement("video");
   videoEl.srcObject = stream;
   videoEl.muted = true;
@@ -206,22 +193,22 @@ export async function enable(patch) {
   document.body.appendChild(videoEl);
   await videoEl.play().catch(() => {});
 
-  // Capture loop
-  intervalHandle = setInterval(
-    () => analyzeOnce(cfg, endpoint, provider, model),
-    Math.max(2000, cfg.intervalMs)
-  );
-  // Immediate first capture
-  setTimeout(() => analyzeOnce(cfg, endpoint, provider, model), 500);
+  canvasEl = document.createElement("canvas");
+  prevPixels = null;
+  motionAvg = 0;
 
-  log(`Webcam-Vision aktiv (Interval ${cfg.intervalMs}ms, Model ${model}).`, "warning");
+  intervalHandle = setInterval(() => sampleOnce(cfg), Math.max(250, cfg.intervalMs));
+  setTimeout(() => sampleOnce(cfg), 400);
+
+  log(
+    `Webcam-Motion aktiv (lokal, ${cfg.sampleWidth}×${cfg.sampleHeight}, Interval ${cfg.intervalMs}ms).`,
+    "warning"
+  );
   updateIndicator(true);
   return { ok: true };
 }
 
-/**
- * Stop webcam capture + release the camera.
- */
+/** Stop webcam capture + release the camera. */
 export function disable(reason = "manuell") {
   if (intervalHandle) {
     clearInterval(intervalHandle);
@@ -241,8 +228,11 @@ export function disable(reason = "manuell") {
     stream.getTracks().forEach((t) => t.stop());
     stream = null;
   }
+  canvasEl = null;
+  prevPixels = null;
+  motionAvg = 0;
   updateIndicator(false);
-  log(`Webcam-Vision gestoppt (${reason}).`, "info");
+  log(`Webcam-Motion gestoppt (${reason}).`, "info");
 }
 
 // Panic / global kill — always release camera (browser only)
@@ -257,76 +247,46 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
 }
 
 /**
- * Capture one frame + send to LLM. The LLM's response becomes available via
- * getLastAnalysis(). Frame is discarded immediately after the request.
+ * Capture one tiny grayscale frame, compute motion vs. previous frame, smooth,
+ * map to a delta and feed it to the Autodrive engine (best-effort). The frame
+ * never leaves this function and is never logged.
  */
-async function analyzeOnce(cfg, endpoint, provider, model) {
+function sampleOnce(cfg) {
   if (!videoEl) return;
-  const frame = captureFrameToBase64(videoEl, cfg.maxWidth, cfg.maxHeight, cfg.jpegQuality);
+  const ctx = canvasEl ? canvasEl.getContext("2d") : null;
+  const frame = captureGrayscale(videoEl, cfg.sampleWidth, cfg.sampleHeight, ctx, canvasEl);
   if (!frame) return;
 
-  // NEVER persist or log the base64 frame data.
-  const body = buildVisionRequestBody(model, cfg.systemPrompt, frame.base64);
-  // Frame is now only inside `body` for the duration of the request.
+  let delta = 0;
+  if (prevPixels && prevPixels.length === frame.gray.length) {
+    const energy = motionEnergy(prevPixels, frame.gray);
+    // Exponential moving average to suppress single-frame jitter.
+    const a = Math.min(1, Math.max(0, Number(cfg.smoothing) || 0.3));
+    motionAvg = motionAvg * (1 - a) + energy * a;
+    delta = motionToDelta(motionAvg, cfg);
+  }
+  // Always hold the latest frame for the next diff.
+  prevPixels = frame.gray;
 
-  const controller = new AbortController();
-  AIChatState.currentController = controller;
+  updateMotionDisplay(motionAvg, delta);
 
-  try {
-    // Request runs in the main process; the OpenRouter key stays there.
-    const result = await chatLLM({
-      provider,
-      endpoint,
-      model: body.model,
-      messages: body.messages,
-      stream: false,
-      signal: controller.signal,
-    });
-    if (!result.ok) {
-      if (result.aborted) return;
-      const reason = result.error || `HTTP ${result.status || "?"}`;
-      log(`Webcam-Vision Fehler: ${reason}`, "error");
-      return;
-    }
-    const data = result.data;
-    const text =
-      data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || "(keine Antwort)";
-    lastAnalysisText = typeof text === "string" ? text : JSON.stringify(text);
-    lastAnalysisAt = Date.now();
-    updateAnalysisDisplay(lastAnalysisText);
-    // Append to AI chat history so tool-calls in the response can fire
+  // Feed the engine. Throttled to ~one delta per second even if sampling faster.
+  const now = Date.now();
+  if (typeof injectBioFeedback === "function" && now - lastDeltaSentAt >= 1000) {
+    lastDeltaSentAt = now;
     try {
-      appendVisionToChat(lastAnalysisText);
+      injectBioFeedback(delta);
     } catch {
-      /* chat append optional */
+      /* biofeedback is best-effort */
     }
-  } catch (err) {
-    if (err.name === "AbortError") return;
-    log(`Webcam-Vision Anfrage fehlgeschlagen: ${err.message}`, "error");
-  } finally {
-    AIChatState.currentController = null;
   }
 }
 
-/**
- * Inject the vision analysis into the AI chat as a system message.
- * Wrapped in try/catch by caller — llm-service is optional dependency.
- */
-function appendVisionToChat(text) {
-  const chatHistory = document.getElementById("ai-chat-history");
-  if (!chatHistory) return;
-  // Just visual: append as a quiet "vision" line
-  const div = document.createElement("div");
-  div.className = "chat-msg system";
-  div.style.cssText = "font-size: 12px; opacity: 0.7; font-style: italic;";
-  div.textContent = `👁️ Webcam-Vision: ${text}`;
-  chatHistory.appendChild(div);
-  chatHistory.scrollTop = chatHistory.scrollHeight;
+/** @returns {number} the current smoothed motion energy (0..1). */
+export function getMotionAvg() {
+  return motionAvg;
 }
 
-/**
- * Update the visible "WEBCAM ACTIVE" indicator (red dot, etc.).
- */
 function updateIndicator(active) {
   const ind = DOM && DOM["webcam-indicator"];
   if (!ind) return;
@@ -340,20 +300,11 @@ function updateIndicator(active) {
   }
 }
 
-function updateAnalysisDisplay(text) {
-  const el = DOM && DOM["webcam-analysis"];
-  if (el) {
-    el.textContent = text.slice(0, 500);
-    el.title = text;
-  }
-}
-
-/** @returns {string} last analysis text (empty if never analyzed). */
-export function getLastAnalysis() {
-  return lastAnalysisText;
-}
-
-/** @returns {number} timestamp of last successful analysis (0 if never). */
-export function getLastAnalysisAt() {
-  return lastAnalysisAt;
+function updateMotionDisplay(motion, delta) {
+  const pct = Math.round(Math.min(1, motion) * 100);
+  const txt = `Motion ${pct}% · Δ${delta >= 0 ? "+" : ""}${delta}`;
+  const cached = DOM && DOM["webcam-analysis"];
+  if (cached) cached.textContent = txt;
+  const status = document.getElementById("webcam-status");
+  if (status) status.textContent = txt;
 }

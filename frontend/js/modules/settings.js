@@ -1,4 +1,4 @@
-// settings.js - Persistent settings and preferences (API key via safeStorage)
+// settings.js - Persistent settings and preferences
 import { AppState, DOM, log } from "../state.js";
 import { buildSettingsExport, parseSettingsImport } from "../lib/protocol-utils.js";
 import { syncFreqUI } from "../control-deck.js";
@@ -6,13 +6,6 @@ import { sendV3Init } from "./bluetooth.js";
 
 const SETTINGS_KEY = "stim_app_settings_v1";
 const LEGACY_SETTINGS_KEY = "coyote_app_settings_v1";
-
-// The raw API key never lives in the renderer. The settings input only
-// receives it while the user types; the stored key is shown as a masked
-// hint. apiKeyDirty gates writes so unrelated settings changes cannot
-// overwrite or delete the stored key by accident.
-let apiKeyDirty = false;
-let apiKeyHasStored = false;
 
 const defaultSettings = {
   softLimitA: 150,
@@ -28,15 +21,6 @@ const defaultSettings = {
   waveBalanceB: 0,
   swapChannels: false,
   audioHearSound: true,
-  aiProvider: "ollama",
-  aiEndpoint: "http://localhost:11434/v1/chat/completions",
-  aiApiKey: "",
-  aiModel: "qwen2.5",
-};
-
-const AI_ENDPOINTS = {
-  ollama: "http://localhost:11434/v1/chat/completions",
-  openrouter: "https://openrouter.ai/api/v1/chat/completions",
 };
 
 export function loadSettings() {
@@ -78,39 +62,10 @@ export function saveSettings() {
         waveBalanceB: AppState.waveBalanceB,
         swapChannels: AppState.swapChannels,
         audioHearSound: AppState.audioHearSound,
-        aiProvider: DOM["ai-provider"]?.value ?? defaultSettings.aiProvider,
-        aiEndpoint: DOM["ai-endpoint"]?.value ?? defaultSettings.aiEndpoint,
-        aiModel: DOM["ai-model"]?.value ?? defaultSettings.aiModel,
       })
     );
-
-    if (apiKeyDirty && window.electronAPI && typeof window.electronAPI.setApiKey === "function") {
-      const apiKey = DOM["ai-api-key"]?.value ?? "";
-      apiKeyHasStored = Boolean(apiKey);
-      window.electronAPI.setApiKey(apiKey).catch((err) => {
-        console.warn("Failed to store API key securely:", err);
-      });
-      updateApiKeyIndicator();
-    }
   } catch (e) {
     console.warn("Failed to save settings:", e);
-  }
-}
-
-function updateApiKeyIndicator() {
-  const input = DOM["ai-api-key"];
-  const clearBtn = document.getElementById("btn-ai-key-clear");
-  const statusEl = document.getElementById("ai-key-status");
-  if (input) {
-    input.placeholder = apiKeyHasStored
-      ? "•••••• (Key gespeichert — bei Bedarf überschreiben)"
-      : "sk-or-v1-… · safeStorage";
-  }
-  if (clearBtn) clearBtn.style.display = apiKeyHasStored && !(input && input.value) ? "" : "none";
-  if (statusEl) {
-    statusEl.textContent = apiKeyHasStored
-      ? "API-Key ist verschlüsselt gespeichert (safeStorage) und wird nur im Main-Prozess verwendet."
-      : "API-Key wird nur lokal auf diesem Gerät gespeichert.";
   }
 }
 
@@ -171,62 +126,10 @@ export function applySettings(settings) {
   if (DOM["check-swap-channels"]) DOM["check-swap-channels"].checked = settings.swapChannels;
   if (DOM["check-hear-audio"]) DOM["check-hear-audio"].checked = settings.audioHearSound;
   if (DOM["check-settings-audio"]) DOM["check-settings-audio"].checked = settings.audioHearSound;
-
-  if (DOM["ai-provider"]) DOM["ai-provider"].value = settings.aiProvider;
-  if (DOM["ai-endpoint"]) DOM["ai-endpoint"].value = settings.aiEndpoint;
-  if (DOM["ai-api-key"]) {
-    // Only a plain-browser context shows the (legacy, plaintext) stored key —
-    // in the Electron app the key lives in safeStorage and must not reach the
-    // renderer, so the input starts empty (masked hint only).
-    DOM["ai-api-key"].value =
-      window.electronAPI && typeof window.electronAPI.getApiKeyStatus === "function"
-        ? ""
-        : settings.aiApiKey || "";
-  }
-  if (DOM["ai-model"]) DOM["ai-model"].value = settings.aiModel;
-}
-
-async function loadApiKeySecurely(settings) {
-  if (window.electronAPI && typeof window.electronAPI.getApiKeyStatus === "function") {
-    // Legacy migration: move a plaintext key from localStorage into safeStorage.
-    if (settings.aiApiKey) {
-      try {
-        const ok = await window.electronAPI.setApiKey(settings.aiApiKey);
-        if (ok) {
-          const raw = localStorage.getItem(SETTINGS_KEY);
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            delete parsed.aiApiKey;
-            localStorage.setItem(SETTINGS_KEY, JSON.stringify(parsed));
-          }
-          log("API-Key in geschützten Speicher migriert (safeStorage).", "info");
-        }
-      } catch (e) {
-        console.warn("Failed to migrate API key:", e);
-      }
-    }
-    try {
-      const status = await window.electronAPI.getApiKeyStatus();
-      apiKeyHasStored = Boolean(status && status.hasKey);
-    } catch (e) {
-      console.warn("Failed to load API key status:", e);
-      apiKeyHasStored = false;
-    }
-    if (DOM["ai-api-key"]) DOM["ai-api-key"].value = "";
-    updateApiKeyIndicator();
-    return;
-  }
-
-  // Plain-browser fallback: the input itself is the storage.
-  if (DOM["ai-api-key"]) DOM["ai-api-key"].value = settings.aiApiKey || "";
 }
 
 function exportSettingsFile() {
-  const payload = buildSettingsExport(AppState, {
-    aiProvider: DOM["ai-provider"]?.value,
-    aiEndpoint: DOM["ai-endpoint"]?.value,
-    aiModel: DOM["ai-model"]?.value,
-  });
+  const payload = buildSettingsExport(AppState);
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json",
   });
@@ -236,7 +139,7 @@ function exportSettingsFile() {
   a.download = `stim-app-settings-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  log("Einstellungen exportiert (ohne API-Keys).", "success");
+  log("Einstellungen exportiert.", "success");
 }
 
 async function importSettingsFromFile(file) {
@@ -270,7 +173,6 @@ function bindBalanceSlider(sliderId, labelId, stateKey) {
 document.addEventListener("DOMContentLoaded", () => {
   const settings = loadSettings();
   applySettings(settings);
-  loadApiKeySecurely(settings);
 
   if (window.electronAPI && typeof window.electronAPI.getVersion === "function") {
     window.electronAPI.getVersion().then((v) => {
@@ -296,36 +198,11 @@ document.addEventListener("DOMContentLoaded", () => {
     "check-swap-channels",
     "check-hear-audio",
     "check-settings-audio",
-    "ai-provider",
-    "ai-endpoint",
-    "ai-model",
   ].forEach((id) => {
     const el = document.getElementById(id) || DOM[id];
     if (el) {
       saveEvents.forEach((evt) => el.addEventListener(evt, saveSettings));
     }
-  });
-
-  // API-Key input: dirty-tracked save, so unrelated settings changes can
-  // never overwrite or delete the stored key by accident.
-  const apiKeyInput = DOM["ai-api-key"] || document.getElementById("ai-api-key");
-  if (apiKeyInput) {
-    apiKeyInput.addEventListener("input", () => {
-      apiKeyDirty = true;
-      updateApiKeyIndicator();
-      saveSettings();
-    });
-    apiKeyInput.addEventListener("change", saveSettings);
-  }
-  document.getElementById("btn-ai-key-clear")?.addEventListener("click", async () => {
-    apiKeyDirty = true;
-    if (apiKeyInput) apiKeyInput.value = "";
-    if (window.electronAPI && typeof window.electronAPI.setApiKey === "function") {
-      await window.electronAPI.setApiKey("");
-    }
-    apiKeyHasStored = false;
-    updateApiKeyIndicator();
-    log("API-Key gelöscht.", "info");
   });
 
   bindBalanceSlider("slider-freq-bal-a", "label-freq-bal-a", "freqBalanceA");
@@ -352,23 +229,6 @@ document.addEventListener("DOMContentLoaded", () => {
     saveSettings();
     if (AppState.isConnected) sendV3Init();
     log("Wave-Balance auf Standard zurückgesetzt.", "info");
-  });
-
-  // AI provider → sensible endpoint defaults when switching
-  DOM["ai-provider"]?.addEventListener("change", () => {
-    const p = DOM["ai-provider"].value;
-    const ep = DOM["ai-endpoint"];
-    if (!ep) return;
-    const cur = ep.value || "";
-    const isDefault =
-      !cur ||
-      cur.includes("localhost:11434") ||
-      cur.includes("openrouter.ai") ||
-      Object.values(AI_ENDPOINTS).includes(cur);
-    if (isDefault && AI_ENDPOINTS[p]) {
-      ep.value = AI_ENDPOINTS[p];
-    }
-    saveSettings();
   });
 
   document.getElementById("btn-export-settings")?.addEventListener("click", exportSettingsFile);

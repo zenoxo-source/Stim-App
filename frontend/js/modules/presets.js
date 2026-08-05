@@ -1,5 +1,5 @@
 // presets.js - intensity presets + session safety timer
-import { AppState, DOM, log } from "../state.js";
+import { AppState, log } from "../state.js";
 import { applySettings, saveSettings } from "./settings.js";
 import { updateSlidersA, updateSlidersB, syncFreqUI } from "../control-deck.js";
 import { sendV3Init } from "./bluetooth.js";
@@ -53,10 +53,6 @@ export function applyIntensityPreset(id) {
     pulseWidthB: AppState.pulseWidthB,
     swapChannels: AppState.swapChannels,
     audioHearSound: AppState.audioHearSound,
-    aiProvider: DOM["ai-provider"]?.value,
-    aiEndpoint: DOM["ai-endpoint"]?.value,
-    aiModel: DOM["ai-model"]?.value,
-    aiSystemPrompt: DOM["ai-system-prompt"]?.value,
   });
   updateSlidersA(AppState.strengthA);
   updateSlidersB(AppState.strengthB);

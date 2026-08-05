@@ -10,6 +10,7 @@ import {
   isAutodriveActive,
   getAutodriveState,
   injectFeedback,
+  injectBioFeedback,
   endRefractoryEarly,
 } from "./autodrive.js";
 
@@ -177,6 +178,17 @@ function hrMonitorTick() {
   if (now - lastHrAt > 15000) return; // stale signal — don't act
 
   const delta = currentHr - baseline;
+  // v6.2: stream the raw HR delta to the engine so the silent-commit /
+  // auto-climax heuristics can react to a SUSTAINED arousal spike (not just
+  // the discrete "almost"/"good" events below). Cheap and always safe — the
+  // engine only mutates commit flags, never strength.
+  if (typeof injectBioFeedback === "function") {
+    try {
+      injectBioFeedback(delta);
+    } catch {
+      /* biofeedback is best-effort */
+    }
+  }
   if (delta >= 14) {
     // Strong arousal → confirm the edge is close.
     lastAutoInjectAt = now;

@@ -14,7 +14,6 @@ const {
 const path = require("path");
 const fs = require("fs");
 const { autoUpdater } = require("electron-updater");
-const { runLLMRequest, abortLLM } = require("./llm-proxy");
 const { startButtplugServer, stopButtplugServer, getButtplugStatus } = require("./buttplug-server");
 const {
   connectButtplugClient,
@@ -47,7 +46,6 @@ let trayConnected = false;
 const BLUETOOTH_SELECT_TIMEOUT_MS = 30000;
 /** Silent background update checks (no UI unless an update is found). */
 const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
-const API_KEY_FILENAME = "ai-api-key.enc";
 const GH_UPDATE_TOKEN_FILENAME = "gh-update-token.enc";
 const UPDATE_OWNER = "zenoxo-source";
 const UPDATE_REPO = "Stim-App";
@@ -706,19 +704,6 @@ function registerIpc() {
 
   ipcMain.handle("updater:hasToken", () => Boolean(getGithubUpdateToken()));
 
-  // LLM/vision API key (Webcam-Vision): stored via safeStorage, raw key never
-  // crosses the IPC boundary.
-  ipcMain.handle("secrets:keyStatus", () => {
-    const key = readSecretFile(API_KEY_FILENAME);
-    const hasKey = Boolean(key);
-    return { hasKey, hint: hasKey ? `••••${key.slice(-4)}` : "" };
-  });
-  ipcMain.handle("secrets:setApiKey", (event, apiKey) => {
-    if (typeof apiKey !== "string") return false;
-    if (apiKey.length > 4096) return false;
-    return writeSecretFile(API_KEY_FILENAME, apiKey);
-  });
-
   ipcMain.handle("secrets:getGithubToken", () => readSecretFile(GH_UPDATE_TOKEN_FILENAME));
   ipcMain.handle("secrets:setGithubToken", (event, token) => {
     if (typeof token !== "string") return false;
@@ -752,27 +737,6 @@ function registerIpc() {
       console.warn("Failed to export log:", err.message);
       return { ok: false, error: err.message };
     }
-  });
-
-  // LLM proxy (see llm-proxy.js): used by Webcam-Vision. The API key stays in
-  // the main process; streaming chunks are routed back via webContents.send.
-  ipcMain.handle("llm:chat", async (event, payload) => {
-    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-      return { ok: false, error: "payload fehlt oder ist ungültig." };
-    }
-    const sender = event.sender;
-    const send = (channel, data) => {
-      if (sender && !sender.isDestroyed()) sender.send(channel, data);
-    };
-    return runLLMRequest({
-      ...payload,
-      apiKey: readSecretFile(API_KEY_FILENAME),
-      send,
-    });
-  });
-
-  ipcMain.on("llm:abort", (_event, reqId) => {
-    if (typeof reqId === "string" && reqId) abortLLM(reqId);
   });
 
   // Buttplug.io server (experimental): VibrateCmd speed → renderer intensity.

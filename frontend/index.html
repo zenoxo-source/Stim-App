@@ -448,6 +448,9 @@
                     <label style="display:flex; align-items:center; gap:6px; font-size:12px;" title="Mit verbundenem HR-Gurt (z.B. Polar H10): Puls-Anstieg → automatisch „Fast“, Puls-Abfall → „Gut“">
                       <input type="checkbox" id="autodrive-hr"> Biofeedback (HR-Gurt): Puls steuert „Fast/Gut“ mit
                     </label>
+                    <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:4px;" title="Opt-in (Consent): Bei Finish-Sessions mit HR-Gurt wird ein anhaltend starker Peak + Puls-Spike automatisch als Höhepunkt markiert. Nur aktiv, wenn Biofeedback an ist.">
+                      <input type="checkbox" id="autodrive-autoclimax"> Auto-Climax (opt-in): anhaltender Peak + HR-Spike → „Fertig ✓“ automatisch
+                    </label>
                   </div>
                 </div>
                 <div class="ad-wizard-nav">
@@ -1737,45 +1740,16 @@
               </div>
             </div>
 
-            <!-- Vision / LLM provider (Webcam-Vision) -->
+            <!-- Webcam-Motion (local-only biofeedback, consent-gated) -->
             <div class="card" data-settings-group="vision" style="grid-column: 1 / -1;">
-              <div class="card-title">Webcam-Vision · LLM</div>
-              <div class="channel-box ai-settings-grid">
-                <div class="control-row stacked">
-                  <span class="control-label" data-i18n="settings_anbieter">Anbieter</span>
-                  <select id="ai-provider" class="select-control">
-                    <option value="ollama" selected data-i18n="settings_ollama">Ollama (lokal)</option>
-                    <option value="openrouter">OpenRouter (Cloud)</option>
-                  </select>
-                </div>
-                <div class="control-row stacked">
-                  <span class="control-label">API Endpoint</span>
-                  <input type="text" id="ai-endpoint" class="text-input" value="http://localhost:11434/v1/chat/completions">
-                </div>
-                <div class="control-row stacked">
-                  <span class="control-label">API Key (Cloud)</span>
-                  <div style="display:flex; gap:8px; align-items:center;">
-                    <input type="password" id="ai-api-key" class="text-input" placeholder="sk-or-v1-… · safeStorage" autocomplete="new-password" style="flex:1;">
-                    <button type="button" id="btn-ai-key-clear" class="btn btn-secondary btn-sm" style="display:none;" title="Gespeicherten API-Key löschen">Löschen</button>
-                  </div>
-                  <span class="hint-muted" id="ai-key-status">API-Key wird nur lokal auf diesem Gerät gespeichert.</span>
-                </div>
-                <div class="control-row stacked">
-                  <span class="control-label" data-i18n="settings_model">Modell</span>
-                  <input type="text" id="ai-model" class="text-input" value="qwen2.5">
-                </div>
-              </div>
-            </div>
-
-            <!-- Webcam-Vision (consent-gated) -->
-            <div class="card" data-settings-group="vision" style="grid-column: 1 / -1;">
-              <div class="card-title">👁️ Webcam-Vision</div>
+              <div class="card-title">📷 Webcam-Motion</div>
               <div class="channel-box" style="gap: 10px;">
                 <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
-                  Analysiert periodisch ein Webcam-Standbild (Privacy-by-Design: nichts wird gespeichert oder geloggt, jederzeit stoppbar).
+                  Vollständig lokale Bewegungs-Erkennung (64×48 Graustufen) als Biofeedback für Autodrive.
+                  <strong>Kein LLM, kein Netzwerk</strong> — Bilder verlassen nie das Gerät, nichts wird gespeichert oder geloggt.
                 </p>
                 <div class="btn-row">
-                  <button type="button" id="btn-webcam-toggle" class="btn btn-sm">📷 Webcam-Vision</button>
+                  <button type="button" id="btn-webcam-toggle" class="btn btn-sm">📷 Webcam-Motion</button>
                   <button type="button" id="btn-webcam-consent" class="btn btn-secondary btn-sm">Einwilligung</button>
                   <span id="webcam-status" style="font-size: 13px; color: var(--text-muted); align-self: center;"></span>
                 </div>

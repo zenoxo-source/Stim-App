@@ -9,7 +9,7 @@
 // Cross-platform: pure localStorage + AppState mutation. No platform code.
 
 import { AppState, log } from "../state.js";
-import { loadSettings, saveSettings, applySettings } from "./settings.js";
+import { saveSettings, applySettings } from "./settings.js";
 
 const PROFILES_KEY = "stim_app_profiles_v1";
 const ASSIGNED_PROFILE_KEY = "stim_app_assigned_profile_v1";
@@ -35,10 +35,6 @@ const DEFAULT_PROFILE_NAME = "Standard";
  * @property {boolean} audioHearSound
  * @property {number} sensitivityA
  * @property {number} sensitivityB
- * @property {string} aiProvider
- * @property {string} aiEndpoint
- * @property {string} aiModel
- * @property {string} aiSystemPrompt
  */
 
 /** Generate a stable unique id. */
@@ -52,7 +48,6 @@ function makeId() {
  * @returns {Profile}
  */
 export function snapshotCurrentState(name) {
-  const s = loadSettings();
   return {
     id: makeId(),
     name: name || DEFAULT_PROFILE_NAME,
@@ -71,10 +66,6 @@ export function snapshotCurrentState(name) {
     audioHearSound: AppState.audioHearSound,
     sensitivityA: AppState.sensitivityA,
     sensitivityB: AppState.sensitivityB,
-    aiProvider: s.aiProvider,
-    aiEndpoint: s.aiEndpoint,
-    aiModel: s.aiModel,
-    aiSystemPrompt: s.aiSystemPrompt,
   };
 }
 
@@ -265,7 +256,6 @@ function applyProfileToState(profile) {
   try {
     applySettings({
       ...profile,
-      aiApiKey: "",
     });
     saveSettings();
   } catch (err) {

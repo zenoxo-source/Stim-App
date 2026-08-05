@@ -63,13 +63,11 @@ npm run version:major    # Bump major version (3.0.0 → 4.0.0)
 - `frontend/js/constants.js` — All constants (BLE UUIDs, limits, intervals)
 - `frontend/js/lib/protocol-utils.js` — Pure protocol helpers (tested)
 - `frontend/js/lib/autodrive-data.js` — Static Autodrive templates + placement profiles (split from the engine)
-- `frontend/js/lib/llm-proxy.js` — Renderer-side LLM wrapper (main-process proxy + browser fallback)
+- `frontend/js/lib/climax-protocol.js` — Multi-wave climax tables + push-retry + silent-commit/auto-climax heuristics (v6.1/v6.2, pure + tested)
 - `frontend/js/modules/bluetooth.js` — BLE connection + V3 protocol implementation
 - `frontend/js/control-deck.js` — Wave loop + pattern engine + slider handlers
-- `frontend/js/modules/ai-state.js` — Shared mutable state for Webcam-Vision (AbortController)
-- `frontend/js/modules/webcam-vision.js` — Multimodal webcam analysis (consent-gated; uses `lib/llm-proxy.js`)
+- `frontend/js/modules/webcam-vision.js` — Local-only webcam motion-energy biofeedback (consent-gated; feeds Autodrive via `injectBioFeedback`; no LLM since v6.2)
 - `frontend/js/modules/recorder.js` — Session recording & replay
-- `backend/src/llm-proxy.js` — Main-process LLM proxy (endpoint allowlist, safeStorage key, SSE forwarding; used by Webcam-Vision; tested)
 - `backend/scripts/build-frontend.js` — esbuild bundler (dev + prod output)
 - `backend/scripts/bump-version.js` — Version bump across package.json/README/CHANGELOG
 - `backend/tests/helpers/dom-mock.js` — Browser-API shims for Node test runner

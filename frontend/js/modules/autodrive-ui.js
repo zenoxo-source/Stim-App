@@ -431,7 +431,11 @@ function paintDashboard(st) {
     const retryTotal = st.pushRetryTotal || 0;
     const retryNote =
       retries > 0 && st.phase === "CLIMAX_PUSH" ? ` · Push ${retries + 1}/${retryTotal + 1}` : "";
-    trust.textContent = buildTrustLine(st) + retryNote;
+    // v6.2: silent-commit indicator — the engine holds a sustained peak to
+    // push the user over the edge. Only relevant during a finish push.
+    const commitNote = st.commitMode ? " · ⚡ Commit" : "";
+    const autoNote = st.autoClimaxMarked ? " · Auto" : "";
+    trust.textContent = buildTrustLine(st) + retryNote + commitNote + autoNote;
   }
 
   paintTimeline(st);
@@ -467,6 +471,9 @@ function paintHistory() {
       const mark = h.marked ? " · ✅" : "";
       const tpl = h.templateId ? ` · ${esc(h.templateId)}` : "";
       const retry = h.pushRetriesUsed ? ` · Retry-Push ${h.pushRetriesUsed}×` : "";
+      // v6.2: silent-commit + auto-climax badges (observability).
+      const commitBadge = h.commitUsed ? " · ⚡" : "";
+      const autoBadge = h.autoClimaxMarked ? " · Auto" : "";
       // F11: per-template learning line.
       const tl = h.templateId ? getTemplateLearning(h.templateId) : null;
       const learnLine =
@@ -474,7 +481,7 @@ function paintHistory() {
           ? ` · Ø bis Climax ${formatUiMs(tl.avgTimeToClimaxMs)}`
           : "";
       return `<div class="stat-list-row ad-history-row" data-hidx="${history.indexOf(h)}">
-        <span>${date} · ${min} Min · Phase ${esc(h.phase || "—")} · Edges ${h.edges || 0}${tpl}${mark}${retry}${learnLine}</span>
+        <span>${date} · ${min} Min · Phase ${esc(h.phase || "—")} · Edges ${h.edges || 0}${tpl}${mark}${retry}${commitBadge}${autoBadge}${learnLine}</span>
         <span style="display:flex;gap:6px;">
           ${h.timeline && h.timeline.length >= 2 ? `<button type="button" class="btn btn-secondary btn-sm ad-history-chart" title="Session-Verlauf anzeigen">📈</button>` : ""}
           <button type="button" class="btn btn-secondary btn-sm ad-history-restart" title="Session erneut starten">↻</button>
@@ -1630,6 +1637,22 @@ document.addEventListener("DOMContentLoaded", () => {
       saveAutodriveConfig({ climaxCurve: cc.value });
       log(`Climax-Kurve: ${cc.value}.`, "info");
     });
+    // v6.2: opt-in auto-climax (CONSENT, default off). Only takes effect on
+    // finish templates with silentCommit + an HR strap. Hidden if the element
+    // is not present in the DOM.
+    const acBox = document.getElementById("autodrive-autoclimax");
+    if (acBox) {
+      acBox.checked = cfg.autoClimax === true;
+      acBox.addEventListener("change", () => {
+        saveAutodriveConfig({ autoClimax: acBox.checked });
+        log(
+          acBox.checked
+            ? "Auto-Climax aktiviert (opt-in): bei anhaltendem Peak + HR-Spike wird der Höhepunkt automatisch markiert."
+            : "Auto-Climax deaktiviert.",
+          "info"
+        );
+      });
+    }
   } catch (err) {
     console.warn("autodrive UI init", err);
     buildTemplateGrid("classic");

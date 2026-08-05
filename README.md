@@ -3,7 +3,7 @@
 Electron-Desktop-App zur Bluetooth-Steuerung eines DG-LAB Coyote 3.0.
 
 **Repository:** [github.com/zenoxo-source/Stim-App](https://github.com/zenoxo-source/Stim-App)  
-**Version:** 6.1.0
+**Version:** 6.2.0
 
 ## Features
 
@@ -46,8 +46,8 @@ Artefakte: `backend/dist-app/StimApp-<version>-win-x64.exe`
 
 ## Vision (Webcam)
 
-- **Ollama** lokal oder **OpenRouter** mit API-Key (safeStorage) — Einstellungen → „Webcam-Vision · LLM“  
-- Webcam-Frames werden nur zur Analyse verwendet (Privacy-by-Design, Consent-gated)
+- **Vollständig lokal** — Bewegungs-Erkennung auf 64×48-Graustufen-Frames als Biofeedback für Autodrive (kein LLM, kein Netzwerk seit v6.2)
+- Bilder verlassen nie das Gerät (Privacy-by-Design, Consent-gated); nur ein Motion-Wert (0–100 %) wird ans Autodrive gemeldet
 
 ## Tastatur
 

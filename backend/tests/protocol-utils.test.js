@@ -136,18 +136,22 @@ describe("master scale edge cases", () => {
 
 describe("settings export/import", () => {
   it("exports without secrets and with format marker", () => {
-    const exp = ProtocolUtils.buildSettingsExport(
-      { softLimitA: 120, softLimitB: 90, masterScale: 0.5, swapChannels: true },
-      { aiProvider: "openrouter", aiModel: "test-model" }
-    );
+    const exp = ProtocolUtils.buildSettingsExport({
+      softLimitA: 120,
+      softLimitB: 90,
+      masterScale: 0.5,
+      swapChannels: true,
+    });
     assert.equal(exp.format, "stim-app-settings");
     assert.equal(exp.settings.softLimitA, 120);
     assert.equal(exp.settings.masterScale, 0.5);
-    assert.equal(exp.settings.aiProvider, "openrouter");
+    // v6.2: LLM/AI fields were removed — export must not carry them.
+    assert.equal(exp.settings.aiProvider, undefined);
     assert.equal(exp.settings.aiApiKey, undefined);
+    assert.equal(exp.settings.aiModel, undefined);
   });
 
-  it("imports and clamps values, strips secrets", () => {
+  it("imports and clamps values, strips legacy LLM secrets", () => {
     const raw = JSON.stringify({
       settings: {
         softLimitA: 999,
@@ -155,14 +159,17 @@ describe("settings export/import", () => {
         masterScale: 2,
         aiApiKey: "secret-should-drop",
         aiProvider: "ollama",
+        aiModel: "qwen2.5",
       },
     });
     const s = ProtocolUtils.parseSettingsImport(raw);
     assert.equal(s.softLimitA, 200);
     assert.equal(s.softLimitB, 10);
     assert.equal(s.masterScale, 1);
+    // Legacy LLM fields are dropped on import (removed in v6.2).
     assert.equal(s.aiApiKey, undefined);
-    assert.equal(s.aiProvider, "ollama");
+    assert.equal(s.aiProvider, undefined);
+    assert.equal(s.aiModel, undefined);
   });
 
   it("rejects invalid JSON", () => {

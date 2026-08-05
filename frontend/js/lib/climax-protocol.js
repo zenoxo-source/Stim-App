@@ -29,6 +29,18 @@ export const CLIMAX_WAVES_FINISH = Object.freeze([
 ]);
 
 /**
+ * Commit-path: a single long crest with NO drops. Used by the "silent commit"
+ * heuristic — when the user has signalled "almost" repeatedly without a
+ * "too strong" response, the engine switches to a sustained peak hold (duty
+ * ~1.0, sharp freq) to help push them over the edge instead of dipping.
+ * Many users never press "Fertig ✓" in time; this does not mark a climax, it
+ * only keeps the drive committed for the final stretch.
+ */
+export const CLIMAX_WAVES_COMMIT = Object.freeze([
+  { crestMs: 28000, dropMs: 0, peakBoost: 0.16 }, // single long committed hold
+]);
+
+/**
  * Push-retry budget for finish templates ("Abspritzgarantie").
  * After a CLIMAX_PUSH timeout without a marked climax the session re-arms a
  * short TEASE slice and pushes again with more boost instead of ending.
@@ -47,9 +59,10 @@ export const PUSH_RETRY = Object.freeze({
 
 /**
  * @param {object} [config]
- * @returns {typeof CLIMAX_WAVES_FINISH | typeof CLIMAX_WAVES}
+ * @returns {typeof CLIMAX_WAVES_FINISH | typeof CLIMAX_WAVES | typeof CLIMAX_WAVES_COMMIT}
  */
 export function climaxWaveTable(config) {
+  if (config?.commitMode) return CLIMAX_WAVES_COMMIT;
   return config?.climaxPriority ? CLIMAX_WAVES_FINISH : CLIMAX_WAVES;
 }
 
@@ -82,4 +95,118 @@ export function pushBoostForRetry(retryN) {
 export function pushFloorRel(config, retryN = 0) {
   const n = Math.max(0, Number(retryN) || 0);
   return Math.min(0.72, PUSH_RETRY.floorRel + n * 0.04);
+}
+
+// ---------------------------------------------------------------------------
+// v6.2 "Smarter Abspritzgarantie" — silent-commit heuristic + biofeedback.
+// Pure predicates so the engine stays a thin reducer; every branch below is
+// covered by unit tests.
+// ---------------------------------------------------------------------------
+
+/** Min. number of "almost" signals without a climax before commit kicks in. */
+export const COMMIT_ALMOST_THRESHOLD = 2;
+/** Below this edge-score the user is not considered on the edge yet. */
+export const COMMIT_EDGE_SCORE_MIN = 65;
+/** How long a sustained HR spike must last before it can trigger commit (ms). */
+export const COMMIT_HR_SUSTAINED_MS = 8000;
+/** HR delta (bpm over baseline) that counts as a strong arousal spike. */
+export const COMMIT_HR_SPIKE_DELTA = 14;
+
+/**
+ * Silent-commit decision: should the engine switch the multi-wave push to a
+ * single sustained peak hold (no drops)?
+ *
+ * Rationale (see docs/DESIGN-abspritzgarantie.md §2.5): a user who repeatedly
+ * reports "almost" during a finish push without ever reporting "too strong" is
+ * very likely on the edge but not pressing "Fertig ✓". Dipping the strength
+ * in that window can lose the orgasm. Commit mode removes the dips for the
+ * final stretch — it does NOT mark a climax.
+ *
+ * @param {object} ctx
+ * @param {number} ctx.almostWithoutClimax Consecutive "almost" count since last climax.
+ * @param {boolean} ctx.tooStrongRecent A "too strong" landed in the last ~12 s.
+ * @param {number} [ctx.edgeScore] Current edge score (0–100).
+ * @param {boolean} [ctx.climaxPriority] Only commit on finish paths.
+ * @returns {boolean}
+ */
+export function commitThreshold({
+  almostWithoutClimax,
+  tooStrongRecent,
+  edgeScore,
+  climaxPriority,
+}) {
+  if (!climaxPriority) return false;
+  if (tooStrongRecent) return false; // never override an explicit "too strong"
+  const a = Number(almostWithoutClimax) || 0;
+  if (a < COMMIT_ALMOST_THRESHOLD) return false;
+  const score = Number(edgeScore) || 0;
+  return score >= COMMIT_EDGE_SCORE_MIN;
+}
+
+/**
+ * Biofeedback-driven commit trigger: a sustained HR spike (arousal) can flip
+ * on commit mode even without manual "almost" presses. Requires the session
+ * to be on a finish path (climaxPriority).
+ *
+ * @param {object} ctx
+ * @param {number} [ctx.hrDelta] bpm over baseline (positive = arousal).
+ * @param {number} [ctx.sustainedMs] How long the spike has been held.
+ * @param {boolean} [ctx.climaxPriority]
+ * @param {boolean} [ctx.tooStrongRecent]
+ * @returns {boolean}
+ */
+export function commitFromBiofeedback({ hrDelta, sustainedMs, climaxPriority, tooStrongRecent }) {
+  if (!climaxPriority) return false;
+  if (tooStrongRecent) return false;
+  const d = Number(hrDelta) || 0;
+  const ms = Number(sustainedMs) || 0;
+  return d >= COMMIT_HR_SPIKE_DELTA && ms >= COMMIT_HR_SUSTAINED_MS;
+}
+
+/**
+ * Opt-in auto-climax signal. Only fires when the user has explicitly enabled
+ * `autoClimax` (default off — consent). Requires commit mode to already be
+ * active AND a sustained maximum edge score AND a strong HR spike. This is the
+ * only path that marks a climax without the user pressing the button.
+ *
+ * @param {object} ctx
+ * @param {boolean} ctx.autoClimaxEnabled Explicit opt-in.
+ * @param {boolean} [ctx.commitActive]
+ * @param {number} [ctx.edgeScore]
+ * @param {number} [ctx.hrDelta]
+ * @param {number} [ctx.sustainedPeakMs]
+ * @returns {boolean}
+ */
+export function autoClimaxSignal({
+  autoClimaxEnabled,
+  commitActive,
+  edgeScore,
+  hrDelta,
+  sustainedPeakMs,
+}) {
+  if (!autoClimaxEnabled) return false;
+  if (!commitActive) return false;
+  const score = Number(edgeScore) || 0;
+  if (score < 90) return false;
+  const d = Number(hrDelta) || 0;
+  const ms = Number(sustainedPeakMs) || 0;
+  return d >= COMMIT_HR_SPIKE_DELTA && ms >= COMMIT_HR_SUSTAINED_MS;
+}
+
+/**
+ * Adaptive push extension: each "almost" during a push and each retry lengthens
+ * the deadline so the drive does not time out while arousal is still climbing.
+ * Bounded so a stuck session still ends.
+ * @param {object} ctx
+ * @param {number} [ctx.almostWithoutClimax]
+ * @param {number} [ctx.retries]
+ * @returns {number} ms to add to the push deadline
+ */
+export function adaptivePushExtensionMs({ almostWithoutClimax, retries } = {}) {
+  const a = Math.max(0, Number(almostWithoutClimax) || 0);
+  const r = Math.max(0, Number(retries) || 0);
+  // 18 s per consecutive almost (capped at 5), +12 s per retry spent.
+  const perAlmost = Math.min(a, 5) * 18000;
+  const perRetry = Math.min(r, PUSH_RETRY.maxRetries) * 12000;
+  return perAlmost + perRetry;
 }

@@ -238,11 +238,6 @@ export function initDOMCache() {
     "check-swap-channels",
     "check-debug-mode",
     "check-settings-audio",
-    // Vision / LLM provider (Webcam-Vision)
-    "ai-provider",
-    "ai-endpoint",
-    "ai-api-key",
-    "ai-model",
     // Logs
     "terminal-log",
     "btn-clear-logs",

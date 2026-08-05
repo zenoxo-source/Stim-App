@@ -7,16 +7,21 @@ import { CLIMAX_CURVES, climaxCurveStep } from "./wire-shaping.js";
 import {
   CLIMAX_WAVES,
   CLIMAX_WAVES_FINISH,
+  CLIMAX_WAVES_COMMIT,
   PUSH_RETRY,
   climaxWaveTable,
   pushRetryBudget,
   pushBoostForRetry,
   pushFloorRel,
+  commitThreshold,
+  commitFromBiofeedback,
+  autoClimaxSignal,
+  adaptivePushExtensionMs,
 } from "./climax-protocol.js";
 
 // Re-exported for modules/tests that import them from the engine (kept in sync
 // with climax-protocol.js).
-export { CLIMAX_WAVES, CLIMAX_WAVES_FINISH };
+export { CLIMAX_WAVES, CLIMAX_WAVES_FINISH, CLIMAX_WAVES_COMMIT };
 
 /** @typedef {"IDLE"|"CALIBRATING"|"WARMUP"|"BUILD"|"TEASE"|"EDGE_HOLD"|"SURGE"|"CLIMAX_PUSH"|"AFTERCARE"|"COOLDOWN"|"PAUSED"} AutodrivePhase */
 /** @typedef {"direct"|"edge_then_release"|"edge_ladder"|"deny_then_release"|"hfo"} AutodriveGoal */
@@ -92,6 +97,15 @@ export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
   /** v6.1 finish-path: after an unmarked CLIMAX_PUSH timeout, re-arm a short
    *  TEASE slice and push again with more boost instead of ending (bounded). */
   pushRetry: false,
+  /** v6.2 silent-commit: on finish paths, switch the multi-wave push to a
+   *  single sustained peak hold (no drops) when the user has been "almost"
+   *  repeatedly without "too strong" — helps push over the edge.
+   *  Default off; finish templates set this explicitly to true. */
+  silentCommit: false,
+  /** v6.2 auto-climax (CONSENT, default off): when silent-commit is active AND
+   *  a sustained HR spike + max edge score occur, mark the climax without the
+   *  user pressing the button. Only enable with an explicit opt-in. */
+  autoClimax: false,
 });
 
 const SENSITIVITY_SCALE = Object.freeze({
@@ -418,6 +432,8 @@ export function sanitiseAutodriveConfig(input) {
     base.climaxCurve = raw.climaxCurve;
   }
   if (typeof raw.pushRetry === "boolean") base.pushRetry = raw.pushRetry;
+  if (typeof raw.silentCommit === "boolean") base.silentCommit = raw.silentCommit;
+  if (typeof raw.autoClimax === "boolean") base.autoClimax = raw.autoClimax;
   if (typeof raw.templateId === "string" && AUTODRIVE_TEMPLATES[raw.templateId]) {
     const tpl = AUTODRIVE_TEMPLATES[raw.templateId];
     if (typeof tpl.freqFullBand === "boolean") base.freqFullBand = tpl.freqFullBand;
@@ -431,6 +447,8 @@ export function sanitiseAutodriveConfig(input) {
       base.climaxCurve = tpl.climaxCurve;
     }
     if (typeof tpl.pushRetry === "boolean") base.pushRetry = tpl.pushRetry;
+    if (typeof tpl.silentCommit === "boolean") base.silentCommit = tpl.silentCommit;
+    if (typeof tpl.autoClimax === "boolean") base.autoClimax = tpl.autoClimax;
   }
 
   const kinds = new Set(["loops", "pads", "mixed", "insertable"]);
@@ -575,6 +593,14 @@ export function createInitialState(config, nowMs, learning = {}) {
     // unmarked CLIMAX_PUSH timeout (0 = first push). Total = retry budget.
     pushRetriesUsed: 0,
     pushRetryTotal: pushRetryBudget(cfg).maxRetries,
+    // v6.2 silent-commit: when true the push uses CLIMAX_WAVES_COMMIT (single
+    // sustained crest, no drops). Flipped on by commitThreshold / biofeedback.
+    commitMode: false,
+    commitStartedAt: 0,
+    // Biofeedback tracking (BIO_FEEDBACK events from heart-rate.js)
+    lastHrDelta: 0,
+    hrSustainedSince: 0,
+    sustainedPeakSince: 0,
     // Session quality counters (for coach / debrief)
     sessionTooWeakCount: 0,
     sessionTooStrongCount: 0,
@@ -689,6 +715,7 @@ export function reduceAutodrive(state, event) {
     s = applyEdgeScoreTick(s, now);
     s = applySensationPlane(s, now);
     s = applyHabituation(s, now);
+    s = applyCommitDecision(s, now);
     s = applyClimaxWave(s, now);
     s = applyMicroMod(s, now);
     s = applyTimePressure(s, now);
@@ -745,6 +772,30 @@ export function reduceAutodrive(state, event) {
       return setPhase(s, "BUILD", now, shareMs(s.targetDurationMs, "BUILD", s.config));
     }
     return s;
+  }
+
+  // v6.2: biofeedback sample (HR strap / breath sensor). Does NOT mutate
+  // strength directly — only feeds the commit/auto-climax heuristics. The
+  // actual decision is applied on the next TICK via applyCommitDecision.
+  if (event.type === "BIO_FEEDBACK") {
+    const delta = Number(event.hrDelta);
+    const next = {
+      ...s,
+      lastHrDelta: Number.isFinite(delta) ? delta : s.lastHrDelta || 0,
+    };
+    // Track how long a strong arousal spike has been sustained.
+    const spiking = (next.lastHrDelta || 0) >= 12;
+    if (spiking) {
+      if (!next.hrSustainedSince) next.hrSustainedSince = now;
+      // Sustained high edge score while on a finish push.
+      if (s.phase === "CLIMAX_PUSH" && (s.edgeScore || 0) >= 88 && !next.sustainedPeakSince) {
+        next.sustainedPeakSince = now;
+      }
+    } else {
+      next.hrSustainedSince = 0;
+      next.sustainedPeakSince = 0;
+    }
+    return next;
   }
 
   return s;
@@ -885,6 +936,13 @@ export function computeAutodriveOutput(state, nowMs) {
     abRole: state.config.abRole || "sync",
     pushRetriesUsed: state.pushRetriesUsed || 0,
     pushRetryTotal: state.pushRetryTotal || 0,
+    // v6.2 silent-commit + biofeedback assist
+    commitMode: !!state.commitMode,
+    commitActive: !!state.commitMode,
+    autoClimaxEnabled: !!state.config?.autoClimax,
+    silentCommitEnabled: !!state.config?.silentCommit,
+    autoClimaxMarked: !!state.autoClimaxMarked,
+    lastHrDelta: state.lastHrDelta || 0,
   };
 }
 
@@ -982,6 +1040,11 @@ function emptyOut(phase, silenced) {
   };
 }
 
+/** Picks the climax wave table, merging the runtime commitMode flag in. */
+function waveTableFor(s) {
+  return climaxWaveTable({ ...(s.config || {}), commitMode: s.commitMode });
+}
+
 function shareMs(targetDurationMs, phase, cfg) {
   let share = PHASE_SHARES[phase] ?? 0.1;
   if (cfg?.templateId === "turbo" || cfg?.templateId === "quick_finish") {
@@ -1019,7 +1082,7 @@ function teaseSliceMs(state) {
 
 function pushDurationMs(state) {
   // Sum of multi-wave protocol + buffer; climaxPriority = longer final hold
-  const table = climaxWaveTable(state.config);
+  const table = waveTableFor(state);
   const waves = table.reduce((acc, w) => acc + w.crestMs + w.dropMs, 0);
   const aggro = state.config.aggression ?? 1;
   const priority = state.config.climaxPriority ? 1.4 : 1;
@@ -1043,6 +1106,11 @@ function idleState(s, now) {
     holdCompletedThisVisit: false,
     lastTickAt: now,
     softResetUntil: 0,
+    // v6.2: clear commit state when the session ends.
+    commitMode: false,
+    commitStartedAt: 0,
+    sustainedPeakSince: 0,
+    hrSustainedSince: 0,
   };
 }
 
@@ -1060,6 +1128,11 @@ function enterAftercare(s, now, marked) {
     wireFreqTarget: 28 + (s.placeFreqBias || 0),
     dutyCycle: 0.45,
     climaxWaveIndex: 0,
+    // v6.2: commit is local to CLIMAX_PUSH — clear on aftercare.
+    commitMode: false,
+    commitStartedAt: 0,
+    sustainedPeakSince: 0,
+    climaxInDrop: false,
     phaseHistory: [...(s.phaseHistory || []), "AFTERCARE"].slice(-12),
   };
 }
@@ -1344,6 +1417,10 @@ function applySensationPlane(s, now) {
         ((full ? fb.hi : band.hi) - (full ? fb.lo : band.lo)) * Math.min(1, pp * 1.2) +
         placeBias * (full ? 2 : 1);
     }
+    // v6.2 commit mode: pin to the sharp band peak for the sustained hold.
+    if (s.commitMode) {
+      freqTarget = (full ? 380 : band.hi) + placeBias * (full ? 2 : 1);
+    }
   }
 
   let duty = PHASE_DUTY[s.phase] ?? 0.7;
@@ -1459,7 +1536,7 @@ function applyClimaxWave(s, now) {
     return { ...s, climaxWaveIndex: 0, climaxWaveStartedAt: 0, climaxInDrop: false };
   }
 
-  const table = climaxWaveTable(s.config);
+  const table = waveTableFor(s);
   let idx = s.climaxWaveIndex || 0;
   let started = s.climaxWaveStartedAt || s.phaseStartedAt || now;
   let inDrop = !!s.climaxInDrop;
@@ -1560,6 +1637,9 @@ function setPhase(s, phase, now, durationMs) {
     climaxWaveIndex: 0,
     climaxWaveStartedAt: now,
     climaxInDrop: false,
+    // v6.2: commit mode is local to a CLIMAX_PUSH — leaving the push clears it.
+    commitMode: phase === "CLIMAX_PUSH" ? s.commitMode || false : false,
+    commitStartedAt: phase === "CLIMAX_PUSH" ? s.commitStartedAt || 0 : 0,
     phaseHistory: [...(s.phaseHistory || []), phase].slice(-12),
   };
 }
@@ -1574,7 +1654,86 @@ function enterPush(s, now) {
   if (retries > 0) {
     next.pushBoostRemaining = (next.pushBoostRemaining || 0) + pushBoostForRetry(retries);
   }
+  // Fresh commit window per push attempt.
+  next.commitMode = false;
+  next.commitStartedAt = 0;
+  next.sustainedPeakSince = 0;
   return next;
+}
+
+/**
+ * v6.2 silent-commit + biofeedback assist. Runs every TICK during CLIMAX_PUSH:
+ * decides whether to switch the multi-wave push to a single sustained peak hold
+ * (commit mode). Also evaluates the opt-in auto-climax signal. Pure predicates
+ * live in climax-protocol.js; this just reads state and flips flags.
+ */
+function applyCommitDecision(s, now) {
+  if (s.phase !== "CLIMAX_PUSH") return s;
+  if (!s.config?.silentCommit && !s.config?.autoClimax) return s;
+  if (s.commitMode) {
+    // Already committing — check opt-in auto-climax (the only path that marks
+    // a climax without the user pressing the button).
+    if (s.config.autoClimax) {
+      const sustainedMs = s.sustainedPeakSince ? now - s.sustainedPeakSince : 0;
+      if (
+        autoClimaxSignal({
+          autoClimaxEnabled: true,
+          commitActive: true,
+          edgeScore: s.edgeScore || 0,
+          hrDelta: s.lastHrDelta || 0,
+          sustainedPeakMs: sustainedMs,
+        })
+      ) {
+        return enterAftercare(
+          {
+            ...s,
+            almostWithoutClimax: 0,
+            climaxCount: (s.climaxCount || 0) + 1,
+            autoClimaxMarked: true,
+          },
+          now,
+          true
+        );
+      }
+    }
+    return s;
+  }
+
+  const tooStrongRecent = !!(s.lastTooStrongAt && now - s.lastTooStrongAt < 12000);
+  const climaxPriority = !!s.config?.climaxPriority;
+
+  // Manual "almost" path.
+  const fromAlmost = commitThreshold({
+    almostWithoutClimax: s.almostWithoutClimax || 0,
+    tooStrongRecent,
+    edgeScore: s.edgeScore || 0,
+    climaxPriority,
+  });
+
+  // Biofeedback path (HR spike sustained for ≥ COMMIT_HR_SUSTAINED_MS).
+  const sustainedMs = s.hrSustainedSince ? now - s.hrSustainedSince : 0;
+  const fromBio = commitFromBiofeedback({
+    hrDelta: s.lastHrDelta || 0,
+    sustainedMs,
+    climaxPriority,
+    tooStrongRecent,
+  });
+
+  if (fromAlmost || fromBio) {
+    return {
+      ...s,
+      commitMode: true,
+      commitStartedAt: now,
+      // Pin duty high + freq to the sharp band for the committed hold.
+      dutyCycle: Math.max(s.dutyCycle || 0.82, 0.95),
+      wireFreqTarget: Math.max(s.wireFreqTarget || 90, 110 + (s.placeFreqBias || 0)),
+      relStrength: Math.max(s.relStrength || 0, 0.9),
+      edgeScore: Math.max(s.edgeScore || 0, 85),
+      // Seed sustainedPeakSince so the auto-climax timer can start counting.
+      sustainedPeakSince: (s.edgeScore || 0) >= 88 ? s.sustainedPeakSince || now : 0,
+    };
+  }
+  return s;
 }
 
 function applyPhaseTimeout(s, now) {
@@ -1877,7 +2036,10 @@ function applyFeedback(s, feedback, now) {
       const almostN = (s.almostWithoutClimax || 0) + 1;
       // Quality loop: 3+ almost without climax → longer push + more boost
       const boost = almostN >= 3 ? 3 : 2;
-      const extend = almostN >= 3 ? 35000 : 20000;
+      const extend =
+        (almostN >= 3 ? 35000 : 20000) +
+        // v6.2: also grow with retries spent (each retry = harder user).
+        adaptivePushExtensionMs({ almostWithoutClimax: 0, retries: s.pushRetriesUsed || 0 });
       return {
         ...scoreUp,
         almostWithoutClimax: almostN,
@@ -2060,12 +2222,16 @@ function phaseTip(state) {
       return "Starke Wellen — gleich Multi-Wave-Push";
     case "CLIMAX_PUSH": {
       const w = (state.climaxWaveIndex || 0) + 1;
-      const n = climaxWaveTable(state.config).length;
+      const n = waveTableFor(state).length;
       const boost = (state.pushBoostRemaining || 0) > 0 ? " · Boost aktiv" : "";
       const retries = state.pushRetriesUsed || 0;
       const retryNote =
         retries > 0 ? ` · Push-Versuch ${retries + 1}/${(state.pushRetryTotal || 1) + 1}` : "";
-      return `Push-Welle ${w}/${n}${boost}${retryNote} — „Fertig ✓“ wenn du kommst`;
+      const commit = state.commitMode ? " · Commit (Dauer-Peak)" : "";
+      const tail = state.commitMode
+        ? ` — Drüber kommen · „Fertig ✓“ wenn du kommst`
+        : ` — „Fertig ✓“ wenn du kommst`;
+      return `Push-Welle ${w}/${n}${boost}${retryNote}${commit}${tail}`;
     }
     case "AFTERCARE":
       return state.userMarkedClimax
