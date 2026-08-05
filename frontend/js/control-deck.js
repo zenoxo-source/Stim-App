@@ -106,8 +106,8 @@ function drawStimOutputHistory() {
 
 // Moved to lib/pattern-engine.js; imported for internal use and re-exported
 // so existing importers and tests keep working unchanged.
-import { computeNamedPatternWave } from "./lib/pattern-engine.js";
-export { computeNamedPatternWave };
+import { computeNamedPatternWave, computePatternSlots } from "./lib/pattern-engine.js";
+export { computeNamedPatternWave, computePatternSlots };
 import { vibratoDelta } from "./lib/wire-shaping.js";
 
 // v5.1: 25 ms fast wire path (shaping/beat) — the wave loop stores the base
@@ -153,28 +153,28 @@ export function startWaveLoop() {
   }
 
   /**
-   * F10: 4×25 ms micro-slots — sample the pattern at sub-ticks so the B0
-   * packet carries a smooth intensity ramp instead of 4 identical slots.
-   * F22: frequency vibrato varies the per-slot freq for texture.
+   * v6.5: 4×25 ms micro-slots from the pattern's own slot texture. Each slot
+   * samples the pulse train at fractional ticks (smooth intensity ramp inside
+   * the B0 packet) and applies the per-pattern frequency texture. The global
+   * wire-shaping freqVibrato is layered on top when configured.
    */
   function microSlots(patternId, tick, computePattern, fA, fB) {
     if (!patternId || typeof computePattern !== "function") return undefined;
     try {
+      const slots = computePatternSlots(patternId, tick, fA, fB);
+      if (!slots) return undefined;
       const vib = getWireShapingCfg().freqVibrato || "none";
-      const ampAt = (i, get) => {
-        const w = computePattern(patternId, tick + i * 0.25);
-        return get(w);
-      };
+      if (vib === "none") return slots;
       const tBase = Date.now();
-      const fAt = (i, base) => {
-        if (vib === "none") return base;
-        const d = vibratoDelta(vib, tBase + i * 25, 0);
-        return base > 0 ? Math.max(10, Math.min(240, Math.round(base + d))) : 0;
-      };
-      return {
-        A: [0, 1, 2, 3].map((i) => ({ freq: fAt(i, fA), intensity: ampAt(i, (w) => w.aA) })),
-        B: [0, 1, 2, 3].map((i) => ({ freq: fAt(i, fB), intensity: ampAt(i, (w) => w.aB) })),
-      };
+      const addVib = (list, ch) =>
+        list.map((s, i) => ({
+          ...s,
+          freq:
+            s.freq > 0
+              ? Math.max(10, Math.min(240, s.freq + vibratoDelta(vib, tBase + i * 25, ch)))
+              : 0,
+        }));
+      return { A: addVib(slots.A, 0), B: addVib(slots.B, 1) };
     } catch {
       return undefined;
     }
@@ -245,59 +245,10 @@ export function startWaveLoop() {
       let fB = AppState.frequencyB,
         aB = 0;
 
-      if (AppState.activePattern === CONSTANTS.PATTERNS.GENTLE) {
-        fA = 45;
-        fB = 45;
-        aA = Math.round(40 + 40 * Math.sin(AppState.loopTimeCounter * 0.3));
-        aB = Math.round(40 + 40 * Math.cos(AppState.loopTimeCounter * 0.3));
-      } else if (AppState.activePattern === CONSTANTS.PATTERNS.RHYTHM) {
-        const cycleIndex = AppState.loopTimeCounter % 12;
-        fA = 35;
-        fB = 35;
-        if (cycleIndex === 0) {
-          aA = 100;
-          aB = 0;
-        } else if (cycleIndex === 1) {
-          aA = 50;
-          aB = 0;
-        } else if (cycleIndex === 3) {
-          aA = 0;
-          aB = 100;
-        } else if (cycleIndex === 4) {
-          aA = 0;
-          aB = 50;
-        } else {
-          aA = 0;
-          aB = 0;
-        }
-      } else if (AppState.activePattern === CONSTANTS.PATTERNS.TEASE) {
-        const cycleIndex = AppState.loopTimeCounter % 60;
-        if (cycleIndex < 20) {
-          fA = Math.round(45 + cycleIndex * 5);
-          fB = fA;
-          aA = Math.round(cycleIndex * 5);
-          aB = aA;
-        } else {
-          aA = 0;
-          aB = 0;
-        }
-      } else if (AppState.activePattern === CONSTANTS.PATTERNS.CLIMAX) {
-        fA = Math.round(60 + 50 * Math.sin(AppState.loopTimeCounter * 0.4));
-        fB = Math.round(60 + 50 * Math.cos(AppState.loopTimeCounter * 0.4));
-        aA = Math.round(70 + 30 * Math.sin(AppState.loopTimeCounter * 1.5));
-        aB = Math.round(70 + 30 * Math.cos(AppState.loopTimeCounter * 1.5));
-      } else if (AppState.activePattern === CONSTANTS.PATTERNS.STROBE) {
-        const cycleIndex = AppState.loopTimeCounter % 2;
-        fA = 60;
-        fB = 60;
-        aA = cycleIndex === 0 ? 100 : 0;
-        aB = cycleIndex === 0 ? 100 : 0;
-      } else if (AppState.activePattern === CONSTANTS.PATTERNS.RANDOM) {
-        fA = AppState.frequencyA;
-        fB = AppState.frequencyB;
-        aA = Math.round(Math.random() * 100);
-        aB = Math.round(Math.random() * 100);
-      } else if (AppState.activePattern === CONSTANTS.PATTERNS.AI_CUSTOM) {
+      // v6.5: named patterns are computed exclusively in pattern-engine.js
+      // (single source of truth — envelopes + freq coupling + phase play).
+      // Only ai_custom needs the live custom arrays, so it stays inline.
+      if (AppState.activePattern === CONSTANTS.PATTERNS.AI_CUSTOM) {
         const tick = Math.floor(
           Date.now() / (AppState.aiCustomInterval || CONSTANTS.WAVE_LOOP_INTERVAL_MS)
         );
@@ -311,88 +262,12 @@ export function startWaveLoop() {
             : 0;
         fA = AppState.frequencyA;
         fB = AppState.frequencyB;
-      } else if (AppState.activePattern === CONSTANTS.PATTERNS.WAVE) {
-        const sweep = AppState.loopTimeCounter % 80;
-        const t = sweep / 80;
-        fA = Math.round(
-          CONSTANTS.MIN_FREQUENCY +
-            (CONSTANTS.MAX_FREQUENCY - CONSTANTS.MIN_FREQUENCY) * Math.sin(t * Math.PI)
-        );
-        fB = Math.round(
-          CONSTANTS.MIN_FREQUENCY +
-            (CONSTANTS.MAX_FREQUENCY - CONSTANTS.MIN_FREQUENCY) *
-              Math.sin(t * Math.PI + Math.PI / 4)
-        );
-        aA = 70;
-        aB = 70;
-      } else if (AppState.activePattern === CONSTANTS.PATTERNS.HEARTBEAT) {
-        const cycle60 = AppState.loopTimeCounter % 10;
-        fA = 45;
-        fB = 45;
-        if (cycle60 === 0) {
-          aA = 90;
-          aB = 70;
-        } else if (cycle60 === 1) {
-          aA = 30;
-          aB = 20;
-        } else if (cycle60 === 3) {
-          aA = 70;
-          aB = 90;
-        } else if (cycle60 === 4) {
-          aA = 20;
-          aB = 30;
-        } else {
-          aA = 0;
-          aB = 0;
-        }
-      } else if (AppState.activePattern === CONSTANTS.PATTERNS.ALTERNATE) {
-        const altIdx = AppState.loopTimeCounter % 6;
-        fA = 50;
-        fB = 50;
-        if (altIdx < 3) {
-          aA = 80;
-          aB = 0;
-        } else {
-          aA = 0;
-          aB = 80;
-        }
-      } else if (AppState.activePattern === CONSTANTS.PATTERNS.ESCALATE) {
-        const escCycle = AppState.loopTimeCounter % 35;
-        fA = 50;
-        fB = 50;
-        if (escCycle < 30) {
-          aA = Math.round((escCycle / 30) * 100);
-          aB = Math.round((escCycle / 30) * 100);
-        } else {
-          aA = 0;
-          aB = 0;
-        }
-      } else if (AppState.activePattern === CONSTANTS.PATTERNS.FLUTTER) {
-        const flutIdx = AppState.loopTimeCounter % 2;
-        fA = 80;
-        fB = 80;
-        aA = flutIdx === 0 ? 100 : 0;
-        aB = flutIdx === 0 ? 80 : 0;
-      } else if (AppState.activePattern === CONSTANTS.PATTERNS.DRIFT) {
-        const dt = AppState.loopTimeCounter * 0.02;
-        fA = Math.round(80 + 60 * Math.sin(dt * 0.7) * Math.cos(dt * 0.3));
-        fB = Math.round(80 + 60 * Math.cos(dt * 0.5) * Math.sin(dt * 0.4));
-        fA = Math.max(CONSTANTS.MIN_FREQUENCY, Math.min(CONSTANTS.MAX_FREQUENCY, fA));
-        fB = Math.max(CONSTANTS.MIN_FREQUENCY, Math.min(CONSTANTS.MAX_FREQUENCY, fB));
-        aA = Math.round(50 + 40 * Math.sin(dt * 0.6));
-        aB = Math.round(50 + 40 * Math.cos(dt * 0.6));
-      } else if (AppState.activePattern === CONSTANTS.PATTERNS.SAWTOOTH) {
-        const sawCycle = AppState.loopTimeCounter % 20;
-        fA = 50;
-        fB = 55;
-        aA = Math.round((sawCycle / 20) * 100);
-        aB = Math.round(((20 - sawCycle) / 20) * 100);
-      } else if (AppState.activePattern === CONSTANTS.PATTERNS.DUET) {
-        const duetT = AppState.loopTimeCounter * 0.15;
-        fA = Math.round(60 + 30 * Math.sin(duetT));
-        fB = Math.round(60 + 30 * Math.cos(duetT));
-        aA = Math.round(60 + 35 * Math.sin(duetT * 1.5));
-        aB = Math.round(60 + 35 * Math.cos(duetT * 1.5));
+      } else {
+        const w = computeNamedPatternWave(AppState.activePattern, AppState.loopTimeCounter);
+        fA = w.fA;
+        aA = w.aA;
+        fB = w.fB;
+        aB = w.aB;
       }
 
       // XToys: optional "update frequency when intensity changes"

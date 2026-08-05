@@ -1,5 +1,40 @@
 # Changelog
 
+## 6.5.0 – Patterns v2: Envelope-Shaping + Frequenz-Identität
+
+### Envelope-Layer auf allen Patterns (die „Form")
+- **Jeder Puls läuft jetzt durch Attack→Decay-Shaping** statt harter 0/100-Square-Gates (`PULSE.sharp` = präzise Strikes, `PULSE.soft`/`throb` = kontinuierliche Swells, die **nie auf 0 gaten** — Attack startet am Floor = „Atmen")
+- **Mehrstufige Akzente**: `rhythm` 100/55/25/55 statt 0/50/100, `heartbeat` lub>dub, `duet` echte Call-&-Response
+- **`fromFloor`-Option** pro Hit: weiche Patterns bleiben durchgängig, scharfe Strikes bleiben crisp
+
+### Frequenz-Identität (der „Charakter") — jedes Pattern hat jetzt ein eigenes Band
+| Pattern | Band-Charakter |
+|---|---|
+| gentle / breath / heartbeat | **Throb** (20–35) — tief, massierend |
+| rhythm | **Buzz mit Bass-Thump** (100er-Schlag fällt per fDelta −28 in den Throb) |
+| tease | **Oszilliert Throb↔Sharp** (34→136) — tiefer Swell + stechende Trembles |
+| climax | **Buzz→Sharp-Kletter** — jeder Strike schärfer (fDelta 0→+35→+65, Gipfel ~180) |
+| escalate | **Ramp 50→135** — steigende Tonhöhe = Aufbau |
+| flutter / strobe | **Sharp-Hochband** (≥120–176) — echtes Flattern/Stroboskop |
+| alternate / duet | **Räumlicher Kontrast** — A tief (28/48), B scharf (138/130) |
+| triphase | Throb↔Buzz-Sweep mit Anti-Phase · wave bleibt Vollband-Sweep |
+
+- Technik: **`fDelta` pro Hit** (Bass-Schläge tiefer, scharfe Strikes höher) + `pulseTrainValue` liefert den aktiven Hit für die Frequenz-Auflösung; Frequenz↔Intensität-Kopplung + Kanal-Phasenspiel bleiben
+
+### 4-Slot-Micro-Textur (ohne Fast-Wire)
+- **`computePatternSlots`**: nutzt das B0-Frequenz-Grid — `flutter`-Patterns bekommen Flattern, `climax` Warble, `drift` Detune; `microSlots` in control-deck nutzt es (mit Vibrato-Overlay aus den Settings)
+
+### Single Source of Truth
+- **`control-deck.js` delegiert komplett** an `pattern-engine.js` — ~150 Zeilen Inline-Duplikat entfernt (nur `ai_custom` bleibt inline); `random` ist jetzt deterministisch (LCG, testbar); `sawtooth` wieder echtes Gegenläufer-Pattern
+- Autodrive (`patternForPhase`) profitiert automatisch — gleiche Engine, gleiche Feel-Verbesserungen
+
+### Tests
+- **+31 neue Tests (636 gesamt)**: `pattern-engine.test.js` neu (24: Envelope-Core, Bounds, Deterministisch inkl. random, Charaktere, Slots, Spec-Sanity, Frequenz-Identität) + 7 Frequenz-Band-Tests; control-deck-Test an Envelope-Verhalten angepasst. Lint sauber, Build ok
+
+### Hinweis
+- Feel-Justierung pro Pattern (zu sanft/zu aggressiv) ist danach gezielt per Spec-Parameter möglich — Feedback nach dem Fühlen erwünscht
+
+
 ## 6.4.0 – Persönliche Kante: gemessen, nicht geraten
 
 ### #1 Personalisierte Kante (Closed-Loop-Setpoint-Lernen)

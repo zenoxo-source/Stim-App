@@ -100,13 +100,19 @@ describe("computeNamedPatternWave — output bounds", () => {
     }
   });
 
-  test("strobe and flutter alternate on every step", () => {
-    for (const pattern of ["strobe", "flutter"]) {
-      const even = computeNamedPatternWave(pattern, 0);
-      const odd = computeNamedPatternWave(pattern, 1);
-      assert.ok(even.aA > 0, `${pattern} should be on at t=0`);
-      assert.equal(odd.aA, 0, `${pattern} should be off at t=1`);
-    }
+  test("strobe and flutter pulse with envelopes (v6.5)", () => {
+    // Flutter: fast tremor — strikes hard, then tails between hits.
+    const f1 = computeNamedPatternWave("flutter", 1);
+    const f2 = computeNamedPatternWave("flutter", 2);
+    const f3 = computeNamedPatternWave("flutter", 3);
+    assert.ok(f1.aA > 0, "flutter strikes during attack");
+    assert.ok(f2.aA < f1.aA, "flutter tails between hits");
+    assert.ok(f3.aA > f2.aA || f3.aA < f1.aA, "flutter keeps trembling");
+    // Strobe: sharp strike with a decay tail, not a hard 0 gate.
+    const s1 = computeNamedPatternWave("strobe", 1);
+    const s3 = computeNamedPatternWave("strobe", 3);
+    assert.ok(s1.aA > 50, "strobe strikes hard");
+    assert.ok(s3.aA < s1.aA && s3.aA >= 0, "strobe decays after the strike");
   });
 });
 

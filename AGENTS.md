@@ -66,7 +66,8 @@ npm run version:major    # Bump major version (3.0.0 → 4.0.0)
 - `frontend/js/lib/climax-protocol.js` — Multi-wave climax tables + push-retry + silent-commit/auto-climax heuristics (v6.1/v6.2/v6.3, pure + tested)
 - `frontend/js/lib/arousal-estimator.js` — Fused arousal estimate (0..1) + closed-loop controller + personalization (per-user weights, learned edge/push setpoints, phase gains) (v6.3/v6.4, pure + tested)
 - `frontend/js/modules/bluetooth.js` — BLE connection + V3 protocol implementation
-- `frontend/js/control-deck.js` — Wave loop + pattern engine + slider handlers
+- `frontend/js/control-deck.js` — Wave loop + pattern playback + slider handlers (delegates patterns to lib/pattern-engine.js)
+- `frontend/js/lib/pattern-engine.js` — Named pattern waveforms v2: envelope-shaped pulse trains (attack/decay), freq↔intensity coupling, channel phase play, 4-slot micro-texture via `computePatternSlots` (v6.5, pure + tested)
 - `frontend/js/modules/webcam-vision.js` — Local-only webcam motion-energy biofeedback (consent-gated; feeds Autodrive via `injectBioFeedback`; no LLM since v6.2)
 - `frontend/js/modules/recorder.js` — Session recording & replay
 - `backend/scripts/build-frontend.js` — esbuild bundler (dev + prod output)
