@@ -482,6 +482,7 @@ export function stopAutodrive(reason = "manuell") {
         edges: engineState.edgeCountDone || 0,
         durationMs: engineState.effectiveElapsedMs || 0,
         holdCycleIdx: engineState.holdCycleIdx || 0,
+        pushRetriesUsed: engineState.pushRetriesUsed || 0,
         reason,
       }
     : null;
@@ -595,6 +596,7 @@ export function stopAutodrive(reason = "manuell") {
           phase: snap.phase || "",
           marked: !!snap.marked,
           edges: snap.edges || 0,
+          pushRetriesUsed: snap.pushRetriesUsed || 0,
           tooWeak: snap.tooWeak || 0,
           tooStrong: snap.tooStrong || 0,
           almost: snap.almost || 0,
@@ -1086,6 +1088,19 @@ function engineTick() {
   if (engineState.phase !== before && engineState.phase !== lastLoggedPhase) {
     log(`Autodrive Phase: ${getPhaseLabel(engineState.phase)}`, "info");
     lastLoggedPhase = engineState.phase;
+    // v6.1: an unmarked CLIMAX_PUSH that re-armed into TEASE counts as a
+    // push-retry — observable proxy for the „Abspritzgarantie“ heuristics.
+    if (
+      before === "CLIMAX_PUSH" &&
+      engineState.phase === "TEASE" &&
+      (engineState.pushRetriesUsed || 0) > 0
+    ) {
+      try {
+        trackStat("autodrive_push_retry");
+      } catch {
+        /* optional */
+      }
+    }
     if (engineState.phase === "CLIMAX_PUSH" || engineState.phase === "EDGE_HOLD") {
       hapticPulse([50, 40, 80]);
     } else if (engineState.phase === "SURGE") {

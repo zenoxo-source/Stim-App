@@ -425,7 +425,14 @@ function paintDashboard(st) {
   }
 
   const trust = document.getElementById("autodrive-trust");
-  if (trust) trust.textContent = buildTrustLine(st);
+  if (trust) {
+    // v6.1: show the push-retry status on the trust line („Abspritzgarantie“).
+    const retries = st.pushRetriesUsed || 0;
+    const retryTotal = st.pushRetryTotal || 0;
+    const retryNote =
+      retries > 0 && st.phase === "CLIMAX_PUSH" ? ` · Push ${retries + 1}/${retryTotal + 1}` : "";
+    trust.textContent = buildTrustLine(st) + retryNote;
+  }
 
   paintTimeline(st);
   paintHistory();
@@ -459,6 +466,7 @@ function paintHistory() {
       });
       const mark = h.marked ? " · ✅" : "";
       const tpl = h.templateId ? ` · ${esc(h.templateId)}` : "";
+      const retry = h.pushRetriesUsed ? ` · Retry-Push ${h.pushRetriesUsed}×` : "";
       // F11: per-template learning line.
       const tl = h.templateId ? getTemplateLearning(h.templateId) : null;
       const learnLine =
@@ -466,7 +474,7 @@ function paintHistory() {
           ? ` · Ø bis Climax ${formatUiMs(tl.avgTimeToClimaxMs)}`
           : "";
       return `<div class="stat-list-row ad-history-row" data-hidx="${history.indexOf(h)}">
-        <span>${date} · ${min} Min · Phase ${esc(h.phase || "—")} · Edges ${h.edges || 0}${tpl}${mark}${learnLine}</span>
+        <span>${date} · ${min} Min · Phase ${esc(h.phase || "—")} · Edges ${h.edges || 0}${tpl}${mark}${retry}${learnLine}</span>
         <span style="display:flex;gap:6px;">
           ${h.timeline && h.timeline.length >= 2 ? `<button type="button" class="btn btn-secondary btn-sm ad-history-chart" title="Session-Verlauf anzeigen">📈</button>` : ""}
           <button type="button" class="btn btn-secondary btn-sm ad-history-restart" title="Session erneut starten">↻</button>

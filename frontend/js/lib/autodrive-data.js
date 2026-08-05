@@ -331,6 +331,9 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     channelFocus: "both",
     group: "loops",
     climaxPriority: true,
+    // v6.1: kurze Kurve + Push-Retry für den schnellen Finish-Pfad
+    climaxCurve: "kurz",
+    pushRetry: true,
   },
   /** Climax-first: 1 edge → long multi-wave push, both channels full */
   finish_loops: {
@@ -349,6 +352,9 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     channelFocus: "both",
     group: "loops",
     climaxPriority: true,
+    // v6.1: accelerating climax curve + push-retry (unmarked push → re-push)
+    climaxCurve: "standard",
+    pushRetry: true,
   },
   finish_glans: {
     id: "finish_glans",
@@ -366,6 +372,8 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     channelFocus: "both",
     group: "loops",
     climaxPriority: true,
+    climaxCurve: "standard",
+    pushRetry: true,
   },
   finish_pads: {
     id: "finish_pads",
@@ -383,6 +391,8 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     channelFocus: "both",
     group: "finish",
     climaxPriority: true,
+    climaxCurve: "standard",
+    pushRetry: true,
   },
   /** Two loops on one Coyote channel (base ↔ glans) */
   loops_single: {
@@ -421,6 +431,8 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     channelFocus: "A",
     group: "loops_single",
     climaxPriority: true,
+    climaxCurve: "standard",
+    pushRetry: true,
   },
   // F1: Climax-Fabrik — programmed edging loops, full frequency band.
   climax_factory: {
@@ -440,6 +452,8 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     freqFullBand: true,
     climaxTarget: 2,
     group: "climax",
+    climaxCurve: "standard",
+    pushRetry: true,
   },
   // F1: HFO — hands-free orgasm program (long slow build, full band, gentle finish).
   hfo: {
@@ -459,5 +473,7 @@ export const AUTODRIVE_TEMPLATES = Object.freeze({
     freqFullBand: true,
     climaxTarget: 1,
     group: "climax",
+    climaxCurve: "verzoegert",
+    pushRetry: true,
   },
 });

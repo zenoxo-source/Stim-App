@@ -3,6 +3,20 @@
 
 // v5.1: climax curve model (accelerating freq ramp + amplitude staircase).
 import { CLIMAX_CURVES, climaxCurveStep } from "./wire-shaping.js";
+// v6.1: multi-wave climax tables + push-retry budget extracted for testability.
+import {
+  CLIMAX_WAVES,
+  CLIMAX_WAVES_FINISH,
+  PUSH_RETRY,
+  climaxWaveTable,
+  pushRetryBudget,
+  pushBoostForRetry,
+  pushFloorRel,
+} from "./climax-protocol.js";
+
+// Re-exported for modules/tests that import them from the engine (kept in sync
+// with climax-protocol.js).
+export { CLIMAX_WAVES, CLIMAX_WAVES_FINISH };
 
 /** @typedef {"IDLE"|"CALIBRATING"|"WARMUP"|"BUILD"|"TEASE"|"EDGE_HOLD"|"SURGE"|"CLIMAX_PUSH"|"AFTERCARE"|"COOLDOWN"|"PAUSED"} AutodrivePhase */
 /** @typedef {"direct"|"edge_then_release"|"edge_ladder"|"deny_then_release"|"hfo"} AutodriveGoal */
@@ -75,6 +89,9 @@ export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
   hrAdaptive: false,
   /** v5.1 climax curve model: "none"|"kurz"|"standard"|"verzoegert". */
   climaxCurve: "none",
+  /** v6.1 finish-path: after an unmarked CLIMAX_PUSH timeout, re-arm a short
+   *  TEASE slice and push again with more boost instead of ending (bounded). */
+  pushRetry: false,
 });
 
 const SENSITIVITY_SCALE = Object.freeze({
@@ -265,27 +282,9 @@ const PHASE_LABELS_DE = Object.freeze({
 });
 
 /**
- * Multi-wave climax protocol segments (ms relative to phase start).
- * Each: { crestMs, dropMs, peakBoost }
+ * Multi-wave climax protocol segments — moved to lib/climax-protocol.js (v6.1).
+ * Re-exported at the top of this file so existing imports keep working.
  */
-export const CLIMAX_WAVES = Object.freeze([
-  { crestMs: 4000, dropMs: 1500, peakBoost: 0.0 },
-  { crestMs: 5000, dropMs: 1000, peakBoost: 0.04 },
-  { crestMs: 6000, dropMs: 800, peakBoost: 0.08 },
-  { crestMs: 12000, dropMs: 0, peakBoost: 0.12 }, // final hold
-]);
-
-/** Finish-path: shorter drops, longer final crest (less chance to lose orgasm). */
-export const CLIMAX_WAVES_FINISH = Object.freeze([
-  { crestMs: 3500, dropMs: 900, peakBoost: 0.02 },
-  { crestMs: 5000, dropMs: 600, peakBoost: 0.06 },
-  { crestMs: 7000, dropMs: 400, peakBoost: 0.1 },
-  { crestMs: 20000, dropMs: 0, peakBoost: 0.14 }, // long final hold
-]);
-
-function climaxWaveTable(state) {
-  return state?.config?.climaxPriority ? CLIMAX_WAVES_FINISH : CLIMAX_WAVES;
-}
 
 /**
  * @param {unknown} input
@@ -418,12 +417,20 @@ export function sanitiseAutodriveConfig(input) {
   ) {
     base.climaxCurve = raw.climaxCurve;
   }
+  if (typeof raw.pushRetry === "boolean") base.pushRetry = raw.pushRetry;
   if (typeof raw.templateId === "string" && AUTODRIVE_TEMPLATES[raw.templateId]) {
     const tpl = AUTODRIVE_TEMPLATES[raw.templateId];
     if (typeof tpl.freqFullBand === "boolean") base.freqFullBand = tpl.freqFullBand;
     if (typeof tpl.edgeLoops === "boolean") base.edgeLoops = tpl.edgeLoops;
     if (typeof tpl.edgeCycleTarget === "number") base.edgeCycleTarget = tpl.edgeCycleTarget;
     if (typeof tpl.climaxTarget === "number") base.climaxTarget = tpl.climaxTarget;
+    if (
+      typeof tpl.climaxCurve === "string" &&
+      ["none", "kurz", "standard", "verzoegert"].includes(tpl.climaxCurve)
+    ) {
+      base.climaxCurve = tpl.climaxCurve;
+    }
+    if (typeof tpl.pushRetry === "boolean") base.pushRetry = tpl.pushRetry;
   }
 
   const kinds = new Set(["loops", "pads", "mixed", "insertable"]);
@@ -564,6 +571,10 @@ export function createInitialState(config, nowMs, learning = {}) {
     peakLockHits: 0,
     // After almost in push: extra boosted crests
     pushBoostRemaining: 0,
+    // v6.1 push-retry: how many extra push attempts have been spent after an
+    // unmarked CLIMAX_PUSH timeout (0 = first push). Total = retry budget.
+    pushRetriesUsed: 0,
+    pushRetryTotal: pushRetryBudget(cfg).maxRetries,
     // Session quality counters (for coach / debrief)
     sessionTooWeakCount: 0,
     sessionTooStrongCount: 0,
@@ -872,6 +883,8 @@ export function computeAutodriveOutput(state, nowMs) {
     sessionTooWeakCount: state.sessionTooWeakCount || 0,
     sessionTooStrongCount: state.sessionTooStrongCount || 0,
     abRole: state.config.abRole || "sync",
+    pushRetriesUsed: state.pushRetriesUsed || 0,
+    pushRetryTotal: state.pushRetryTotal || 0,
   };
 }
 
@@ -1006,7 +1019,7 @@ function teaseSliceMs(state) {
 
 function pushDurationMs(state) {
   // Sum of multi-wave protocol + buffer; climaxPriority = longer final hold
-  const table = climaxWaveTable(state);
+  const table = climaxWaveTable(state.config);
   const waves = table.reduce((acc, w) => acc + w.crestMs + w.dropMs, 0);
   const aggro = state.config.aggression ?? 1;
   const priority = state.config.climaxPriority ? 1.4 : 1;
@@ -1446,7 +1459,7 @@ function applyClimaxWave(s, now) {
     return { ...s, climaxWaveIndex: 0, climaxWaveStartedAt: 0, climaxInDrop: false };
   }
 
-  const table = climaxWaveTable(s);
+  const table = climaxWaveTable(s.config);
   let idx = s.climaxWaveIndex || 0;
   let started = s.climaxWaveStartedAt || s.phaseStartedAt || now;
   let inDrop = !!s.climaxInDrop;
@@ -1551,6 +1564,19 @@ function setPhase(s, phase, now, durationMs) {
   };
 }
 
+/**
+ * Enter CLIMAX_PUSH. On a retry (pushRetriesUsed > 0) grants extra boost
+ * waves so the re-attempt is stronger than the one before.
+ */
+function enterPush(s, now) {
+  const next = setPhase(s, "CLIMAX_PUSH", now, pushDurationMs(s));
+  const retries = next.pushRetriesUsed || 0;
+  if (retries > 0) {
+    next.pushBoostRemaining = (next.pushBoostRemaining || 0) + pushBoostForRetry(retries);
+  }
+  return next;
+}
+
 function applyPhaseTimeout(s, now) {
   const goal = s.config.goal;
   const needsEdges = NEEDS_EDGES.has(goal);
@@ -1583,7 +1609,7 @@ function applyPhaseTimeout(s, now) {
     case "EDGE_HOLD":
       return completeEdge(s, now);
     case "SURGE":
-      return setPhase(s, "CLIMAX_PUSH", now, pushDurationMs(s));
+      return enterPush(s, now);
     case "CLIMAX_PUSH":
       if (
         s.config.goal === "deny_then_release" &&
@@ -1620,6 +1646,24 @@ function applyPhaseTimeout(s, now) {
           );
         }
         return enterAftercare({ ...s, climaxCount: count }, now, true);
+      }
+      // v6.1 push-retry ("Abspritzgarantie"): an unmarked push timeout does not
+      // end the session — re-arm a short TEASE slice and push again, stronger.
+      // Bounded by pushRetryBudget; user can always stop/panic.
+      if (
+        (s.config.pushRetry === true || pushRetryBudget(s.config).enabled) &&
+        (s.pushRetriesUsed || 0) < pushRetryBudget(s.config).maxRetries
+      ) {
+        const retries = (s.pushRetriesUsed || 0) + 1;
+        return {
+          ...setPhase(s, "TEASE", now, PUSH_RETRY.reArmMs),
+          pushRetriesUsed: retries,
+          relStrength: 0.4,
+          edgeScore: Math.max(45, (s.edgeScore || 0) * 0.6),
+          feedbackBias: clamp((s.feedbackBias || 0) + 0.04, -0.2, 0.35),
+          lastFeedbackAt: now,
+          lastFeedback: "not_yet",
+        };
       }
       return enterAftercare(s, now, false);
     case "AFTERCARE":
@@ -1692,7 +1736,7 @@ function applyTickGuards(s, now) {
   }
   // High edge score during surge → push early
   if (s.phase === "SURGE" && (s.edgeScore || 0) >= 80) {
-    return setPhase(s, "CLIMAX_PUSH", now, pushDurationMs(s));
+    return enterPush(s, now);
   }
   return s;
 }
@@ -1801,6 +1845,12 @@ function applyFeedback(s, feedback, now) {
     } else if (s.phase === "CLIMAX_PUSH" && !s.config.climaxPriority) {
       next = setPhase(next, "TEASE", now, shareMs(s.targetDurationMs, "TEASE", s.config));
     }
+    // v6.1 finish-push floor: a "too strong" drop may reduce but never falls
+    // below the floor during a climaxPriority push — otherwise the orgasm that
+    // is building gets killed by a large intensity step ("Abspritzgarantie").
+    if (s.phase === "CLIMAX_PUSH" && s.config.climaxPriority) {
+      next.relStrength = clamp(next.relStrength, pushFloorRel(s.config, s.pushRetriesUsed || 0), 1);
+    }
     return next;
   }
 
@@ -1876,20 +1926,15 @@ function applyFeedback(s, feedback, now) {
       s.phase === "BUILD" ||
       s.phase === "WARMUP"
     ) {
-      return setPhase(
+      return enterPush(
         {
           ...s,
           relStrength: clamp(Math.max(s.relStrength, 0.8), 0.8, 1),
           feedbackBias: 0.1,
           climbRate: 1.3,
           edgeScore: 90,
-          climaxWaveIndex: 0,
-          climaxWaveStartedAt: now,
-          climaxInDrop: false,
         },
-        "CLIMAX_PUSH",
-        now,
-        pushDurationMs(s)
+        now
       );
     }
     return s;
@@ -2015,9 +2060,12 @@ function phaseTip(state) {
       return "Starke Wellen — gleich Multi-Wave-Push";
     case "CLIMAX_PUSH": {
       const w = (state.climaxWaveIndex || 0) + 1;
-      const n = climaxWaveTable(state).length;
+      const n = climaxWaveTable(state.config).length;
       const boost = (state.pushBoostRemaining || 0) > 0 ? " · Boost aktiv" : "";
-      return `Push-Welle ${w}/${n}${boost} — „Fertig ✓“ wenn du kommst`;
+      const retries = state.pushRetriesUsed || 0;
+      const retryNote =
+        retries > 0 ? ` · Push-Versuch ${retries + 1}/${(state.pushRetryTotal || 1) + 1}` : "";
+      return `Push-Welle ${w}/${n}${boost}${retryNote} — „Fertig ✓“ wenn du kommst`;
     }
     case "AFTERCARE":
       return state.userMarkedClimax

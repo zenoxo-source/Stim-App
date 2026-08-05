@@ -1,5 +1,28 @@
 # Changelog
 
+## 6.1.0 — Abspritzgarantie: Push-Retry, Climax-Kurven, Finish-Templates
+
+### Autodrive Engine („Abspritzgarantie“)
+- **Push-Retry-Loop**: Ein `CLIMAX_PUSH`-Timeout ohne „Fertig ✓“ endet die Session nicht mehr direkt — kurzer Re-Arm (TEASE) → erneuter Push **mit zusätzlichem Boost** (max. 2 Retries, begrenzt). Finish-Templates aktiveren das automatisch
+- **Climax-Kurven als Default** für alle „★ Abspritzen“-Pfade: beschleunigender Frequenz-Ramp + Amplituden-Treppe (`standard`/`kurz`/`verzoegert` aus v5.1) statt generischem 60–120-Hz-Ramp
+- **Push-Floor**: „Zu stark“ im Finish-Push senkt die Intensität, fällt aber nie unter den Boden (~62 %, pro Retry leicht steigend) — ein entstehender Orgasmus wird nicht durch einen großen Schritt abgewürgt
+- **Neues lib-Modul `climax-protocol.js`**: Multi-Wave-Tabellen + Retry-Budget als pure, testbare Funktionen (Engine re-exportiert `CLIMAX_WAVES`/`CLIMAX_WAVES_FINISH` kompatibel)
+
+### Templates
+- `finish_loops` / `finish_glans` / `finish_pads` / `finish_loops_single`: `climaxCurve: "standard"`, `pushRetry: true`
+- `loops_rush`: `climaxCurve: "kurz"` (6-Min-Push) · `hfo`: `"verzoegert"` (langer Aufbau) · `climax_factory`: `"standard"`
+- Klassische Templates (`classic`, `quick_finish`, `turbo`, `deny`, …) bleiben unverändert
+
+### UI
+- Trust-Line zeigt im Push `Push 2/3` wenn ein Retry aktiv ist; Tip im Push erwähnt den Retry
+- Session-History zeigt `Retry-Push n×`; Stat-Track `autodrive_push_retry`
+
+### Docs
+- Neu: `docs/DESIGN-abspritzgarantie.md` — Recherche-Stand (ESTIM-Orgasmus-Faktoren), Engine-Konzept, Template-Tuning, UI-Struktur, Akzeptanzkriterien
+
+### Tests
+- 11 neue Tests (`backend/tests/climax-protocol.test.js`): Wave-Tabellen, Retry-Budget, Push-Retry-Loop (gebunden), Push-Floor, Template-Mapping — 559 Tests grün, Lint sauber
+
 ## 6.0.2 — Microsoft Fluent 2 Design
 
 ### Design-Tokens (Dark + Light)
