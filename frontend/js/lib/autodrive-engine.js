@@ -21,7 +21,14 @@ import {
   adaptivePushExtensionMs,
 } from "./climax-protocol.js";
 // v6.3: continuous arousal fusion + closed-loop controller.
-import { fuseArousal, arousalControllerStep } from "./arousal-estimator.js";
+// v6.4: personalization (weights, setpoint, recovery).
+import {
+  fuseArousal,
+  arousalControllerStep,
+  resolveWeights,
+  closedLoopSetpoint,
+  phaseControllerGain,
+} from "./arousal-estimator.js";
 
 // Re-exported for modules/tests that import them from the engine (kept in sync
 // with climax-protocol.js).
@@ -113,6 +120,9 @@ export const AUTODRIVE_CONFIG_DEFAULTS = Object.freeze({
   /** v6.3 closed-loop: steer relStrength from the fused arousal estimate
    *  instead of the fixed phase envelope. Default off (additive opt-in). */
   closedLoop: false,
+  /** v6.4 (#3): when on, the A/B experiment auto-picks closedLoop per session
+   *  after enough measured sessions (see autodrive.js experiment helpers). */
+  closedLoopAuto: false,
   /** v6.3 passive mode: enter EDGE_HOLD / CLIMAX_PUSH from biofeedback alone,
    *  without manual button presses. Consent-gated, default off. */
   passiveMode: false,
@@ -445,6 +455,7 @@ export function sanitiseAutodriveConfig(input) {
   if (typeof raw.silentCommit === "boolean") base.silentCommit = raw.silentCommit;
   if (typeof raw.autoClimax === "boolean") base.autoClimax = raw.autoClimax;
   if (typeof raw.closedLoop === "boolean") base.closedLoop = raw.closedLoop;
+  if (typeof raw.closedLoopAuto === "boolean") base.closedLoopAuto = raw.closedLoopAuto;
   if (typeof raw.passiveMode === "boolean") base.passiveMode = raw.passiveMode;
   if (typeof raw.templateId === "string" && AUTODRIVE_TEMPLATES[raw.templateId]) {
     const tpl = AUTODRIVE_TEMPLATES[raw.templateId];
@@ -462,6 +473,7 @@ export function sanitiseAutodriveConfig(input) {
     if (typeof tpl.silentCommit === "boolean") base.silentCommit = tpl.silentCommit;
     if (typeof tpl.autoClimax === "boolean") base.autoClimax = tpl.autoClimax;
     if (typeof tpl.closedLoop === "boolean") base.closedLoop = tpl.closedLoop;
+    if (typeof tpl.closedLoopAuto === "boolean") base.closedLoopAuto = tpl.closedLoopAuto;
     if (typeof tpl.passiveMode === "boolean") base.passiveMode = tpl.passiveMode;
   }
 
@@ -638,6 +650,13 @@ export function createInitialState(config, nowMs, learning = {}) {
     arousal: 0,
     arousalConfidence: 0,
     arousalHighSince: 0,
+    // v6.4 (#1/#2/#5): personalization + recovery.
+    personalEdgeArousal: clamp(Number(learning.personalEdgeArousal) || 0, 0, 1),
+    personalPushArousal: clamp(Number(learning.personalPushArousal) || 0, 0, 1),
+    signalWeights: learning.signalWeights || null,
+    recoveringUntil: 0,
+    arousalAtLastAlmost: 0,
+    arousalAtLastClimax: 0,
     // Session quality counters (for coach / debrief)
     sessionTooWeakCount: 0,
     sessionTooStrongCount: 0,
@@ -734,13 +753,23 @@ export function reduceAutodrive(state, event) {
 
   if (event.type === "FEEDBACK" && event.feedback === "climaxed") {
     return enterAftercare(
-      { ...s, almostWithoutClimax: 0, qualityBoost: 0, climaxCount: (s.climaxCount || 0) + 1 },
+      {
+        ...s,
+        almostWithoutClimax: 0,
+        qualityBoost: 0,
+        climaxCount: (s.climaxCount || 0) + 1,
+        arousalAtLastClimax: s.arousal || 0,
+      },
       now,
       true
     );
   }
   if (event.type === "USER_CLIMAX") {
-    return enterAftercare({ ...s, climaxCount: (s.climaxCount || 0) + 1 }, now, true);
+    return enterAftercare(
+      { ...s, climaxCount: (s.climaxCount || 0) + 1, arousalAtLastClimax: s.arousal || 0 },
+      now,
+      true
+    );
   }
 
   if (event.type === "TICK") {
@@ -1000,6 +1029,14 @@ export function computeAutodriveOutput(state, nowMs) {
     passiveMode: !!state.config?.passiveMode,
     lastMotion: state.lastMotion || 0,
     lastBreathRate: state.lastBreathRate || 0,
+    // v6.4 personalization (for UI + learning)
+    personalEdgeArousal: state.personalEdgeArousal || 0,
+    personalPushArousal: state.personalPushArousal || 0,
+    arousalSetpoint: closedLoopSetpoint(state.phase, {
+      edgeArousal: state.personalEdgeArousal || undefined,
+      pushArousal: state.personalPushArousal || undefined,
+    }),
+    recovering: !!(state.recoveringUntil && nowMs < state.recoveringUntil),
   };
 }
 
@@ -1417,6 +1454,9 @@ function applyAdaptiveEnvelope(s, now) {
   // a phase-dependent setpoint, instead of following the fixed envelope. Only
   // when enabled, with trustworthy signal, and not right after a manual
   // feedback (so the user's button press still lands on the skin).
+  // v6.4 (#1/#5): the setpoint personalises to the user's learned edge/push,
+  // the gain is phase-specific, and a recovery window after "too strong" keeps
+  // the controller gentle.
   if (
     s.config.closedLoop &&
     !freshFeedback &&
@@ -1424,12 +1464,18 @@ function applyAdaptiveEnvelope(s, now) {
     s.phase !== "COOLDOWN" &&
     s.phase !== "CALIBRATING"
   ) {
-    const setpoint = CLOSED_LOOP_SETPOINT[s.phase] ?? 0.7;
+    const setpoint = closedLoopSetpoint(s.phase, {
+      edgeArousal: s.personalEdgeArousal || undefined,
+      pushArousal: s.personalPushArousal || undefined,
+    });
     const { relStrength: cl } = arousalControllerStep({
       arousal: s.arousal || 0,
       setpoint,
       prevRel: cur,
       confidence: s.arousalConfidence || 0,
+      kp: phaseControllerGain(s.phase),
+      recoveringUntil: s.recoveringUntil || 0,
+      now,
     });
     target = clamp(cl, s.comfortFloor || 0.08, s.comfortCeiling || 0.95);
   }
@@ -1445,16 +1491,6 @@ function applyAdaptiveEnvelope(s, now) {
 
   return { ...s, relStrength: clamp(next, 0, 1) };
 }
-
-/** v6.3 arousal setpoints per phase (target arousal the controller holds). */
-const CLOSED_LOOP_SETPOINT = Object.freeze({
-  WARMUP: 0.42,
-  BUILD: 0.62,
-  TEASE: 0.74,
-  EDGE_HOLD: 0.82,
-  SURGE: 0.88,
-  CLIMAX_PUSH: 0.94,
-});
 
 function applyEdgeScoreTick(s, now) {
   if (s.phase === "AFTERCARE" || s.phase === "COOLDOWN" || s.phase === "CALIBRATING") {
@@ -1483,14 +1519,18 @@ function applyArousalEstimator(s, now) {
   if (s.phase === "AFTERCARE" || s.phase === "COOLDOWN" || s.phase === "IDLE") {
     return { ...s, arousal: 0, arousalConfidence: 0, arousalHighSince: 0 };
   }
-  const fused = fuseArousal({
-    hrDelta: s.lastHrDelta || 0,
-    motion: s.lastMotion || 0,
-    breathHeldMs: s.lastBreathHeldMs || 0,
-    breathRate: s.lastBreathRate || 0,
-    edgeScore: s.edgeScore || 0,
-    recentAlmost: s.consecutiveAlmost || 0,
-  });
+  const fused = fuseArousal(
+    {
+      hrDelta: s.lastHrDelta || 0,
+      motion: s.lastMotion || 0,
+      breathHeldMs: s.lastBreathHeldMs || 0,
+      breathRate: s.lastBreathRate || 0,
+      edgeScore: s.edgeScore || 0,
+      recentAlmost: s.consecutiveAlmost || 0,
+    },
+    // v6.4 (#2): per-user learned weights (resolveWeights falls back to defaults).
+    { weights: s.signalWeights ? resolveWeights(s.signalWeights) : undefined }
+  );
   let arousalHighSince = s.arousalHighSince || 0;
   if (fused.arousal >= 0.82 && fused.confidence >= 0.4) {
     if (!arousalHighSince) arousalHighSince = now;
@@ -2179,6 +2219,9 @@ function applyFeedback(s, feedback, now) {
       comfortCeiling: clamp(Math.min(s.comfortCeiling || 0.95, s.relStrength - 0.02), 0.35, 0.98),
       climbRate: Math.max(0.35, (s.climbRate || 1) * 0.55),
       lastTooStrongAt: now,
+      // v6.4 (#5): closed-loop controller stays gentle for a recovery window
+      // after a "too strong" so it doesn't immediately re-climb into the pain.
+      recoveringUntil: now + 12000,
       settleUntil: now + 6000 + Math.round(Math.random() * 8000),
       consecutiveGood: 0,
       consecutiveAlmost: 0,
@@ -2214,6 +2257,7 @@ function applyFeedback(s, feedback, now) {
       lastAlmostAt: now,
       consecutiveAlmost: (s.consecutiveAlmost || 0) + 1,
       almostWithoutClimax: (s.almostWithoutClimax || 0) + 1,
+      arousalAtLastAlmost: s.arousal || 0, // v6.4 (#1): capture for edge learning
       edgeScore: clamp((s.edgeScore || 0) + 20, 0, 100),
       feedbackBias: Math.min(s.feedbackBias || 0, 0.05),
       climbRate: Math.max(0.5, (s.climbRate || 1) * 0.8),

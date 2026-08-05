@@ -750,3 +750,91 @@ describe("autodrive engine v6.3 — closed-loop + passive + arousal", () => {
     assert.equal(s.lastBreathRate, 20);
   });
 });
+
+describe("autodrive engine v6.4 — personal edge + weights + recovery", () => {
+  function buildState(cfgPatch, now = t0) {
+    return createInitialState(sanitiseAutodriveConfig({ ...cfgPatch, skipCalibration: true }), now);
+  }
+
+  it("a learned personal edge lowers the EDGE_HOLD controller setpoint", () => {
+    // With personalEdge 0.7, a user at arousal 0.85 is OVER the edge → back off.
+    let s = buildState({ templateId: "finish_loops", closedLoop: true });
+    s = {
+      ...s,
+      phase: "EDGE_HOLD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 60000,
+      relStrength: 0.75,
+      arousal: 0.85,
+      arousalConfidence: 0.9,
+      personalEdgeArousal: 0.7,
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.ok(s.relStrength < 0.75, `over personal edge → back off: ${s.relStrength}`);
+
+    // Same arousal but arousal BELOW the personal edge → climb.
+    let s2 = buildState({ templateId: "finish_loops", closedLoop: true });
+    s2 = {
+      ...s2,
+      phase: "EDGE_HOLD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 60000,
+      relStrength: 0.6,
+      arousal: 0.55,
+      arousalConfidence: 0.9,
+      personalEdgeArousal: 0.7,
+    };
+    s2 = reduceAutodrive(s2, { type: "TICK", nowMs: t0 + 100 });
+    assert.ok(s2.relStrength > 0.6, `under personal edge → climb: ${s2.relStrength}`);
+  });
+
+  it("recovery window keeps the controller gentle after too_strong", () => {
+    let s = buildState({ templateId: "finish_loops", closedLoop: true });
+    s = {
+      ...s,
+      phase: "BUILD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 600000,
+      relStrength: 0.5,
+      arousal: 0.2, // way under setpoint → would normally climb hard
+      arousalConfidence: 0.9,
+      recoveringUntil: t0 + 12000, // in recovery
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    assert.ok(s.relStrength < 0.55, `recovery must cap the climb: ${s.relStrength}`);
+  });
+
+  it("too_strong feedback arms the recovery window", () => {
+    let s = buildState({ templateId: "finish_loops", closedLoop: true });
+    s = { ...s, phase: "BUILD", phaseDeadlineAt: t0 + 600000, relStrength: 0.6 };
+    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "too_strong", nowMs: t0 + 100 });
+    assert.ok(s.recoveringUntil > t0 + 100, "recovery window must be armed");
+  });
+
+  it("'almost' captures the arousal sample into state", () => {
+    let s = buildState({ templateId: "finish_loops" });
+    s = { ...s, phase: "TEASE", phaseDeadlineAt: t0 + 600000, arousal: 0.78 };
+    s = reduceAutodrive(s, { type: "FEEDBACK", feedback: "almost", nowMs: t0 + 100 });
+    assert.ok(s.arousalAtLastAlmost > 0.7, `almost must capture arousal: ${s.arousalAtLastAlmost}`);
+  });
+
+  it("learned signal weights bias the fused arousal toward the weighted channel", () => {
+    // HR weighted to 1, others 0 → arousal ≈ hr-normalised regardless of others.
+    let s = buildState({ templateId: "finish_loops", closedLoop: true });
+    s = {
+      ...s,
+      phase: "BUILD",
+      phaseStartedAt: t0,
+      phaseDeadlineAt: t0 + 600000,
+      lastHrDelta: 20,
+      lastMotion: 0.0, // motion says "nothing" but weight 0 ignores it
+      edgeScore: 0,
+      signalWeights: { hr: 1, motion: 0, breathHeld: 0, breathRate: 0, edgeScore: 0 },
+      arousal: 0.8, // seed so smoothing keeps it high
+      arousalConfidence: 0.9,
+    };
+    s = reduceAutodrive(s, { type: "TICK", nowMs: t0 + 100 });
+    // Arousal should track hr (≈0.8 from delta 20), not be dragged down by motion/edge.
+    assert.ok(s.arousal > 0.7, `weights should let hr dominate: ${s.arousal}`);
+  });
+});

@@ -9,6 +9,12 @@ import {
   fuseArousal,
   arousalControllerStep,
   AROUSAL_WEIGHTS,
+  resolveWeights,
+  closedLoopSetpoint,
+  phaseControllerGain,
+  updatePersonalArousal,
+  nudgeWeights,
+  PERSONAL_DEFAULTS,
 } from "../../frontend/js/lib/arousal-estimator.js";
 
 describe("arousal-estimator — normalisers", () => {
@@ -130,5 +136,90 @@ describe("arousal-estimator — weights sanity", () => {
   it("weights sum to 1", () => {
     const sum = Object.values(AROUSAL_WEIGHTS).reduce((a, b) => a + b, 0);
     assert.ok(Math.abs(sum - 1) < 1e-9, `weights must sum to 1, got ${sum}`);
+  });
+});
+
+describe("arousal-estimator v6.4 — personalization + quality", () => {
+  it("resolveWeights overrides validated entries, ignores junk", () => {
+    const w = resolveWeights({ hr: 0.5, motion: "nope", breathHeld: -1, edgeScore: 0.9 });
+    assert.equal(w.hr, 0.5);
+    assert.equal(w.edgeScore, 0.9);
+    assert.equal(w.motion, AROUSAL_WEIGHTS.motion); // junk ignored
+    assert.equal(w.breathHeld, AROUSAL_WEIGHTS.breathHeld); // negative ignored
+  });
+
+  it("fuseArousal uses custom weights", () => {
+    // If HR is the only channel and weighted very high, arousal ≈ hr-normalised.
+    const w = { ...AROUSAL_WEIGHTS, hr: 1, motion: 0, breathHeld: 0, breathRate: 0, edgeScore: 0 };
+    const r = fuseArousal({ hrDelta: 20 }, { weights: w });
+    assert.ok(Math.abs(r.arousal - normaliseHrDelta(20)) < 1e-9);
+  });
+
+  it("fuseArousal quality damps confidence", () => {
+    const clean = fuseArousal({ hrDelta: 15, motion: 0.1 });
+    const noisy = fuseArousal({ hrDelta: 15, motion: 0.1 }, { quality: { hr: 0.1, motion: 0.1 } });
+    assert.ok(noisy.confidence < clean.confidence, "low quality must lower confidence");
+  });
+
+  it("quality=0 effectively removes a channel from confidence", () => {
+    const r = fuseArousal({ hrDelta: 15, motion: 0.1 }, { quality: { hr: 0, motion: 0 } });
+    assert.ok(r.confidence < 0.05, `zero-quality must zero confidence: ${r.confidence}`);
+  });
+
+  it("closedLoopSetpoint uses population defaults when nothing learned", () => {
+    assert.ok(
+      Math.abs(closedLoopSetpoint("EDGE_HOLD") - PERSONAL_DEFAULTS.edgeArousal) < 1e-9
+    );
+    assert.ok(
+      Math.abs(closedLoopSetpoint("CLIMAX_PUSH") - PERSONAL_DEFAULTS.pushArousal) < 1e-9
+    );
+  });
+
+  it("closedLoopSetpoint personalises EDGE_HOLD + CLIMAX_PUSH from learned levels", () => {
+    const edge = closedLoopSetpoint("EDGE_HOLD", { edgeArousal: 0.7, pushArousal: 0.88 });
+    assert.ok(Math.abs(edge - 0.7) < 1e-9);
+    const push = closedLoopSetpoint("CLIMAX_PUSH", { edgeArousal: 0.7, pushArousal: 0.88 });
+    assert.ok(Math.abs(push - 0.88) < 1e-9);
+    // BUILD/TEASE scale relative to the personal edge.
+    assert.ok(closedLoopSetpoint("BUILD", { edgeArousal: 0.7 }) < 0.7);
+    assert.ok(closedLoopSetpoint("TEASE", { edgeArousal: 0.7 }) > closedLoopSetpoint("BUILD", { edgeArousal: 0.7 }));
+  });
+
+  it("phaseControllerGain is aggressive in the push, gentle early", () => {
+    assert.ok(phaseControllerGain("CLIMAX_PUSH") > phaseControllerGain("BUILD"));
+    assert.ok(phaseControllerGain("BUILD") < 0.3);
+  });
+
+  it("updatePersonalArousal EMA moves toward samples and is clamped", () => {
+    let p = 0;
+    p = updatePersonalArousal(p, 0.9);
+    assert.ok(Math.abs(p - 0.9) < 1e-9, "first sample seeds");
+    p = updatePersonalArousal(p, 0.6);
+    assert.ok(p < 0.9 && p > 0.6, `second sample blends: ${p}`);
+    const clamped = updatePersonalArousal(0.99, 0.1);
+    assert.ok(clamped >= 0.55, "floor respected");
+  });
+
+  it("nudgeWeights raises under-weighted elevated channels, bounded", () => {
+    const before = { ...AROUSAL_WEIGHTS };
+    const after = nudgeWeights(before, { hr: 0.95, motion: 0.05, breathHeld: 0.05, breathRate: 0.05 });
+    assert.ok(after.hr >= before.hr, "hr should rise (was under-weighted vs elevated)");
+    assert.ok(after.motion <= before.motion + 0.001, "motion should fall");
+    // all channels stay in range
+    for (const v of Object.values(after)) {
+      assert.ok(v >= 0.05 && v <= 0.6);
+    }
+  });
+
+  it("controller respects recovery window (v6.4 #5)", () => {
+    const r = arousalControllerStep({
+      arousal: 0.3,
+      setpoint: 0.9,
+      prevRel: 0.5,
+      confidence: 1,
+      recoveringUntil: 100000,
+      now: 50000,
+    });
+    assert.equal(r.mode, "fallback", "must not aggressively climb during recovery");
   });
 });

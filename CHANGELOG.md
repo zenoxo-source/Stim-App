@@ -1,5 +1,41 @@
 # Changelog
 
+## 6.4.0 – Persönliche Kante: gemessen, nicht geraten
+
+### #1 Personalisierte Kante (Closed-Loop-Setpoint-Lernen)
+- **Arousal wird bei „Fast" und „Fertig ✓" erfasst** (`arousalAtLastAlmost`/`arousalAtLastClimax` in Engine + Session-Snapshot) — vorher wurde es verworfen
+- **`personalEdgeArousal`/`personalPushArousal` per EMA gelernt** (`updatePersonalArousal`, pure): nach wenigen Sessions hält der Controller *dich* auf *deiner* Kante statt auf dem Populationswert 0,82/0,94
+- **`closedLoopSetpoint(phase, {edge, push})`** (pure): EDGE_HOLD → deine Kante, CLIMAX_PUSH → dein Push-Level, BUILD/TEASE skaliert relativ. Fallback auf die v6.3-Defaults bis genug Daten da sind
+
+### #2 Pro-User Signal-Gewichtung
+- **`nudgeWeights`** (pure): beim Climax gemerkt, welche Kanäle (HR/Motion/Atem/Atemfrequenz) erhöht waren → die Gewichte des Arousal-Schätzers wandern in Richtung der Kanäle, die für *dich* Orgasmus vorhersagen
+- **`resolveWeights`** (pure): gelernte Gewichte validiert gemergt; `fuseArousal` akzeptiert `{ weights, quality }`-Optionen
+- Seeded über `signalWeights` in jede neue Session; Passive Mode wird damit auch mit nur einem Sensor praktikabel
+
+### #3 A/B-Experiment: messen, nicht glauben
+- **`recordExperimentOutcome`/`pickStrategyFromExperiments`/`getExperimentSummary`** (pure, getestet): pro Session wird das Ergebnis in den Bucket „closed" (Closed-Loop an) oder „open" (aus) gelegt — Climax-Rate, too_strong, Zeit bis Climax
+- **`closedLoopAuto`** (opt-in): nach ≥3 Sessions pro Strategie wählt die App automatisch die bessere und loggt die Entscheidung („Closed 100% (3) · Open 33% (3) → wähle Closed-Loop")
+- Tie-Break bei gleicher Rate: weniger „Zu stark"-Episoden
+
+### #4 Signal-Qualitäts-Gate
+- Confidence ist jetzt **qualitätsgedämpft** statt nur präsenzbasiert: `fuseArousal` akzeptiert pro Kanal 0–1 `quality`; ein noisy/stales Signal zählt weniger. Quality=0 entfernt einen Kanal effektiv aus der Entscheidung
+
+### #5 Phasen-abhängiger Regler + Recovery
+- **`phaseControllerGain(phase)`**: langsames Tracking im BUILD/WARMUP (kp 0,22) → aggressiv im CLIMAX_PUSH (kp 0,5)
+- **Recovery-Fenster**: nach „Zu stark" bleibt der Controller 12 s sanft (Fallback-Klimm statt aggressivem Wieder-Anstieg) — `recoveringUntil` wird bei too_strong geändert
+
+### #6 Live-UI
+- **Arousal-vs-Sollwert-Bar** im Session-Dashboard (blaue Füllung = Ist-Arousal, weiße Marke = aktueller personalisierter Sollwert) — sichtbar bei Closed-Loop/Passive
+- A/B-Experiment-Toggle in den Settings; Trust-Line zeigt weiterhin Arousal % + Modus-Chips
+
+### Technik
+- Pure Helfer in den Lib-Modulen (`arousal-estimator.js` erweitert, Experiment-Helfer in `autodrive.js` exportiert) — getestet, kein Big-Bang-Engine-Split
+- 605 Tests grün (+20 neu: 10 Estimator-Personalization, 5 Experiment-Helfer, 5 Engine-Integration), Lint sauber, Build ok
+
+### Consent & Safety
+- Alles opt-in/default-off (`closedLoopAuto`, experimentelle Empfehlung loggt nur; Auto-Pick nur bei explizitem `closedLoopAuto`). Ohne Flags identisches Verhalten zu v6.3
+
+
 ## 6.3.0 – Closed-Loop Autodrive: Arousal-Regelung, Passive Mode, Atem-Sensor
 
 ### Closed-Loop Arousal Controller (#1, Flagship)

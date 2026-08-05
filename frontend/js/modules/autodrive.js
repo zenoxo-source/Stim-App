@@ -22,6 +22,7 @@ import { trackStat } from "./stats.js";
 import { startAutoRecording, stopAutoRecording } from "./recorder.js";
 import { isFlagEnabled } from "./feature-flags.js";
 import { isBreathSensorActive, getBreathState } from "./breath-sensor.js";
+import { updatePersonalArousal, nudgeWeights, AROUSAL_WEIGHTS } from "../lib/arousal-estimator.js";
 
 export {
   AUTODRIVE_TEMPLATES,
@@ -242,6 +243,80 @@ export function getTemplateLearning(templateId) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// v6.4 (#3): closed-loop A/B experiment — measure, don't guess.
+// Per-strategy outcome buckets ("closed" = closedLoop on, "open" = off) so we
+// can honestly compare climaxRate / time-to-climax and auto-pick the strategy
+// that works for THIS user. Pure functions → unit-tested.
+// ---------------------------------------------------------------------------
+
+/**
+ * Record one finished session into the per-strategy experiment bucket.
+ * @param {object} [experiments] current { closed, open } buckets
+ * @param {"closed"|"open"} strategy which loop the session ran
+ * @param {object} snap session snapshot (marked, durationMs, tooStrong)
+ * @returns {object} new experiments map
+ */
+export function recordExperimentOutcome(experiments, strategy, snap) {
+  const key = strategy === "closed" ? "closed" : "open";
+  const cur = { sessions: 0, climaxes: 0, tooStrong: 0, timeToClimaxSum: 0, timeToClimaxN: 0 };
+  const prev = (experiments && experiments[key]) || {};
+  const next = { ...cur, ...prev };
+  next.sessions += 1;
+  if (snap.marked) {
+    next.climaxes += 1;
+    if (typeof snap.durationMs === "number" && snap.durationMs > 0) {
+      next.timeToClimaxSum += snap.durationMs;
+      next.timeToClimaxN += 1;
+    }
+  }
+  next.tooStrong += snap.tooStrong || 0;
+  return { ...(experiments || {}), [key]: next };
+}
+
+/** Minimum sessions per strategy before the experiment "decides". */
+export const EXPERIMENT_MIN_SESSIONS = 3;
+
+/**
+ * Pick the better strategy from the experiment buckets, if enough data exists.
+ * @param {object} [experiments]
+ * @returns {"closed"|"open"|null} null = not enough data yet
+ */
+export function pickStrategyFromExperiments(experiments) {
+  if (!experiments) return null;
+  const closed = experiments.closed || { sessions: 0, climaxes: 0, tooStrong: 0 };
+  const open = experiments.open || { sessions: 0, climaxes: 0, tooStrong: 0 };
+  if (closed.sessions < EXPERIMENT_MIN_SESSIONS || open.sessions < EXPERIMENT_MIN_SESSIONS) {
+    return null;
+  }
+  const rate = (b) => (b.sessions > 0 ? b.climaxes / b.sessions : 0);
+  const cRate = rate(closed);
+  const oRate = rate(open);
+  if (cRate === oRate) {
+    // Tie-break: fewer "too strong" episodes.
+    const cTs = closed.tooStrong / closed.sessions;
+    const oTs = open.tooStrong / open.sessions;
+    return cTs <= oTs ? "closed" : "open";
+  }
+  return cRate > oRate ? "closed" : "open";
+}
+
+/** Readable summary for the UI/log. */
+export function getExperimentSummary(experiments) {
+  const fmt = (b) => {
+    if (!b || !b.sessions) return null;
+    return {
+      sessions: b.sessions,
+      climaxRate: Math.round((b.climaxes / b.sessions) * 100),
+      tooStrongPerSession: b.sessions ? Math.round((b.tooStrong / b.sessions) * 10) / 10 : 0,
+      avgTimeToClimaxMs: b.timeToClimaxN ? b.timeToClimaxSum / b.timeToClimaxN : 0,
+    };
+  };
+  const closed = fmt(experiments?.closed);
+  const open = fmt(experiments?.open);
+  return { closed, open, pick: pickStrategyFromExperiments(experiments) };
+}
+
 /**
  * Auto-tune a config from per-template learning: after ≥3 sessions, reuse the
  * average edging-cycle count for the next run (bounded 1–4).
@@ -327,6 +402,21 @@ export function startAutodrive(patch = {}) {
   let cfg = sanitiseAutodriveConfig({ ...loadAutodriveConfig(), ...patch });
   // F11: auto-tune from per-template learning (edge cycles etc.).
   cfg = autoTuneFromLearning(cfg);
+  // v6.4 (#3): A/B experiment — when the user left closedLoop on "auto", pick
+  // the strategy the experiment says works better (after ≥3 sessions each).
+  if (cfg.closedLoopAuto) {
+    const pick = pickStrategyFromExperiments(loadLearning().experiments);
+    if (pick) {
+      cfg.closedLoop = pick === "closed";
+      const sum = getExperimentSummary(loadLearning().experiments);
+      const closed = sum.closed ? `${sum.closed.climaxRate}% (${sum.closed.sessions})` : "—";
+      const open = sum.open ? `${sum.open.climaxRate}% (${sum.open.sessions})` : "—";
+      log(
+        `A/B-Experiment: Closed ${closed} · Open ${open} → wähle „${pick === "closed" ? "Closed-Loop" : "Open-Loop"}".`,
+        "info"
+      );
+    }
+  }
   if (firstRun) {
     cfg = { ...cfg, skipCalibration: false };
   }
@@ -352,6 +442,10 @@ export function startAutodrive(patch = {}) {
     preferredPatternFamily: learn.preferredPatternFamily,
     preferredWireFreq: learn.preferredWireFreq,
     avgTimeToClimaxMs: tplLearn.avgTimeToClimaxMs || 0,
+    // v6.4 (#1/#2): personal edge + learned signal weights.
+    personalEdgeArousal: learn.personalEdgeArousal || 0,
+    personalPushArousal: learn.personalPushArousal || 0,
+    signalWeights: learn.signalWeights || null,
   };
   engineState = createInitialState(cfg, now, learningSeed);
   engineState.softA = AppState.softLimitA;
@@ -499,6 +593,16 @@ export function stopAutodrive(reason = "manuell") {
         // v6.2: silent-commit + auto-climax observability
         commitUsed: engineState.commitMode || false,
         autoClimaxMarked: engineState.autoClimaxMarked || false,
+        // v6.4 (#1/#2): personalization samples for edge + weight learning.
+        arousalAtLastClimax: engineState.arousalAtLastClimax || 0,
+        arousalAtLastAlmost: engineState.arousalAtLastAlmost || 0,
+        bioAtStop: {
+          hrDelta: engineState.lastHrDelta || 0,
+          motion: engineState.lastMotion || 0,
+          breathHeldMs: engineState.lastBreathHeldMs || 0,
+          breathRate: engineState.lastBreathRate || 0,
+        },
+        closedLoopUsed: !!engineState.config?.closedLoop,
         reason,
       }
     : null;
@@ -588,6 +692,30 @@ export function stopAutodrive(reason = "manuell") {
           snap.marked && typeof snap.wireFreq === "number"
             ? Math.round(snap.wireFreq)
             : learn.preferredWireFreq,
+        // v6.4 (#1): personal edge/push arousal — EMA from observed samples.
+        personalEdgeArousal:
+          snap.arousalAtLastAlmost > 0
+            ? updatePersonalArousal(learn.personalEdgeArousal || 0, snap.arousalAtLastAlmost)
+            : learn.personalEdgeArousal || 0,
+        personalPushArousal:
+          snap.marked && snap.arousalAtLastClimax > 0
+            ? updatePersonalArousal(learn.personalPushArousal || 0, snap.arousalAtLastClimax)
+            : learn.personalPushArousal || 0,
+        // v6.4 (#2): per-user signal weights — nudge toward the channels that
+        // were elevated when the user climaxed, so the estimator trusts what
+        // predicts orgasm for THEM.
+        signalWeights: (() => {
+          if (!snap.marked || !snap.bioAtStop) return learn.signalWeights || null;
+          const b = snap.bioAtStop;
+          const elevated = {
+            hr: clamp(b.hrDelta / 25, 0, 1),
+            motion: clamp(b.motion / 0.12, 0, 1),
+            breathHeld: b.breathHeldMs > 1200 ? clamp((b.breathHeldMs - 1200) / 2800, 0, 1) : 0,
+            breathRate: clamp((b.breathRate - 10) / 16, 0, 1),
+          };
+          const base = learn.signalWeights || AROUSAL_WEIGHTS;
+          return nudgeWeights(base, elevated);
+        })(),
         lastPhase: snap.phase,
         lastTooWeak: snap.tooWeak,
         softLimitCoachPending:
@@ -599,6 +727,13 @@ export function stopAutodrive(reason = "manuell") {
         perTemplate: updatePerTemplateLearning(
           learn.perTemplate,
           snap.config?.templateId || "custom",
+          snap
+        ),
+        // v6.4 (#3): A/B experiment — record this session into the strategy
+        // bucket (closedLoop on/off) so we can measure which one actually helps.
+        experiments: recordExperimentOutcome(
+          learn.experiments,
+          snap.closedLoopUsed ? "closed" : "open",
           snap
         ),
       });

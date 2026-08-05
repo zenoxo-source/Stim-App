@@ -453,6 +453,22 @@ function paintDashboard(st) {
       buildTrustLine(st) + retryNote + commitNote + autoNote + arousalNote + modeNote;
   }
 
+  // v6.4 (#6): live arousal-vs-setpoint bar (only meaningful with closed-loop
+  // or passive biofeedback; hidden otherwise).
+  const aBar = document.getElementById("autodrive-arousal-bar");
+  if (aBar) {
+    const hasArousal = (st.arousal || 0) > 0 && st.phase !== "IDLE" && st.phase !== "PAUSED";
+    if (hasArousal && (st.closedLoop || st.passiveMode)) {
+      aBar.style.display = "block";
+      const fill = document.getElementById("autodrive-arousal-fill");
+      const marker = document.getElementById("autodrive-arousal-setpoint");
+      if (fill) fill.style.width = `${Math.round(Math.min(1, st.arousal || 0) * 100)}%`;
+      if (marker) marker.style.left = `${Math.round(Math.min(1, st.arousalSetpoint || 0) * 100)}%`;
+    } else {
+      aBar.style.display = "none";
+    }
+  }
+
   paintTimeline(st);
   paintHistory();
   refreshHomeSummary();
@@ -1691,6 +1707,20 @@ document.addEventListener("DOMContentLoaded", () => {
           pmBox.checked
             ? "Passive Mode aktiviert: Session läuft aus Biofeedback, ohne Button-Druck."
             : "Passive Mode deaktiviert.",
+          "info"
+        );
+      });
+    }
+    // v6.4 (#3): A/B experiment toggle — let the app pick closed vs open.
+    const claBox = document.getElementById("autodrive-closedloop-auto");
+    if (claBox) {
+      claBox.checked = cfg.closedLoopAuto === true;
+      claBox.addEventListener("change", () => {
+        saveAutodriveConfig({ closedLoopAuto: claBox.checked });
+        log(
+          claBox.checked
+            ? "A/B-Experiment aktiviert: App misst Closed-Loop vs. feste Kurve und wählt die bessere."
+            : "A/B-Experiment deaktiviert.",
           "info"
         );
       });

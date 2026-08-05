@@ -7,6 +7,12 @@ import "./helpers/dom-mock.js";
 import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { applyDebrief, getLastSessionSnapshot } from "../../frontend/js/modules/autodrive.js";
+import {
+  recordExperimentOutcome,
+  pickStrategyFromExperiments,
+  getExperimentSummary,
+  EXPERIMENT_MIN_SESSIONS,
+} from "../../frontend/js/modules/autodrive.js";
 
 const LEARN_KEY = "stim_app_autodrive_learn_v1";
 const LAST_SESSION_KEY = "stim_app_autodrive_last_session_v1";
@@ -167,5 +173,64 @@ describe("applyDebrief — bias adjustment", () => {
     applyDebrief({ overall: "weak" });
     const reloaded = getLearning();
     assert.ok(reloaded.preferredBias > 0, "the patch must reach localStorage");
+  });
+});
+
+describe("v6.4 A/B experiment — pure helpers", () => {
+  test("recordExperimentOutcome accumulates per strategy", () => {
+    let exp = null;
+    exp = recordExperimentOutcome(exp, "closed", { marked: true, durationMs: 600000, tooStrong: 2 });
+    exp = recordExperimentOutcome(exp, "closed", { marked: false, durationMs: 300000, tooStrong: 4 });
+    exp = recordExperimentOutcome(exp, "open", { marked: true, durationMs: 700000, tooStrong: 1 });
+    assert.equal(exp.closed.sessions, 2);
+    assert.equal(exp.closed.climaxes, 1);
+    assert.equal(exp.closed.tooStrong, 6);
+    assert.equal(exp.open.sessions, 1);
+    assert.equal(exp.open.climaxes, 1);
+    assert.ok(exp.closed.timeToClimaxSum > 0, "climax duration recorded");
+  });
+
+  test("pickStrategyFromExperiments stays null until both buckets have ≥3 sessions", () => {
+    let exp = {};
+    for (let i = 0; i < EXPERIMENT_MIN_SESSIONS - 1; i++) {
+      exp = recordExperimentOutcome(exp, "closed", { marked: true, durationMs: 1000, tooStrong: 0 });
+      exp = recordExperimentOutcome(exp, "open", { marked: false, durationMs: 1000, tooStrong: 0 });
+    }
+    assert.equal(pickStrategyFromExperiments(exp), null, "too little data");
+    exp = recordExperimentOutcome(exp, "closed", { marked: true, durationMs: 1000, tooStrong: 0 });
+    exp = recordExperimentOutcome(exp, "open", { marked: false, durationMs: 1000, tooStrong: 0 });
+    assert.ok(["closed", "open"].includes(pickStrategyFromExperiments(exp)));
+  });
+
+  test("picks the strategy with the better climax rate", () => {
+    let exp = {};
+    // open: 0/3 → open is bad
+    // closed: 3/3 → closed is good
+    for (let i = 0; i < 3; i++) {
+      exp = recordExperimentOutcome(exp, "open", { marked: false, durationMs: 1000, tooStrong: 0 });
+      exp = recordExperimentOutcome(exp, "closed", { marked: true, durationMs: 1000, tooStrong: 0 });
+    }
+    assert.equal(pickStrategyFromExperiments(exp), "closed");
+  });
+
+  test("tie-breaks by fewer too_strong episodes", () => {
+    let exp = {};
+    for (let i = 0; i < 3; i++) {
+      exp = recordExperimentOutcome(exp, "closed", { marked: true, durationMs: 1000, tooStrong: 6 });
+      exp = recordExperimentOutcome(exp, "open", { marked: true, durationMs: 1000, tooStrong: 1 });
+    }
+    assert.equal(pickStrategyFromExperiments(exp), "open", "same rate → fewer too_strong wins");
+  });
+
+  test("getExperimentSummary renders buckets + pick", () => {
+    let exp = {};
+    for (let i = 0; i < 3; i++) {
+      exp = recordExperimentOutcome(exp, "closed", { marked: true, durationMs: 60000, tooStrong: 1 });
+    }
+    const sum = getExperimentSummary(exp);
+    assert.equal(sum.closed.sessions, 3);
+    assert.equal(sum.closed.climaxRate, 100);
+    assert.equal(sum.open, null);
+    assert.ok(["closed", "open", null].includes(sum.pick));
   });
 });

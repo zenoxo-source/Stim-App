@@ -454,6 +454,9 @@
                     <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:4px;" title="v6.3 Closed-Loop: Intensität regelt aus dem fused Arousal-Schätzer (HR+Motion+Atem) statt fester Kurve. Braucht Biofeedback.">
                       <input type="checkbox" id="autodrive-closedloop"> Closed-Loop: Intensität regelt aus Arousal (HR+Motion+Atem)
                     </label>
+                    <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:4px;" title="v6.4 A/B-Experiment: App misst pro Session, ob Closed-Loop oder feste Kurve besser zum Höhepunkt führt, und wählt die bessere Strategie automatisch.">
+                      <input type="checkbox" id="autodrive-closedloop-auto"> A/B-Experiment: Closed-Loop vs. feste Kurve automatisch wählen
+                    </label>
                     <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:4px;" title="v6.3 Passive Mode (Consent): Edge/Climax aus Biofeedback allein, ohne Button-Druck. Braucht vertrauenswürdige Signale.">
                       <input type="checkbox" id="autodrive-passive"> Passive Mode: Session läuft ohne Button-Druck (nur Biofeedback)
                     </label>
@@ -581,6 +584,10 @@
                 <span class="ad-freq-meter-label" id="autodrive-freq-band-label">Freq-Band —</span>
               </div>
               <p id="autodrive-trust" class="ad-trust-line" aria-live="polite">—</p>
+              <div id="autodrive-arousal-bar" style="display:none; margin:6px 0 2px; height:8px; border-radius:4px; background:var(--bg-input,#333); overflow:hidden; position:relative;">
+                <div id="autodrive-arousal-fill" style="height:100%; width:0%; background:var(--color-accent,#0a6db5); border-radius:4px; transition:width .3s;"></div>
+                <div id="autodrive-arousal-setpoint" style="position:absolute; top:-2px; bottom:-2px; width:2px; background:#fff; opacity:.85;"></div>
+              </div>
               <div id="autodrive-prompt" class="autodrive-prompt" style="display:none;" role="status"></div>
               <p id="autodrive-tip" class="autodrive-tip">Setup wählen und Start drücken</p>
               <div class="autodrive-stats-row">
